@@ -1,13 +1,14 @@
 import fs from "fs";
 import path from "path";
+import * as XLSX from "xlsx";
 
 /**
  * Parsing pipeline abstraction.
- * Each file type has its own extractor. CSV/XLSX are real; PDF/image are stubs for now.
+ * CSV and XLSX use real parsing. PDF and images have structural stubs.
  *
- * TODO: Replace pdfExtract with pdf-parse or pdfminer for production PDF extraction.
- * TODO: Replace imageExtract with a real OCR service (Tesseract, Google Vision API, etc.).
- * TODO: Replace rawTextToRecords with an LLM-based structured extraction (GPT-4, Claude).
+ * TODO: Replace extractPDFText with pdf-parse for real PDF extraction.
+ * TODO: Replace extractImageText with a real OCR service (Tesseract, Google Vision, AWS Textract).
+ * TODO: Replace rawTextToRecords with LLM-based structured extraction (GPT-4o, Claude).
  */
 
 export interface ExtractedRecord {
@@ -17,87 +18,257 @@ export interface ExtractedRecord {
   type: "income" | "expense";
   category: string;
   quantity?: number;
-  confidence: number; // 0-1
+  confidence: number; // 0–1
 }
 
-const COMMON_CATEGORIES = [
-  "Vendas",
-  "Serviços",
-  "Aluguel",
-  "Marketing",
-  "Folha de Pagamento",
-  "Fornecedores",
-  "Utilidades",
-  "Impostos",
-  "Equipamentos",
-  "Outros",
-];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Classify a description into a business category.
+ * Classify a description string into a business category.
  * TODO: Replace with LLM-based classification for better accuracy.
  */
 function classifyCategory(description: string): string {
   const lower = description.toLowerCase();
-  if (lower.includes("vend") || lower.includes("receita") || lower.includes("cliente")) return "Vendas";
-  if (lower.includes("serv") || lower.includes("consultor")) return "Serviços";
-  if (lower.includes("aluguel") || lower.includes("locação")) return "Aluguel";
-  if (lower.includes("market") || lower.includes("publicidad") || lower.includes("propaganda")) return "Marketing";
-  if (lower.includes("salário") || lower.includes("folha") || lower.includes("funcionário")) return "Folha de Pagamento";
-  if (lower.includes("fornecedor") || lower.includes("compra") || lower.includes("estoque")) return "Fornecedores";
-  if (lower.includes("luz") || lower.includes("água") || lower.includes("energia") || lower.includes("internet")) return "Utilidades";
-  if (lower.includes("imposto") || lower.includes("taxa") || lower.includes("tributo") || lower.includes("cnpj")) return "Impostos";
-  if (lower.includes("equipamento") || lower.includes("máquina") || lower.includes("computador")) return "Equipamentos";
+  if (lower.includes("vend") || lower.includes("receita") || lower.includes("cliente") || lower.includes("sale")) return "Vendas";
+  if (lower.includes("serv") || lower.includes("consultor") || lower.includes("manutenção")) return "Serviços";
+  if (lower.includes("aluguel") || lower.includes("locação") || lower.includes("rent")) return "Aluguel";
+  if (lower.includes("market") || lower.includes("publicidad") || lower.includes("propaganda") || lower.includes("anúncio")) return "Marketing";
+  if (lower.includes("salário") || lower.includes("folha") || lower.includes("funcionário") || lower.includes("pagamento pessoal")) return "Folha de Pagamento";
+  if (lower.includes("fornecedor") || lower.includes("compra") || lower.includes("estoque") || lower.includes("material")) return "Fornecedores";
+  if (lower.includes("luz") || lower.includes("água") || lower.includes("energia") || lower.includes("internet") || lower.includes("telefone")) return "Utilidades";
+  if (lower.includes("imposto") || lower.includes("taxa") || lower.includes("tributo") || lower.includes("cnpj") || lower.includes("nf")) return "Impostos";
+  if (lower.includes("equipamento") || lower.includes("máquina") || lower.includes("computador") || lower.includes("hardware")) return "Equipamentos";
   return "Outros";
 }
 
 /**
- * Determine if a transaction is income or expense based on amount and description.
+ * Determine transaction type from amount sign and/or description keywords.
  */
 function classifyType(amount: number, description: string): "income" | "expense" {
   if (amount > 0) return "income";
   if (amount < 0) return "expense";
   const lower = description.toLowerCase();
-  if (lower.includes("receita") || lower.includes("venda") || lower.includes("crédito")) return "income";
+  if (lower.includes("receita") || lower.includes("venda") || lower.includes("crédito") || lower.includes("entrada")) return "income";
   return "expense";
 }
 
 /**
- * Normalize date strings into ISO format (YYYY-MM-DD).
- * Handles common Brazilian date formats (DD/MM/YYYY, DD-MM-YYYY).
+ * Normalise a raw date value (string or Excel serial number) to YYYY-MM-DD.
+ * Handles: DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, Excel serial numbers, JS Date objects.
  */
-function normalizeDate(raw: string): string {
-  if (!raw) return new Date().toISOString().split("T")[0];
+function normalizeDate(raw: unknown): string {
+  const today = new Date().toISOString().split("T")[0];
+  if (!raw) return today;
+
+  // Excel serial date number (e.g. 45123)
+  if (typeof raw === "number") {
+    try {
+      const d = XLSX.SSF.parse_date_code(raw);
+      if (d) {
+        const m = String(d.m).padStart(2, "0");
+        const day = String(d.d).padStart(2, "0");
+        return `${d.y}-${m}-${day}`;
+      }
+    } catch {
+      // fall through
+    }
+    return today;
+  }
+
+  // JS Date (sometimes xlsx returns these)
+  if (raw instanceof Date) {
+    return raw.toISOString().split("T")[0];
+  }
+
+  const s = String(raw).trim();
 
   // DD/MM/YYYY or DD-MM-YYYY
-  const brMatch = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const brMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (brMatch) {
     const [, day, month, year] = brMatch;
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   }
 
-  // Already ISO-ish
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
-    return raw.split("T")[0];
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.split("T")[0];
+
+  // Try JS Date parse as last resort
+  try {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+  } catch {
+    // fall through
   }
 
-  // Fallback: try Date parsing
-  try {
-    return new Date(raw).toISOString().split("T")[0];
-  } catch {
-    return new Date().toISOString().split("T")[0];
-  }
+  return today;
 }
 
 /**
- * Parse CSV content into extracted records.
- * Detects common column headers in Portuguese and English.
+ * Parse a value to a number, handling Brazilian number formatting (1.234,56 → 1234.56).
+ */
+function parseAmount(raw: unknown): number {
+  if (typeof raw === "number") return raw;
+  if (!raw) return 0;
+  const s = String(raw).trim();
+  // Remove currency symbols and spaces
+  const cleaned = s.replace(/[R$\s]/g, "").trim();
+  // Brazilian format: 1.234,56
+  if (/^\d{1,3}(\.\d{3})*(,\d+)?$/.test(cleaned)) {
+    return parseFloat(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
+  }
+  // May already be a plain decimal
+  return parseFloat(cleaned.replace(",", ".")) || 0;
+}
+
+/**
+ * Given a list of row keys (column headers), find the best match for a semantic field.
+ * Matching is case-insensitive and accent-insensitive.
+ */
+function findColumn(keys: string[], candidates: string[]): string | null {
+  const normalize = (s: string) =>
+    s.toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+  const normKeys = keys.map(normalize);
+  for (const candidate of candidates) {
+    const normCandidate = normalize(candidate);
+    const idx = normKeys.findIndex((k) => k === normCandidate || k.includes(normCandidate) || normCandidate.includes(k));
+    if (idx >= 0) return keys[idx];
+  }
+  return null;
+}
+
+/**
+ * Convert an array of raw row objects (from xlsx) into ExtractedRecord[].
+ * Robustly finds date, description, and amount columns regardless of column names.
+ */
+function rowsToRecords(rows: Record<string, unknown>[]): ExtractedRecord[] {
+  if (rows.length === 0) return [];
+
+  const keys = Object.keys(rows[0]);
+
+  // Find columns by common header names (Portuguese + English)
+  const dateKey = findColumn(keys, ["data", "date", "dt", "dia", "vencimento", "lancamento", "lançamento", "data lancamento"]);
+  const descKey = findColumn(keys, [
+    "descricao", "descrição", "description", "historico", "histórico", "memo",
+    "lancamento", "lançamento", "complemento", "observacao", "observação", "detalhe"
+  ]);
+  const amountKey = findColumn(keys, ["valor", "value", "amount", "montante", "quantia", "credito", "crédito", "debito", "débito", "saldo"]);
+  const typeKey = findColumn(keys, ["tipo", "type", "natureza", "dc", "d/c", "credito/debito", "operacao", "operação"]);
+  const creditKey = findColumn(keys, ["credito", "crédito", "credit", "entrada", "receita"]);
+  const debitKey = findColumn(keys, ["debito", "débito", "debit", "saida", "saída", "despesa"]);
+
+  const records: ExtractedRecord[] = [];
+
+  for (const row of rows) {
+    // Determine date
+    const rawDate = dateKey ? row[dateKey] : null;
+    const date = normalizeDate(rawDate);
+
+    // Determine description
+    let desc = descKey ? String(row[descKey] ?? "").trim() : "";
+
+    // If no description column, join all non-numeric columns
+    if (!desc) {
+      desc = keys
+        .filter((k) => k !== dateKey && k !== amountKey && k !== typeKey && k !== creditKey && k !== debitKey)
+        .map((k) => String(row[k] ?? "").trim())
+        .filter(Boolean)
+        .join(" – ");
+    }
+
+    if (!desc) desc = "Lançamento";
+
+    // Determine amount — handle separate credit/debit columns (common in bank exports)
+    let amount = 0;
+    let inferredType: "income" | "expense" | null = null;
+
+    if (creditKey && debitKey) {
+      const credit = parseAmount(row[creditKey]);
+      const debit = parseAmount(row[debitKey]);
+      if (credit > 0 && debit === 0) {
+        amount = credit;
+        inferredType = "income";
+      } else if (debit > 0 && credit === 0) {
+        amount = debit;
+        inferredType = "expense";
+      } else if (amountKey) {
+        amount = Math.abs(parseAmount(row[amountKey]));
+      }
+    } else if (amountKey) {
+      const raw = parseAmount(row[amountKey]);
+      amount = Math.abs(raw);
+      if (raw < 0) inferredType = "expense";
+      else if (raw > 0) inferredType = "income";
+    }
+
+    // Skip rows with zero or missing amount
+    if (amount === 0) continue;
+
+    // Determine type
+    let type: "income" | "expense";
+    if (typeKey) {
+      const rawType = String(row[typeKey] ?? "").toLowerCase();
+      if (rawType.includes("c") || rawType.includes("income") || rawType.includes("entrada") || rawType.includes("crédito")) {
+        type = "income";
+      } else {
+        type = "expense";
+      }
+    } else if (inferredType) {
+      type = inferredType;
+    } else {
+      type = classifyType(amountKey ? parseAmount(row[amountKey]) : 0, desc);
+    }
+
+    records.push({
+      date,
+      description: desc,
+      amount,
+      type,
+      category: classifyCategory(desc),
+      confidence: 0.8,
+    });
+  }
+
+  return records;
+}
+
+// ─── Public parsers ───────────────────────────────────────────────────────────
+
+/**
+ * Parse CSV file content into extracted records.
+ * Handles comma and semicolon delimiters, and Brazilian date formats.
  */
 export async function parseCSV(content: string): Promise<ExtractedRecord[]> {
+  // Detect delimiter: semicolon (common in Brazilian exports) or comma
+  const firstLine = content.split(/\r?\n/)[0] ?? "";
+  const delimiter = firstLine.split(";").length > firstLine.split(",").length ? ";" : ",";
+
+  // Use xlsx to parse CSV uniformly (handles encoding edge cases)
+  const workbook = XLSX.read(content, { type: "string", raw: false, cellDates: true });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+
+  const records = rowsToRecords(rows);
+
+  // Fallback: if xlsx couldn't parse it, try manual split
+  if (records.length === 0) {
+    return parseCSVManual(content, delimiter);
+  }
+
+  return records;
+}
+
+/**
+ * Manual CSV fallback parser for edge cases.
+ */
+function parseCSVManual(content: string, delimiter: string): ExtractedRecord[] {
   const lines = content.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return [];
 
-  const header = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/['"]/g, ""));
+  const header = lines[0].split(delimiter).map((h) => h.trim().toLowerCase().replace(/['"]/g, "").normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
 
   const getCol = (row: string[], names: string[]): string => {
     for (const name of names) {
@@ -108,61 +279,80 @@ export async function parseCSV(content: string): Promise<ExtractedRecord[]> {
   };
 
   const records: ExtractedRecord[] = [];
-
   for (let i = 1; i < lines.length; i++) {
-    const row = lines[i].split(",");
-    const rawDate = getCol(row, ["data", "date", "dt"]);
-    const desc = getCol(row, ["descrição", "descricao", "description", "historico", "histórico", "memo"]);
+    const row = lines[i].split(delimiter);
+    const rawDate = getCol(row, ["data", "date", "dt", "dia"]);
+    const desc = getCol(row, ["descricao", "description", "historico", "memo", "lancamento", "complemento"]);
     const rawAmount = getCol(row, ["valor", "value", "amount", "montante", "quantia"]);
-    const rawType = getCol(row, ["tipo", "type", "natureza"]);
+    const rawType = getCol(row, ["tipo", "type", "natureza", "dc"]);
 
     if (!rawAmount && !desc) continue;
 
-    const amount = parseFloat(rawAmount.replace(",", ".").replace(/[^\d\-\.]/g, "")) || 0;
+    const amount = parseAmount(rawAmount);
     const absAmount = Math.abs(amount);
+    if (absAmount === 0) continue;
 
     const type = rawType
-      ? rawType.toLowerCase().includes("c") || rawType.toLowerCase().includes("income") || rawType.toLowerCase().includes("entrada")
-        ? "income"
-        : "expense"
+      ? (rawType.toLowerCase().startsWith("c") || rawType.toLowerCase().includes("entrada") ? "income" : "expense")
       : classifyType(amount, desc);
 
     records.push({
-      date: normalizeDate(rawDate) || new Date().toISOString().split("T")[0],
+      date: normalizeDate(rawDate),
       description: desc || `Linha ${i}`,
       amount: absAmount,
       type,
       category: classifyCategory(desc),
-      confidence: 0.85,
+      confidence: 0.8,
     });
+  }
+  return records;
+}
+
+/**
+ * Parse an Excel XLSX (or XLS) file into extracted records.
+ * Reads the first sheet, auto-detects column layout.
+ */
+export async function parseXLSX(filePath: string): Promise<ExtractedRecord[]> {
+  const absPath = path.resolve(process.cwd(), filePath);
+
+  if (!fs.existsSync(absPath)) {
+    throw new Error(`File not found: ${absPath}`);
+  }
+
+  // Read workbook — cellDates:true converts Excel date serials to JS Date objects
+  const workbook = XLSX.readFile(absPath, { cellDates: true, raw: false });
+  const firstSheet = workbook.SheetNames[0];
+  if (!firstSheet) return [];
+
+  const sheet = workbook.Sheets[firstSheet];
+
+  // Convert to array of objects (first row = headers)
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+    defval: "",   // use "" for empty cells instead of undefined
+    raw: false,   // convert numbers/dates to formatted strings
+  });
+
+  if (rows.length === 0) return [];
+
+  const records = rowsToRecords(rows);
+
+  // If column detection failed (very unusual layout), try raw approach
+  if (records.length === 0) {
+    // Try treating the sheet as plain text and re-parse
+    const csv = XLSX.utils.sheet_to_csv(sheet);
+    return parseCSVManual(csv, ",");
   }
 
   return records;
 }
 
 /**
- * Parse Excel XLSX file into extracted records.
- * TODO: Install 'xlsx' package for real XLSX support.
- * For MVP, reads as CSV if the content looks tabular, otherwise returns mock.
- */
-export async function parseXLSX(filePath: string): Promise<ExtractedRecord[]> {
-  // TODO: Use 'xlsx' library for real Excel parsing:
-  // import XLSX from 'xlsx';
-  // const workbook = XLSX.readFile(filePath);
-  // const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  // const data = XLSX.utils.sheet_to_json(sheet);
-  // ... map data to ExtractedRecord[]
-
-  // MVP mock: return a few sample records so the review flow works
-  return generateMockRecords(3, "Excel");
-}
-
-/**
  * Extract text from a PDF file.
  * TODO: Install 'pdf-parse' for real PDF extraction:
- * import pdfParse from 'pdf-parse';
- * const data = await pdfParse(buffer);
- * return data.text;
+ *   import pdfParse from 'pdf-parse';
+ *   const buffer = fs.readFileSync(filePath);
+ *   const data = await pdfParse(buffer);
+ *   return data.text;
  */
 export async function extractPDFText(_filePath: string): Promise<string> {
   // TODO: Implement real PDF text extraction
@@ -171,7 +361,7 @@ export async function extractPDFText(_filePath: string): Promise<string> {
 
 /**
  * Process an image for OCR extraction.
- * TODO: Integrate a real OCR service (Google Vision, AWS Textract, Tesseract.js).
+ * TODO: Integrate Tesseract.js or Google Vision API.
  */
 export async function extractImageText(_filePath: string): Promise<string> {
   // TODO: Implement real OCR extraction
@@ -180,30 +370,26 @@ export async function extractImageText(_filePath: string): Promise<string> {
 
 /**
  * Convert raw text (from PDF or OCR) into structured records.
- * For MVP, tries CSV-like parsing on semicolons and common patterns.
- * TODO: Replace with LLM-based extraction (e.g., GPT-4o with structured output).
+ * Tries semicolon-delimited parsing first (common in Brazilian bank exports).
+ * TODO: Replace with LLM-based extraction (GPT-4o with structured output).
  */
 export async function rawTextToRecords(text: string): Promise<ExtractedRecord[]> {
   if (!text.trim()) return generateMockRecords(3, "Texto extraído");
 
-  // Try semicolon-delimited (common in Brazilian bank exports)
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   const csvLike = lines.map((l) => l.replace(/;/g, ",")).join("\n");
   const records = await parseCSV(csvLike);
-
   if (records.length > 0) return records;
 
   return generateMockRecords(3, "Texto extraído");
 }
 
 /**
- * Generate placeholder records for file types that don't have real extraction yet.
- * Used for XLSX (MVP), images, and poorly-structured PDFs.
+ * Generate placeholder records when extraction is not possible.
+ * Used for image files pending OCR, or completely unreadable inputs.
  */
 export function generateMockRecords(count: number = 5, source: string = "Arquivo"): ExtractedRecord[] {
   const today = new Date();
-  const records: ExtractedRecord[] = [];
-
   const templates = [
     { desc: "Venda de produto", amount: 850, type: "income" as const, cat: "Vendas" },
     { desc: "Pagamento fornecedor", amount: 320, type: "expense" as const, cat: "Fornecedores" },
@@ -212,19 +398,16 @@ export function generateMockRecords(count: number = 5, source: string = "Arquivo
     { desc: "Aluguel do espaço", amount: 2000, type: "expense" as const, cat: "Aluguel" },
   ];
 
-  for (let i = 0; i < Math.min(count, templates.length); i++) {
+  return templates.slice(0, Math.min(count, templates.length)).map((t, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - i * 3);
-    const t = templates[i];
-    records.push({
+    return {
       date: d.toISOString().split("T")[0],
       description: `${t.desc} (${source})`,
       amount: t.amount,
       type: t.type,
       category: t.cat,
-      confidence: 0.5, // lower confidence for mock data
-    });
-  }
-
-  return records;
+      confidence: 0.4,
+    };
+  });
 }

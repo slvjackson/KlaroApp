@@ -67,7 +67,7 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
   // Save the file via storage abstraction
   const stored = await saveFile(buffer, originalname, mimetype, userId);
 
-  // Create raw input record (processing)
+  // Create raw input record (start as "processing")
   const [rawInput] = await db
     .insert(rawInputsTable)
     .values({
@@ -79,69 +79,67 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
     })
     .returning();
 
-  // Parse the file asynchronously (don't block the response for large files)
-  (async () => {
-    try {
-      let records;
-      const content = buffer.toString("utf-8");
+  // Parse the file synchronously so records are ready when the review page loads
+  try {
+    let records;
+    const content = buffer.toString("utf-8");
 
-      if (fileType === "csv") {
-        records = await parseCSV(content);
-      } else if (fileType === "xlsx") {
-        records = await parseXLSX(stored.storedPath);
-      } else if (fileType === "pdf") {
-        const text = await extractPDFText(stored.storedPath);
+    if (fileType === "csv") {
+      records = await parseCSV(content);
+    } else if (fileType === "xlsx") {
+      records = await parseXLSX(stored.storedPath);
+    } else if (fileType === "pdf") {
+      const text = await extractPDFText(stored.storedPath);
+      await db
+        .update(rawInputsTable)
+        .set({ originalText: text })
+        .where(eq(rawInputsTable.id, rawInput.id));
+      records = await rawTextToRecords(text);
+    } else {
+      // Image: attempt OCR, fall back to mock for images pending real OCR
+      const text = await extractImageText(stored.storedPath);
+      if (text) {
         await db
           .update(rawInputsTable)
           .set({ originalText: text })
           .where(eq(rawInputsTable.id, rawInput.id));
         records = await rawTextToRecords(text);
       } else {
-        // Image: store for future OCR processing
-        const text = await extractImageText(stored.storedPath);
-        if (text) {
-          await db
-            .update(rawInputsTable)
-            .set({ originalText: text })
-            .where(eq(rawInputsTable.id, rawInput.id));
-          records = await rawTextToRecords(text);
-        } else {
-          // Mock records for images pending OCR
-          records = generateMockRecords(3, "Imagem");
-        }
+        records = generateMockRecords(3, "Imagem");
       }
-
-      if (records.length > 0) {
-        await db.insert(parsedRecordsTable).values(
-          records.map((r) => ({
-            rawInputId: rawInput.id,
-            userId,
-            date: r.date,
-            description: r.description,
-            amount: r.amount,
-            type: r.type,
-            category: r.category,
-            quantity: r.quantity ?? null,
-            confidence: r.confidence,
-            isConfirmed: false,
-          })),
-        );
-      }
-
-      await db
-        .update(rawInputsTable)
-        .set({ processingStatus: "done" })
-        .where(eq(rawInputsTable.id, rawInput.id));
-    } catch (err) {
-      logger.error({ err, rawInputId: rawInput.id }, "File processing failed");
-      await db
-        .update(rawInputsTable)
-        .set({ processingStatus: "failed" })
-        .where(eq(rawInputsTable.id, rawInput.id));
     }
-  })();
 
-  res.status(201).json({ ...rawInput, parsedRecordCount: 0 });
+    if (records.length > 0) {
+      await db.insert(parsedRecordsTable).values(
+        records.map((r) => ({
+          rawInputId: rawInput.id,
+          userId,
+          date: r.date,
+          description: r.description,
+          amount: r.amount,
+          type: r.type,
+          category: r.category,
+          quantity: r.quantity ?? null,
+          confidence: r.confidence,
+          isConfirmed: false,
+        })),
+      );
+    }
+
+    await db
+      .update(rawInputsTable)
+      .set({ processingStatus: "done" })
+      .where(eq(rawInputsTable.id, rawInput.id));
+
+    res.status(201).json({ ...rawInput, processingStatus: "done", parsedRecordCount: records.length });
+  } catch (err) {
+    logger.error({ err, rawInputId: rawInput.id }, "File processing failed");
+    await db
+      .update(rawInputsTable)
+      .set({ processingStatus: "failed" })
+      .where(eq(rawInputsTable.id, rawInput.id));
+    res.status(500).json({ error: "Falha ao processar o arquivo. Verifique se o formato está correto." });
+  }
 });
 
 // GET /uploads/:id — get upload with its parsed records
