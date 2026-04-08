@@ -1,7 +1,13 @@
 import fs from "fs";
 import path from "path";
 import * as XLSX from "xlsx";
+import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "./logger";
+
+function getAnthropicClient(): Anthropic | null {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+}
 
 /**
  * Parsing pipeline — CSV and XLSX use real parsing.
@@ -469,20 +475,137 @@ export async function parseXLSX(filePath: string): Promise<ExtractedRecord[]> {
   return [];
 }
 
-export async function extractPDFText(_filePath: string): Promise<string> {
-  // TODO: Use pdf-parse for real PDF extraction
-  return "Extrato bancário\nData;Descrição;Valor\n01/04/2025;Venda produto A;500,00\n05/04/2025;Pagamento fornecedor;-200,00\n10/04/2025;Receita serviços;1200,00";
+export async function extractPDFText(filePath: string): Promise<string> {
+  const absPath = path.resolve(process.cwd(), filePath);
+  try {
+    // pdf-parse is CJS-only — loaded via globalThis.require set in build banner
+    const pdfParse = (globalThis as unknown as { require: NodeRequire }).require("pdf-parse");
+    const buffer = fs.readFileSync(absPath);
+    const data = await pdfParse(buffer);
+    const text = data.text?.trim() ?? "";
+    logger.info({ absPath, chars: text.length }, "PDF text extracted");
+    return text;
+  } catch (err) {
+    logger.error({ err, absPath }, "PDF extraction failed");
+    return "";
+  }
 }
 
-export async function extractImageText(_filePath: string): Promise<string> {
-  // TODO: Integrate OCR (Tesseract.js or Google Vision)
-  return "";
+const IMAGE_MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "image/webp"> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
+
+export async function extractImageText(filePath: string): Promise<string> {
+  const client = getAnthropicClient();
+  if (!client) {
+    logger.warn("ANTHROPIC_API_KEY not set — skipping image OCR");
+    return "";
+  }
+
+  const absPath = path.resolve(process.cwd(), filePath);
+  const ext = path.extname(filePath).toLowerCase().replace(".", "");
+  const mediaType = IMAGE_MEDIA_TYPES[ext] ?? "image/jpeg";
+
+  try {
+    const imageData = fs.readFileSync(absPath);
+    const base64 = imageData.toString("base64");
+
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2048,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: mediaType, data: base64 },
+            },
+            {
+              type: "text",
+              text: `Você é um assistente especializado em extração de dados financeiros.
+Analise esta imagem (pode ser extrato bancário, caderno de anotações, nota fiscal, planilha impressa, etc.).
+Extraia TODAS as transações financeiras visíveis e retorne SOMENTE um CSV com as colunas:
+data,descricao,valor
+
+Regras:
+- Datas no formato DD/MM/YYYY. Se não houver data, use a data de hoje.
+- Valores: positivos para receitas/entradas, negativos para despesas/saídas.
+- Use vírgula como separador de colunas. Use ponto como separador decimal nos valores.
+- Não inclua cabeçalho, não inclua explicações, retorne apenas as linhas de dados.
+- Se a imagem não contiver dados financeiros, retorne somente: SEM_DADOS`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+    if (text === "SEM_DADOS" || !text) return "";
+    logger.info({ absPath, lines: text.split("\n").length }, "Image OCR completed");
+    return text;
+  } catch (err) {
+    logger.error({ err, absPath }, "Image OCR failed");
+    return "";
+  }
+}
+
+async function structureTextWithAI(text: string): Promise<string> {
+  const client = getAnthropicClient();
+  if (!client) return "";
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 2048,
+    messages: [
+      {
+        role: "user",
+        content: `Você é um assistente especializado em extração de dados financeiros.
+Analise o texto abaixo (pode ser extrato bancário, relatório financeiro, etc.) e extraia todas as transações.
+Retorne SOMENTE um CSV com as colunas: data,descricao,valor
+
+Regras:
+- Datas no formato DD/MM/YYYY. Se não houver data, use a data de hoje.
+- Valores: positivos para receitas/entradas, negativos para despesas/saídas.
+- Use vírgula como separador de colunas. Use ponto como separador decimal.
+- Não inclua cabeçalho, não inclua explicações.
+- Se não houver dados financeiros, retorne somente: SEM_DADOS
+
+Texto:
+${text}`,
+      },
+    ],
+  });
+
+  const result = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+  return result === "SEM_DADOS" ? "" : result;
 }
 
 export async function rawTextToRecords(text: string): Promise<ExtractedRecord[]> {
   if (!text.trim()) return generateMockRecords(3, "Texto extraído");
+
+  // Try structured CSV parsing first (works for bank statement exports)
   const records = await parseCSV(text);
   if (records.length > 0) return records;
+
+  // Fallback: ask Claude to structure the raw text into CSV
+  logger.info("CSV parsing failed — attempting AI structuring");
+  try {
+    const structured = await structureTextWithAI(text);
+    if (structured) {
+      const aiRecords = await parseCSV(structured);
+      if (aiRecords.length > 0) {
+        logger.info({ count: aiRecords.length }, "AI structuring succeeded");
+        return aiRecords;
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, "AI structuring failed");
+  }
+
   return generateMockRecords(3, "Texto extraído");
 }
 
