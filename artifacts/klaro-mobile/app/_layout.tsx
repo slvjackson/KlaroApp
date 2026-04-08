@@ -16,10 +16,12 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { getApiBaseUrl } from "@/constants/api";
 
 // Configure API base URL for Expo (absolute URL required outside the web proxy)
-if (process.env.EXPO_PUBLIC_DOMAIN) {
-  setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+const apiBaseUrl = getApiBaseUrl();
+if (apiBaseUrl) {
+  setBaseUrl(apiBaseUrl);
 }
 
 SplashScreen.preventAutoHideAsync();

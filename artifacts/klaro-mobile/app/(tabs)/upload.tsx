@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
+import { getApiBaseUrl } from "@/constants/api";
 
 function UploadItem({
   item,
@@ -112,9 +113,7 @@ export default function UploadScreen() {
 
   const { data: uploads, isLoading, refetch } = useListUploads();
 
-  const baseUrl = process.env.EXPO_PUBLIC_DOMAIN
-    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-    : "";
+  const baseUrl = getApiBaseUrl();
 
   async function handlePick() {
     setUploadError("");
