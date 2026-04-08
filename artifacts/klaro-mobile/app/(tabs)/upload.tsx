@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
+import { getApiBaseUrl } from "@/constants/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 function UploadItem({
   item,
@@ -107,14 +109,13 @@ function UploadItem({
 export default function UploadScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { token } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
   const { data: uploads, isLoading, refetch } = useListUploads();
 
-  const baseUrl = process.env.EXPO_PUBLIC_DOMAIN
-    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-    : "";
+  const baseUrl = getApiBaseUrl();
 
   async function handlePick() {
     setUploadError("");
@@ -147,6 +148,7 @@ export default function UploadScreen() {
 
       const res = await fetch(`${baseUrl}/api/uploads`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
 
@@ -161,8 +163,9 @@ export default function UploadScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refetch();
       router.push(`/review/${upload.id}`);
-    } catch {
-      setUploadError("Erro ao selecionar arquivo.");
+    } catch (err) {
+      console.error("Upload error:", err);
+      setUploadError(`Erro: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setUploading(false);
     }

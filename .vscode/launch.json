@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Mobile (Expo Go)",
+      "request": "launch",
+      "type": "expo",
+      "projectRoot": "${workspaceFolder}/artifacts/klaro-mobile"
+    },
+    {
+      "name": "Debug Mobile - Android Emulator",
+      "request": "launch",
+      "type": "expo",
+      "projectRoot": "${workspaceFolder}/artifacts/klaro-mobile",
+      "platform": "android"
+    },
+    {
+      "name": "Debug Mobile - iOS Simulator",
+      "request": "launch",
+      "type": "expo",
+      "projectRoot": "${workspaceFolder}/artifacts/klaro-mobile",
+      "platform": "ios"
+    },
+    {
+      "name": "Debug Mobile - Web",
+      "request": "launch",
+      "type": "expo",
+      "projectRoot": "${workspaceFolder}/artifacts/klaro-mobile",
+      "platform": "web"
+    }
+  ]
+}

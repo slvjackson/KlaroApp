@@ -17,6 +17,7 @@ import { KlaroButton } from "@/components/KlaroButton";
 import { KlaroInput } from "@/components/KlaroInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { getApiBaseUrl } from "@/constants/api";
 
 export default function SignupScreen() {
   const colors = useColors();
@@ -33,9 +34,7 @@ export default function SignupScreen() {
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
 
-  const baseUrl = process.env.EXPO_PUBLIC_DOMAIN
-    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-    : "";
+  const baseUrl = getApiBaseUrl();
 
   async function handleSignup() {
     if (!name.trim() || !email.trim() || !password) {
