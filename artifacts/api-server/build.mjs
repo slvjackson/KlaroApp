@@ -31,6 +31,7 @@ async function buildAll() {
       "*.node",
       "pdf-parse",
       "connect-pg-simple",
+      "@anthropic-ai/sdk",
       "sharp",
       "better-sqlite3",
       "sqlite3",
