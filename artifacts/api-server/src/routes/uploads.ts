@@ -1,12 +1,11 @@
 import { Router } from "express";
 import multer from "multer";
-import { db, rawInputsTable, parsedRecordsTable } from "@workspace/db";
+import { db, rawInputsTable, parsedRecordsTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { saveFile, deleteFile } from "../lib/storage";
 import { parseCSV, parseXLSX, extractPDFText, extractImageText, rawTextToRecords, generateMockRecords } from "../lib/parser";
 import { logger } from "../lib/logger";
-import fs from "fs";
 import path from "path";
 
 // Use memoryStorage so we handle saving ourselves via the storage abstraction
@@ -79,6 +78,20 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
     })
     .returning();
 
+  // Fetch business profile for contextual parsing
+  const [userRow] = await db
+    .select({ businessProfile: usersTable.businessProfile })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  const bizCtx = userRow?.businessProfile
+    ? {
+        businessName: userRow.businessProfile.businessName,
+        segment: userRow.businessProfile.segment,
+        mainProducts: userRow.businessProfile.mainProducts,
+        salesChannel: userRow.businessProfile.salesChannel,
+      }
+    : undefined;
+
   // Parse the file synchronously so records are ready when the review page loads
   try {
     let records;
@@ -96,8 +109,8 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
         .where(eq(rawInputsTable.id, rawInput.id));
       records = await rawTextToRecords(text);
     } else {
-      // Image: attempt OCR, fall back to mock for images pending real OCR
-      const text = await extractImageText(stored.storedPath);
+      // Image: OCR with business context for better accuracy
+      const text = await extractImageText(stored.storedPath, bizCtx);
       if (text) {
         await db
           .update(rawInputsTable)

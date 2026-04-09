@@ -4,6 +4,13 @@ import * as XLSX from "xlsx";
 import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "./logger";
 
+export interface ParseBusinessContext {
+  businessName?: string;
+  segment?: string;
+  mainProducts?: string;
+  salesChannel?: string;
+}
+
 function getAnthropicClient(): Anthropic | null {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -498,7 +505,7 @@ const IMAGE_MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif"
   webp: "image/webp",
 };
 
-export async function extractImageText(filePath: string): Promise<string> {
+export async function extractImageText(filePath: string, ctx?: ParseBusinessContext): Promise<string> {
   const client = getAnthropicClient();
   if (!client) {
     logger.warn("ANTHROPIC_API_KEY not set — skipping image OCR");
@@ -509,12 +516,22 @@ export async function extractImageText(filePath: string): Promise<string> {
   const ext = path.extname(filePath).toLowerCase().replace(".", "");
   const mediaType = IMAGE_MEDIA_TYPES[ext] ?? "image/jpeg";
 
+  // Build optional business context hint for better OCR accuracy
+  const ctxLines: string[] = [];
+  if (ctx?.businessName) ctxLines.push(`- Nome do negócio: ${ctx.businessName}`);
+  if (ctx?.segment) ctxLines.push(`- Segmento: ${ctx.segment}`);
+  if (ctx?.mainProducts) ctxLines.push(`- Principais produtos/serviços: ${ctx.mainProducts}`);
+  if (ctx?.salesChannel) ctxLines.push(`- Canal de vendas: ${ctx.salesChannel}`);
+  const ctxSection = ctxLines.length > 0
+    ? `\nContexto do negócio (use para interpretar melhor os dados):\n${ctxLines.join("\n")}\n`
+    : "";
+
   try {
     const imageData = fs.readFileSync(absPath);
     const base64 = imageData.toString("base64");
 
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       max_tokens: 2048,
       messages: [
         {
@@ -526,16 +543,22 @@ export async function extractImageText(filePath: string): Promise<string> {
             },
             {
               type: "text",
-              text: `Você é um assistente especializado em extração de dados financeiros.
-Analise esta imagem (pode ser extrato bancário, caderno de anotações, nota fiscal, planilha impressa, etc.).
-Extraia TODAS as transações financeiras visíveis e retorne SOMENTE um CSV com as colunas:
+              text: `Você é um assistente especializado em extração de dados financeiros de imagens.
+Analise esta imagem (pode ser extrato bancário, caderno de anotações, nota fiscal, recibo, etc.).
+Extraia as transações financeiras individuais e retorne SOMENTE um CSV com as colunas:
 data,descricao,valor
-
-Regras:
-- Datas no formato DD/MM/YYYY. Se não houver data, use a data de hoje.
-- Valores: positivos para receitas/entradas, negativos para despesas/saídas.
-- Use vírgula como separador de colunas. Use ponto como separador decimal nos valores.
-- Não inclua cabeçalho, não inclua explicações, retorne apenas as linhas de dados.
+${ctxSection}
+Regras importantes:
+- Extraia CADA linha de item individualmente. Se o mesmo produto aparece duas vezes, gere duas linhas separadas.
+- NÃO inclua linhas de total, subtotal ou resumo (ex: "Total Dia", "Total", "Saldo").
+- Se um item tiver quantidade entre parênteses (ex: "Água (3): 9,00"), use o valor total indicado (9.00). A quantidade é só informativa.
+- Datas no formato DD/MM/YYYY. Se houver uma data geral para o dia (ex: "14/05/24"), use-a para todos os itens daquele grupo.
+- Uma linha que começa com parênteses (ex: "(2 Cervejas, 1 Salgado) - Pagar seg") é um item SEPARADO, não uma anotação do item anterior.
+- Valores positivos para vendas/receitas/recebimentos (inclusive fiado recebido). Negativos para despesas.
+- Itens com "Pagar seg" ou "fiado aberto" sem valor especificado: omita.
+- Use ponto como separador decimal (ex: 13.00, não 13,00).
+- Use vírgula apenas para separar as colunas do CSV.
+- Não inclua cabeçalho nem explicações — retorne apenas as linhas CSV.
 - Se a imagem não contiver dados financeiros, retorne somente: SEM_DADOS`,
             },
           ],

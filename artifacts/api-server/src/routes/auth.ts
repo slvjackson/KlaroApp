@@ -1,6 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, BusinessProfileSchema } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { SignupBody, LoginBody } from "@workspace/api-zod";
 import { requireAuth, signJwt } from "../middlewares/auth";
@@ -28,7 +28,7 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
   const [user] = await db
     .insert(usersTable)
     .values({ name, email, passwordHash })
-    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, createdAt: usersTable.createdAt });
+    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt });
 
   req.session.userId = user.id;
 
@@ -88,7 +88,7 @@ router.post("/auth/token", async (req, res): Promise<void> => {
   const token = signJwt(user.id);
   const { passwordHash: _, ...safeUser } = user;
 
-  res.json({ token, user: safeUser, message: "Login realizado com sucesso!" });
+  res.json({ token, user: { ...safeUser, businessProfile: safeUser.businessProfile ?? null }, message: "Login realizado com sucesso!" });
 });
 
 // POST /auth/token/signup — mobile: creates account and returns JWT
@@ -111,7 +111,7 @@ router.post("/auth/token/signup", async (req, res): Promise<void> => {
   const [user] = await db
     .insert(usersTable)
     .values({ name, email, passwordHash })
-    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, createdAt: usersTable.createdAt });
+    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt });
 
   const token = signJwt(user.id);
   res.status(201).json({ token, user, message: "Conta criada com sucesso!" });
@@ -127,7 +127,7 @@ router.post("/auth/logout", (req, res): void => {
 // GET /auth/me
 router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
   const [user] = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, createdAt: usersTable.createdAt })
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt })
     .from(usersTable)
     .where(eq(usersTable.id, req.session.userId!));
 
@@ -138,6 +138,40 @@ router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
   }
 
   res.json(user);
+});
+
+// PATCH /auth/me — update name and/or business profile
+router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+
+  const { name, businessProfile } = req.body;
+  const updates: Record<string, unknown> = {};
+
+  if (typeof name === "string" && name.trim()) {
+    updates.name = name.trim();
+  }
+
+  if (businessProfile !== undefined) {
+    const parsed = BusinessProfileSchema.safeParse(businessProfile);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Perfil de negócio inválido." });
+      return;
+    }
+    updates.businessProfile = parsed.data;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "Nenhum campo para atualizar." });
+    return;
+  }
+
+  const [updated] = await db
+    .update(usersTable)
+    .set(updates)
+    .where(eq(usersTable.id, userId))
+    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt });
+
+  res.json({ user: updated, message: "Perfil atualizado com sucesso!" });
 });
 
 export default router;
