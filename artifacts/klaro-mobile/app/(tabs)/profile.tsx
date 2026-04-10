@@ -157,7 +157,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* Business name */}
-      <Field label="Nome do negócio">
+      <Field label="Nome do negócio" colors={colors}>
         <TextInput
           style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
           value={businessName}
