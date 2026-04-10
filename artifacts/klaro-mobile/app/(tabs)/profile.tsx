@@ -157,7 +157,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* Business name */}
-      <Field label="Nome do negócio" colors={colors}>
+      <Field label="Nome do negócio">
         <TextInput
           style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
           value={businessName}
@@ -169,7 +169,7 @@ export default function ProfileScreen() {
       </Field>
 
       {/* Segment */}
-      <Field label="Segmento" colors={colors}>
+      <Field label="Segmento">
         <View style={styles.chipRow}>
           {SEGMENTS.map((s) => {
             const sel = segment === s.key;
@@ -187,7 +187,7 @@ export default function ProfileScreen() {
       </Field>
 
       {/* Location */}
-      <Field label="Cidade / Estado" colors={colors}>
+      <Field label="Cidade / Estado">
         <View style={styles.row2}>
           <TextInput
             style={[styles.input, styles.flex2, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
@@ -210,7 +210,7 @@ export default function ProfileScreen() {
       </Field>
 
       {/* Employees */}
-      <Field label="Funcionários (aprox.)" colors={colors}>
+      <Field label="Funcionários (aprox.)">
         <TextInput
           style={[styles.input, styles.inputSmall, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
           value={employeeCount}
@@ -222,7 +222,7 @@ export default function ProfileScreen() {
       </Field>
 
       {/* Open days */}
-      <Field label="Dias de funcionamento" colors={colors}>
+      <Field label="Dias de funcionamento">
         <View style={styles.chipRow}>
           {ALL_DAYS.map((d) => {
             const sel = openDays.includes(d.key);
@@ -240,7 +240,7 @@ export default function ProfileScreen() {
       </Field>
 
       {/* Open hours */}
-      <Field label="Horário de funcionamento" colors={colors}>
+      <Field label="Horário de funcionamento">
         <View style={styles.row2}>
           <TextInput
             style={[styles.input, styles.flex1, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
@@ -263,7 +263,7 @@ export default function ProfileScreen() {
       </Field>
 
       {/* Revenue goal */}
-      <Field label="Meta de receita mensal (R$)" colors={colors}>
+      <Field label="Meta de receita mensal (R$)">
         <TextInput
           style={[styles.input, styles.inputSmall, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
           value={revenueGoal}
@@ -275,7 +275,7 @@ export default function ProfileScreen() {
       </Field>
 
       {/* Margin goal */}
-      <Field label="Meta de margem de lucro (%)" colors={colors}>
+      <Field label="Meta de margem de lucro (%)">
         <TextInput
           style={[styles.input, styles.inputSmall, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
           value={marginGoal}
@@ -287,7 +287,7 @@ export default function ProfileScreen() {
       </Field>
 
       {/* Main products */}
-      <Field label="Principais produtos / serviços" colors={colors}>
+      <Field label="Principais produtos / serviços">
         <TextInput
           style={[styles.input, styles.inputMulti, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
           value={mainProducts}
@@ -301,7 +301,7 @@ export default function ProfileScreen() {
       </Field>
 
       {/* Sales channel */}
-      <Field label="Canal de vendas principal" colors={colors}>
+      <Field label="Canal de vendas principal">
         <View style={styles.chipRow}>
           {SALES_CHANNELS.map((c) => {
             const sel = salesChannel === c.key;
@@ -319,7 +319,7 @@ export default function ProfileScreen() {
       </Field>
 
       {/* Biggest challenge */}
-      <Field label="Maior desafio do negócio" colors={colors}>
+      <Field label="Maior desafio do negócio">
         <TextInput
           style={[styles.input, styles.inputMulti, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
           value={biggestChallenge}
@@ -339,13 +339,12 @@ export default function ProfileScreen() {
 
 function Field({
   label,
-  colors,
   children,
 }: {
   label: string;
-  colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
   children: React.ReactNode;
 }) {
+  const colors = useColors();
   return (
     <View style={styles.field}>
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
