@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, insightsTable, transactionsTable } from "@workspace/db";
+import { db, insightsTable, transactionsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { generateInsights } from "../lib/insights-engine";
@@ -23,16 +23,31 @@ router.get("/insights", requireAuth, async (req, res): Promise<void> => {
 router.post("/insights/generate", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
 
-  const transactions = await db
-    .select()
-    .from(transactionsTable)
-    .where(eq(transactionsTable.userId, userId))
-    .orderBy(transactionsTable.date);
+  const [transactions, userRow] = await Promise.all([
+    db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId)).orderBy(transactionsTable.date),
+    db.select({ businessProfile: usersTable.businessProfile }).from(usersTable).where(eq(usersTable.id, userId)),
+  ]);
+
+  const bp = userRow[0]?.businessProfile;
+  const ctx = bp
+    ? {
+        businessName: bp.businessName,
+        segment: bp.segment,
+        city: bp.city,
+        state: bp.state,
+        employeeCount: bp.employeeCount,
+        monthlyRevenueGoal: bp.monthlyRevenueGoal,
+        profitMarginGoal: bp.profitMarginGoal,
+        mainProducts: bp.mainProducts,
+        salesChannel: bp.salesChannel,
+        biggestChallenge: bp.biggestChallenge,
+      }
+    : undefined;
 
   // Delete existing insights for the user (refresh)
   await db.delete(insightsTable).where(eq(insightsTable.userId, userId));
 
-  const generated = generateInsights(transactions);
+  const generated = await generateInsights(transactions, ctx);
 
   if (generated.length === 0) {
     res.json([]);

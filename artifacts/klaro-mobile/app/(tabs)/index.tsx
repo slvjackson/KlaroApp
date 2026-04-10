@@ -135,7 +135,7 @@ export default function DashboardScreen() {
               </Pressable>
             </View>
 
-            {!transactions || transactions.length === 0 ? (
+            {!Array.isArray(transactions) || transactions.length === 0 ? (
               <View
                 style={[
                   styles.emptyBox,

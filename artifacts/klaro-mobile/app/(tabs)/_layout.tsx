@@ -28,6 +28,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "lightbulb", selected: "lightbulb.fill" }} />
         <Label>Insights</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
+        <Label>Perfil</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -123,6 +127,18 @@ function ClassicTabLayout() {
               <SymbolView name="lightbulb.fill" tintColor={color} size={22} />
             ) : (
               <Feather name="zap" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Perfil",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="person.circle.fill" tintColor={color} size={22} />
+            ) : (
+              <Feather name="user" size={22} color={color} />
             ),
         }}
       />
