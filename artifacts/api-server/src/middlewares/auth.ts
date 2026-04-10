@@ -33,13 +33,8 @@ export function verifyJwt(token: string): JwtPayload | null {
  * Returns 401 if neither is present.
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  // 1. Session-based auth (web)
-  if (req.session.userId) {
-    next();
-    return;
-  }
-
-  // 2. Bearer token auth (mobile)
+  // 1. Bearer token auth (mobile) — checked first so a stale session cookie
+  //    from a previous user never shadows the JWT of the current user.
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
@@ -49,6 +44,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       next();
       return;
     }
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  // 2. Session-based auth (web)
+  if (req.session.userId) {
+    next();
+    return;
   }
 
   res.status(401).json({ error: "Not authenticated" });
