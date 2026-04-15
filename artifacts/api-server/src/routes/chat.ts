@@ -3,7 +3,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { db, transactionsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
-import { getSegmentProfile } from "../prompts/builder";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -38,7 +37,6 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   ]);
 
   const profile = userRow?.businessProfile;
-  const seg = getSegmentProfile(profile?.segment);
 
   // Build financial summary
   const income = transactions.filter((t) => t.type === "income");
@@ -77,7 +75,7 @@ Você conversa diretamente com o dono do negócio, de forma simples, amigável e
 
 PERFIL DO NEGÓCIO:
   Nome: ${userRow?.name ?? "Usuário"}
-  Segmento: ${seg.label}${profile?.businessName ? `\n  Negócio: ${profile.businessName}` : ""}${profile?.mainProducts ? `\n  Produtos/serviços: ${profile.mainProducts}` : ""}${profile?.monthlyRevenueGoal ? `\n  Meta de receita mensal: R$${profile.monthlyRevenueGoal}` : ""}${profile?.profitMarginGoal ? `\n  Meta de margem: ${profile.profitMarginGoal}%` : ""}
+  Segmento: ${profile?.segment ?? "Geral"}${profile?.businessName ? `\n  Negócio: ${profile.businessName}` : ""}${profile?.mainProducts ? `\n  Produtos/serviços: ${profile.mainProducts}` : ""}${profile?.monthlyRevenueGoal ? `\n  Meta de receita mensal: R$${profile.monthlyRevenueGoal}` : ""}${profile?.profitMarginGoal ? `\n  Meta de margem: ${profile.profitMarginGoal}%` : ""}
 
 RESUMO FINANCEIRO ATUAL:
   Receita total: R$${totalIncome.toFixed(0)}
@@ -98,7 +96,7 @@ INSTRUÇÕES:
 - Se o usuário perguntar algo que não está nos dados, diga que não tem essa informação
 - Cite números reais quando relevante
 - Máximo de 3 parágrafos por resposta
-- Use a terminologia correta para o segmento: ${seg.terminologia.receita} (receita), ${seg.terminologia.despesa} (despesa)`;
+- Use linguagem simples e direta, adequada para pequenos e médios empresários`;
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
