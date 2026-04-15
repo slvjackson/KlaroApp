@@ -156,7 +156,7 @@ export default function ChatScreen() {
         renderItem={({ item }) => <Bubble message={item} colors={colors} />}
         contentContainerStyle={[
           styles.messagesList,
-          { paddingBottom: insets.bottom + 90 },
+          { paddingBottom: insets.bottom + 76 + 90 },
         ]}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -207,7 +207,7 @@ export default function ChatScreen() {
           {
             backgroundColor: colors.background,
             borderTopColor: colors.border,
-            paddingBottom: insets.bottom + (Platform.OS === "ios" ? 8 : 12),
+            paddingBottom: 76 + insets.bottom + (Platform.OS === "ios" ? 8 : 12),
           },
         ]}
       >
