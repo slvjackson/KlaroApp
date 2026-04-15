@@ -514,7 +514,7 @@ export async function extractImageText(filePath: string): Promise<string> {
     const base64 = imageData.toString("base64");
 
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       max_tokens: 2048,
       messages: [
         {
@@ -526,16 +526,21 @@ export async function extractImageText(filePath: string): Promise<string> {
             },
             {
               type: "text",
-              text: `Você é um assistente especializado em extração de dados financeiros.
-Analise esta imagem (pode ser extrato bancário, caderno de anotações, nota fiscal, planilha impressa, etc.).
-Extraia TODAS as transações financeiras visíveis e retorne SOMENTE um CSV com as colunas:
+              text: `Você é um assistente especializado em extração de dados financeiros de imagens.
+Analise esta imagem (pode ser extrato bancário, caderno de anotações, nota fiscal, recibo, etc.).
+Extraia as transações financeiras individuais e retorne SOMENTE um CSV com as colunas:
 data,descricao,valor
 
-Regras:
-- Datas no formato DD/MM/YYYY. Se não houver data, use a data de hoje.
-- Valores: positivos para receitas/entradas, negativos para despesas/saídas.
-- Use vírgula como separador de colunas. Use ponto como separador decimal nos valores.
-- Não inclua cabeçalho, não inclua explicações, retorne apenas as linhas de dados.
+Regras importantes:
+- Extraia apenas itens vendidos/comprados individualmente. NÃO inclua linhas de total, subtotal, saldo ou resumo (ex: "Total Dia", "Total", "Saldo", "Subtotal").
+- Se um item tiver quantidade (ex: "Água (3): 9,00"), o valor já é o total daquele item — use esse valor.
+- Datas no formato DD/MM/YYYY. Se houver uma data geral para o dia (ex: "14/05/24"), use-a para todos os itens daquele grupo.
+- Valores positivos para vendas/receitas/entradas. Negativos para compras/despesas/saídas.
+- Use ponto como separador decimal (ex: 13.00, não 13,00).
+- Use vírgula apenas para separar as colunas do CSV.
+- Se houver anotações como "pagar depois" ou "fiado", ainda assim inclua o item com seu valor correto.
+- Se a imagem tiver duas páginas ou seções semelhantes, extraia cada uma separadamente (não duplique).
+- Não inclua cabeçalho, não inclua explicações — retorne apenas as linhas CSV.
 - Se a imagem não contiver dados financeiros, retorne somente: SEM_DADOS`,
             },
           ],

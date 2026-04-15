@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import { useListTransactions } from "@workspace/api-client-react";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -35,12 +37,39 @@ export default function TransactionsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* Header row: title + upload button */}
+      <View
+        style={[
+          styles.titleRow,
+          {
+            paddingTop: topPad + 16,
+            paddingHorizontal: 20,
+            paddingBottom: 12,
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
+        <Text style={[styles.screenTitle, { color: colors.foreground }]}>Transações</Text>
+        <Pressable
+          onPress={() => router.push("/(tabs)/upload")}
+          style={({ pressed }) => [
+            styles.uploadBtn,
+            {
+              backgroundColor: pressed ? `${colors.primary}dd` : colors.primary,
+              borderRadius: colors.radius,
+            },
+          ]}
+        >
+          <Feather name="upload" size={15} color={colors.primaryForeground} />
+          <Text style={[styles.uploadBtnText, { color: colors.primaryForeground }]}>Upload</Text>
+        </Pressable>
+      </View>
+
       {/* Filter chips */}
       <View
         style={[
           styles.filterBar,
           {
-            paddingTop: topPad + 12,
             paddingBottom: 12,
             borderBottomWidth: 1,
             borderBottomColor: colors.border,
@@ -130,6 +159,27 @@ export default function TransactionsScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  screenTitle: {
+    fontSize: 28,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: -0.5,
+  },
+  uploadBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  uploadBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
   },
   filterBar: {
     flexDirection: "row",

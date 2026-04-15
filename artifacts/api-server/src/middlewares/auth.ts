@@ -33,13 +33,9 @@ export function verifyJwt(token: string): JwtPayload | null {
  * Returns 401 if neither is present.
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  // 1. Session-based auth (web)
-  if (req.session.userId) {
-    next();
-    return;
-  }
-
-  // 2. Bearer token auth (mobile)
+  // 1. Bearer token auth (mobile) — MUST be checked first so a freshly-issued
+  //    JWT for a new user is never shadowed by a stale session cookie left over
+  //    from a previous user (e.g. demo@klaro.app stored in NSHTTPCookieStorage).
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
@@ -49,6 +45,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       next();
       return;
     }
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  // 2. Session-based auth (web)
+  if (req.session.userId) {
+    next();
+    return;
   }
 
   res.status(401).json({ error: "Not authenticated" });

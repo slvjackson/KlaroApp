@@ -1,41 +1,44 @@
 import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 
-function NativeTabLayout() {
+// ─── Custom center chat button ────────────────────────────────────────────────
+
+function ChatTabButton({ onPress, accessibilityState }: { onPress?: () => void; accessibilityState?: { selected?: boolean } }) {
+  const colors = useColors();
+  const isSelected = accessibilityState?.selected;
+
   return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
-        <Label>Dashboard</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="transactions">
-        <Icon sf={{ default: "list.bullet", selected: "list.bullet" }} />
-        <Label>Transações</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="upload">
-        <Icon sf={{ default: "arrow.up.doc", selected: "arrow.up.doc.fill" }} />
-        <Label>Upload</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="insights">
-        <Icon sf={{ default: "lightbulb", selected: "lightbulb.fill" }} />
-        <Label>Insights</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Pressable
+      onPress={onPress}
+      style={styles.chatBtnWrapper}
+      accessibilityRole="button"
+    >
+      <View
+        style={[
+          styles.chatBtn,
+          { backgroundColor: colors.primary },
+        ]}
+      >
+        <Feather name="message-circle" size={26} color="#fff" />
+      </View>
+      <Text style={[styles.chatBtnLabel, { color: isSelected ? colors.primary : colors.mutedForeground }]}>
+        Klaro IA
+      </Text>
+    </Pressable>
   );
 }
 
-function ClassicTabLayout() {
+// ─── Layout ───────────────────────────────────────────────────────────────────
+
+export default function TabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
@@ -51,22 +54,17 @@ function ClassicTabLayout() {
           borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          height: isWeb ? 84 : 76,
         },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
               intensity={100}
-              tint="dark"
+              tint={colorScheme === "dark" ? "dark" : "light"}
               style={StyleSheet.absoluteFill}
             />
           ) : isWeb ? (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: colors.background },
-              ]}
-            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
           ) : null,
         tabBarLabelStyle: {
           fontFamily: "Inter_500Medium",
@@ -74,6 +72,7 @@ function ClassicTabLayout() {
         },
       }}
     >
+      {/* Visible tabs */}
       <Tabs.Screen
         name="index"
         options={{
@@ -99,25 +98,16 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="upload"
+        name="chat"
         options={{
-          title: "Upload",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView
-                name="arrow.up.doc.fill"
-                tintColor={color}
-                size={22}
-              />
-            ) : (
-              <Feather name="upload" size={22} color={color} />
-            ),
+          title: "Klaro IA",
+          tabBarButton: (props) => <ChatTabButton {...props} />,
         }}
       />
       <Tabs.Screen
-        name="insights"
+        name="intelligence"
         options={{
-          title: "Insights",
+          title: "Inteligência",
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="lightbulb.fill" tintColor={color} size={22} />
@@ -126,13 +116,51 @@ function ClassicTabLayout() {
             ),
         }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Perfil",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="person.circle.fill" tintColor={color} size={22} />
+            ) : (
+              <Feather name="user" size={22} color={color} />
+            ),
+        }}
+      />
+
+      {/* Hidden screens — accessible via navigation but not shown in tab bar */}
+      <Tabs.Screen name="upload" options={{ href: null }} />
+      <Tabs.Screen name="insights" options={{ href: null }} />
     </Tabs>
   );
 }
 
-export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
-}
+const styles = StyleSheet.create({
+  chatBtnWrapper: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingTop: 0,
+  },
+  chatBtn: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -20,
+    // Shadow for iOS
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    // Elevation for Android
+    elevation: 10,
+  },
+  chatBtnLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_500Medium",
+    marginTop: 5,
+  },
+});

@@ -11,24 +11,27 @@ router.get("/transactions", requireAuth, async (req, res): Promise<void> => {
   const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 100;
   const offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
 
+  // Build WHERE conditions in DB so type/category filters apply BEFORE the LIMIT.
+  // The previous client-side filtering caused limit to cut across all types first,
+  // meaning type-filtered results were a subset of the oldest N rows rather than
+  // the oldest N rows of that type.
+  const conditions: ReturnType<typeof eq>[] = [eq(transactionsTable.userId, userId)];
+  if (req.query.type === "income" || req.query.type === "expense") {
+    conditions.push(eq(transactionsTable.type, req.query.type as "income" | "expense"));
+  }
+  if (req.query.category && typeof req.query.category === "string") {
+    conditions.push(eq(transactionsTable.category, req.query.category));
+  }
+
   const transactions = await db
     .select()
     .from(transactionsTable)
-    .where(eq(transactionsTable.userId, userId))
+    .where(and(...conditions))
     .orderBy(transactionsTable.date)
     .limit(limit)
     .offset(offset);
 
-  // Apply optional filters client-side since Drizzle dynamic conditions need care
-  let result = transactions;
-  if (req.query.category) {
-    result = result.filter((t) => t.category === req.query.category);
-  }
-  if (req.query.type) {
-    result = result.filter((t) => t.type === req.query.type);
-  }
-
-  res.json(result);
+  res.json(transactions);
 });
 
 // DELETE /transactions/:id
