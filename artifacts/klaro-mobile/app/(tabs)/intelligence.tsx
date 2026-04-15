@@ -123,8 +123,10 @@ function MonthlyBarChart({
 
       <View style={styles.barsRow}>
         {last6.map((d) => {
-          const ih = Math.max((d.income / maxVal) * BAR_MAX_H, 2);
-          const eh = Math.max((d.expenses / maxVal) * BAR_MAX_H, 2);
+          const hasData = d.income > 0 || d.expenses > 0;
+          // Zero-data months get no minimum height — they appear truly flat
+          const ih = hasData ? Math.max((d.income / maxVal) * BAR_MAX_H, 2) : 0;
+          const eh = hasData ? Math.max((d.expenses / maxVal) * BAR_MAX_H, 2) : 0;
           const isSelected = selectedMonth === d.month;
           const isDimmed = selectedMonth !== null && !isSelected;
 
@@ -132,23 +134,28 @@ function MonthlyBarChart({
             <Pressable
               key={d.month}
               onPress={() => {
+                if (!hasData) return; // non-interactive for empty months
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 onSelectMonth(isSelected ? null : d.month);
               }}
               style={({ pressed }) => [
                 styles.barGroup,
-                { opacity: isDimmed ? 0.3 : pressed ? 0.7 : 1 },
+                {
+                  opacity: isDimmed ? 0.3 : (!hasData ? 0.4 : pressed ? 0.7 : 1),
+                },
               ]}
             >
               <View style={[styles.barsAligned, { height: BAR_MAX_H }]}>
-                <View style={[
+                {ih > 0 && <View style={[
                   { height: ih, width: BAR_W, backgroundColor: colors.income, borderRadius: 3 },
                   isSelected && styles.barSelected,
-                ]} />
-                <View style={[
+                ]} />}
+                {ih === 0 && <View style={{ width: BAR_W }} />}
+                {eh > 0 && <View style={[
                   { height: eh, width: BAR_W, backgroundColor: colors.expense, borderRadius: 3 },
                   isSelected && styles.barSelected,
-                ]} />
+                ]} />}
+                {eh === 0 && <View style={{ width: BAR_W }} />}
               </View>
               <Text style={[
                 styles.barLabel,
