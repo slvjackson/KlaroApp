@@ -131,7 +131,6 @@ export default function TabLayout() {
 
       {/* Hidden screens — accessible via navigation but not shown in tab bar */}
       <Tabs.Screen name="upload" options={{ href: null }} />
-      <Tabs.Screen name="analytics" options={{ href: null }} />
       <Tabs.Screen name="insights" options={{ href: null }} />
     </Tabs>
   );
