@@ -47,6 +47,7 @@ router.get("/dashboard/summary", requireAuth, async (req, res): Promise<void> =>
 // GET /dashboard/monthly-trend — income vs expenses by month
 router.get("/dashboard/monthly-trend", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
+  console.log("[trend] userId =", userId, "| auth header present:", !!req.headers.authorization);
 
   const transactions = await db
     .select()
