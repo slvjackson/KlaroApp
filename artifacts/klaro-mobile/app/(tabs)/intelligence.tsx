@@ -30,6 +30,12 @@ function fMonth(yyyymm: string): string {
   return MONTH_NAMES[parseInt(yyyymm.split("-")[1], 10) - 1] ?? yyyymm;
 }
 
+function fMonthFull(yyyymm: string): string {
+  const [year, month] = yyyymm.split("-");
+  const names = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  return `${names[parseInt(month, 10) - 1]} ${year}`;
+}
+
 function fBRL(value: number, compact = false): string {
   if (compact && value >= 1000) return `R$${(value / 1000).toFixed(1)}k`;
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
@@ -82,9 +88,17 @@ function SegmentedControl({ active, onChange }: { active: Tab; onChange: (t: Tab
   );
 }
 
-// ─── Analytics components ─────────────────────────────────────────────────────
+// ─── Monthly bar chart (interactive) ─────────────────────────────────────────
 
-function MonthlyBarChart({ data }: { data: { month: string; income: number; expenses: number }[] }) {
+function MonthlyBarChart({
+  data,
+  selectedMonth,
+  onSelectMonth,
+}: {
+  data: { month: string; income: number; expenses: number }[];
+  selectedMonth: string | null;
+  onSelectMonth: (month: string | null) => void;
+}) {
   const colors = useColors();
   const last6 = data.slice(-6);
   if (last6.length === 0) return null;
@@ -95,26 +109,58 @@ function MonthlyBarChart({ data }: { data: { month: string; income: number; expe
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
-      <View style={styles.legend}>
-        {[{ label: "Receita", color: colors.income }, { label: "Despesa", color: colors.expense }].map((l) => (
-          <View key={l.label} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: l.color }]} />
-            <Text style={[styles.legendLabel, { color: colors.mutedForeground }]}>{l.label}</Text>
-          </View>
-        ))}
+      <View style={styles.legendRow}>
+        <View style={styles.legend}>
+          {[{ label: "Receita", color: colors.income }, { label: "Despesa", color: colors.expense }].map((l) => (
+            <View key={l.label} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: l.color }]} />
+              <Text style={[styles.legendLabel, { color: colors.mutedForeground }]}>{l.label}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={[styles.tapHint, { color: colors.mutedForeground }]}>Toque para filtrar</Text>
       </View>
+
       <View style={styles.barsRow}>
         {last6.map((d) => {
           const ih = Math.max((d.income / maxVal) * BAR_MAX_H, 2);
           const eh = Math.max((d.expenses / maxVal) * BAR_MAX_H, 2);
+          const isSelected = selectedMonth === d.month;
+          const isDimmed = selectedMonth !== null && !isSelected;
+
           return (
-            <View key={d.month} style={styles.barGroup}>
+            <Pressable
+              key={d.month}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onSelectMonth(isSelected ? null : d.month);
+              }}
+              style={({ pressed }) => [
+                styles.barGroup,
+                { opacity: isDimmed ? 0.3 : pressed ? 0.7 : 1 },
+              ]}
+            >
               <View style={[styles.barsAligned, { height: BAR_MAX_H }]}>
-                <View style={{ height: ih, width: BAR_W, backgroundColor: colors.income, borderRadius: 3 }} />
-                <View style={{ height: eh, width: BAR_W, backgroundColor: colors.expense, borderRadius: 3 }} />
+                <View style={[
+                  { height: ih, width: BAR_W, backgroundColor: colors.income, borderRadius: 3 },
+                  isSelected && styles.barSelected,
+                ]} />
+                <View style={[
+                  { height: eh, width: BAR_W, backgroundColor: colors.expense, borderRadius: 3 },
+                  isSelected && styles.barSelected,
+                ]} />
               </View>
-              <Text style={[styles.barLabel, { color: colors.mutedForeground }]}>{fMonth(d.month)}</Text>
-            </View>
+              <Text style={[
+                styles.barLabel,
+                { color: isSelected ? colors.primary : colors.mutedForeground },
+                isSelected && styles.barLabelSelected,
+              ]}>
+                {fMonth(d.month)}
+              </Text>
+              {isSelected && (
+                <View style={[styles.barDot, { backgroundColor: colors.primary }]} />
+              )}
+            </Pressable>
           );
         })}
       </View>
@@ -122,8 +168,18 @@ function MonthlyBarChart({ data }: { data: { month: string; income: number; expe
   );
 }
 
+// ─── Horizontal bar chart ─────────────────────────────────────────────────────
+
 function HorizontalBars({ data, color }: { data: { category: string; total: number }[]; color: string }) {
   const colors = useColors();
+  if (data.length === 0) return (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+      <Text style={[styles.emptyText, { color: colors.mutedForeground, textAlign: "center" }]}>
+        Sem transações neste período
+      </Text>
+    </View>
+  );
+
   const maxVal = Math.max(...data.map((d) => d.total), 1);
 
   return (
@@ -143,9 +199,19 @@ function HorizontalBars({ data, color }: { data: { category: string; total: numb
   );
 }
 
+// ─── Quick metrics ────────────────────────────────────────────────────────────
+
 interface Summary { totalIncome?: number; totalExpenses?: number; transactionCount?: number; }
 
-function QuickMetrics({ summary, trend }: { summary: Summary | undefined; trend: { month: string; income: number; expenses: number }[] }) {
+function QuickMetrics({
+  summary,
+  trend,
+  selectedMonth,
+}: {
+  summary: Summary | undefined;
+  trend: { month: string; income: number; expenses: number }[];
+  selectedMonth: string | null;
+}) {
   const colors = useColors();
 
   const last2 = trend.slice(-2);
@@ -168,32 +234,59 @@ function QuickMetrics({ summary, trend }: { summary: Summary | undefined; trend:
       ? (summary!.totalIncome! / summary!.transactionCount!)
       : null;
 
-  const cards = [
-    {
-      label: "Crescimento",
-      value: momGrowth != null ? `${momGrowth >= 0 ? "+" : ""}${momGrowth.toFixed(1)}%` : "—",
-      sub: "mês a mês",
-      valueColor: momGrowth != null ? (momGrowth >= 0 ? colors.income : colors.expense) : colors.mutedForeground,
-    },
-    {
-      label: "Melhor mês",
-      value: bestMonth ? fMonth(bestMonth.month) : "—",
-      sub: bestMonth ? fBRL(bestMonth.income, true) : "",
-      valueColor: colors.foreground,
-    },
-    {
-      label: "Índice despesa",
-      value: expRatio != null ? `${expRatio}%` : "—",
-      sub: "sobre receita",
-      valueColor: expRatio != null ? (expRatio <= 70 ? colors.income : colors.expense) : colors.mutedForeground,
-    },
-    {
-      label: "Ticket médio",
-      value: avgTicket != null ? fBRL(avgTicket, true) : "—",
-      sub: "por transação",
-      valueColor: colors.foreground,
-    },
-  ];
+  const cards = selectedMonth
+    ? [
+        {
+          label: "Receita",
+          value: fBRL(summary?.totalIncome ?? 0, true),
+          sub: fMonth(selectedMonth),
+          valueColor: colors.income,
+        },
+        {
+          label: "Despesas",
+          value: fBRL(summary?.totalExpenses ?? 0, true),
+          sub: fMonth(selectedMonth),
+          valueColor: colors.expense,
+        },
+        {
+          label: "Índice despesa",
+          value: expRatio != null ? `${expRatio}%` : "—",
+          sub: "sobre receita",
+          valueColor: expRatio != null ? (expRatio <= 70 ? colors.income : colors.expense) : colors.mutedForeground,
+        },
+        {
+          label: "Ticket médio",
+          value: avgTicket != null ? fBRL(avgTicket, true) : "—",
+          sub: "por transação",
+          valueColor: colors.foreground,
+        },
+      ]
+    : [
+        {
+          label: "Crescimento",
+          value: momGrowth != null ? `${momGrowth >= 0 ? "+" : ""}${momGrowth.toFixed(1)}%` : "—",
+          sub: "mês a mês",
+          valueColor: momGrowth != null ? (momGrowth >= 0 ? colors.income : colors.expense) : colors.mutedForeground,
+        },
+        {
+          label: "Melhor mês",
+          value: bestMonth ? fMonth(bestMonth.month) : "—",
+          sub: bestMonth ? fBRL(bestMonth.income, true) : "",
+          valueColor: colors.foreground,
+        },
+        {
+          label: "Índice despesa",
+          value: expRatio != null ? `${expRatio}%` : "—",
+          sub: "sobre receita",
+          valueColor: expRatio != null ? (expRatio <= 70 ? colors.income : colors.expense) : colors.mutedForeground,
+        },
+        {
+          label: "Ticket médio",
+          value: avgTicket != null ? fBRL(avgTicket, true) : "—",
+          sub: "por transação",
+          valueColor: colors.foreground,
+        },
+      ];
 
   return (
     <View style={styles.metricsGrid}>
@@ -208,26 +301,21 @@ function QuickMetrics({ summary, trend }: { summary: Summary | undefined; trend:
   );
 }
 
-// ─── Insights components ──────────────────────────────────────────────────────
+// ─── Filter badge ─────────────────────────────────────────────────────────────
 
-function InsightCard({ title, description, recommendation, periodLabel }: {
-  title: string; description: string; recommendation: string; periodLabel: string;
-}) {
+function FilterBadge({ month, onClear }: { month: string; onClear: () => void }) {
   const colors = useColors();
   return (
-    <View style={[styles.insightCard, { backgroundColor: colors.card, borderRadius: colors.radius, borderWidth: 1, borderColor: colors.border }]}>
-      <View style={styles.insightCardHeader}>
-        <View style={[styles.iconBox, { backgroundColor: `${colors.primary}22`, borderRadius: 10 }]}>
-          <Feather name="zap" size={16} color={colors.primary} />
-        </View>
-        <Text style={[styles.periodLabel, { color: colors.mutedForeground }]}>{periodLabel}</Text>
-      </View>
-      <Text style={[styles.insightTitle, { color: colors.foreground }]}>{title}</Text>
-      <Text style={[styles.insightDescription, { color: colors.mutedForeground }]}>{description}</Text>
-      <View style={[styles.recommendationBox, { backgroundColor: `${colors.primary}11`, borderRadius: 8, borderLeftWidth: 3, borderLeftColor: colors.primary }]}>
-        <Text style={[styles.recommendationText, { color: colors.foreground }]}>{recommendation}</Text>
-      </View>
-    </View>
+    <Pressable
+      onPress={onClear}
+      style={[styles.filterBadge, { backgroundColor: `${colors.primary}18`, borderColor: `${colors.primary}44`, borderRadius: colors.radius }]}
+    >
+      <Feather name="filter" size={12} color={colors.primary} />
+      <Text style={[styles.filterBadgeText, { color: colors.primary }]}>
+        {fMonthFull(month)}
+      </Text>
+      <Feather name="x" size={12} color={colors.primary} />
+    </Pressable>
   );
 }
 
@@ -238,6 +326,8 @@ function AnalyticsTab() {
   const insets = useSafeAreaInsets();
   const btmPad = insets.bottom + (Platform.OS === "web" ? 34 : 0) + 100;
 
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+
   const { data: summary, isLoading: l1, refetch: r1 } = useGetDashboardSummary();
   const { data: trend, isLoading: l2, refetch: r2 } = useGetMonthlyTrend();
   const { data: incomeTx, isLoading: l3, refetch: r3 } = useListTransactions({ type: "income", limit: 500 });
@@ -245,20 +335,50 @@ function AnalyticsTab() {
 
   const isLoading = l1 || l2 || l3 || l4;
   const trendData = Array.isArray(trend) ? trend : [];
-  const topExpenses = useMemo(() => groupByCategory(expenseTx), [expenseTx]);
-  const topIncome = useMemo(() => groupByCategory(incomeTx), [incomeTx]);
+
+  // Filter transactions by selected month
+  const filteredIncomeTx = useMemo(() => {
+    if (!selectedMonth || !Array.isArray(incomeTx)) return incomeTx;
+    return incomeTx.filter((t) => t.date.startsWith(selectedMonth));
+  }, [selectedMonth, incomeTx]);
+
+  const filteredExpenseTx = useMemo(() => {
+    if (!selectedMonth || !Array.isArray(expenseTx)) return expenseTx;
+    return expenseTx.filter((t) => t.date.startsWith(selectedMonth));
+  }, [selectedMonth, expenseTx]);
+
+  const topExpenses = useMemo(() => groupByCategory(filteredExpenseTx), [filteredExpenseTx]);
+  const topIncome = useMemo(() => groupByCategory(filteredIncomeTx), [filteredIncomeTx]);
+
+  // Filtered summary for metrics
+  const filteredSummary = useMemo<Summary>(() => {
+    if (!selectedMonth) return summary ?? {};
+    const inc = Array.isArray(incomeTx) ? incomeTx.filter((t) => t.date.startsWith(selectedMonth)) : [];
+    const exp = Array.isArray(expenseTx) ? expenseTx.filter((t) => t.date.startsWith(selectedMonth)) : [];
+    return {
+      totalIncome: inc.reduce((s, t) => s + t.amount, 0),
+      totalExpenses: exp.reduce((s, t) => s + t.amount, 0),
+      transactionCount: inc.length + exp.length,
+    };
+  }, [selectedMonth, incomeTx, expenseTx, summary]);
+
+  // Trend slice for growth comparison (selected + previous month)
+  const filteredTrend = useMemo(() => {
+    if (!selectedMonth) return trendData;
+    const idx = trendData.findIndex((d) => d.month === selectedMonth);
+    if (idx === -1) return trendData.filter((d) => d.month === selectedMonth);
+    return trendData.slice(Math.max(0, idx - 1), idx + 1);
+  }, [selectedMonth, trendData]);
+
   const hasData = trendData.length > 0 || topExpenses.length > 0 || topIncome.length > 0;
 
   async function handleRefresh() {
+    setSelectedMonth(null);
     await Promise.all([r1(), r2(), r3(), r4()]);
   }
 
   if (isLoading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
-    );
+    return <View style={styles.centered}><ActivityIndicator color={colors.primary} size="large" /></View>;
   }
 
   if (!hasData) {
@@ -283,30 +403,41 @@ function AnalyticsTab() {
       {trendData.length > 0 && (
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Evolução Mensal</Text>
-          <MonthlyBarChart data={trendData} />
+          <MonthlyBarChart
+            data={trendData}
+            selectedMonth={selectedMonth}
+            onSelectMonth={setSelectedMonth}
+          />
         </View>
       )}
 
-      {(summary?.totalIncome || summary?.totalExpenses) ? (
+      {/* Active filter badge */}
+      {selectedMonth && (
+        <FilterBadge month={selectedMonth} onClear={() => setSelectedMonth(null)} />
+      )}
+
+      {(filteredSummary.totalIncome !== undefined || filteredSummary.totalExpenses !== undefined) ? (
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Indicadores</Text>
-          <QuickMetrics summary={summary} trend={trendData} />
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Indicadores{selectedMonth ? ` · ${fMonth(selectedMonth)}` : ""}
+          </Text>
+          <QuickMetrics summary={filteredSummary} trend={filteredTrend} selectedMonth={selectedMonth} />
         </View>
       ) : null}
 
-      {topExpenses.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Principais Despesas</Text>
-          <HorizontalBars data={topExpenses} color={colors.expense} />
-        </View>
-      )}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+          Principais Despesas{selectedMonth ? ` · ${fMonth(selectedMonth)}` : ""}
+        </Text>
+        <HorizontalBars data={topExpenses} color={colors.expense} />
+      </View>
 
-      {topIncome.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Principais Receitas</Text>
-          <HorizontalBars data={topIncome} color={colors.income} />
-        </View>
-      )}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+          Principais Receitas{selectedMonth ? ` · ${fMonth(selectedMonth)}` : ""}
+        </Text>
+        <HorizontalBars data={topIncome} color={colors.income} />
+      </View>
     </ScrollView>
   );
 }
@@ -328,11 +459,7 @@ function InsightsTab() {
   }
 
   if (isLoading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
-    );
+    return <View style={styles.centered}><ActivityIndicator color={colors.primary} size="large" /></View>;
   }
 
   return (
@@ -392,6 +519,29 @@ function InsightsTab() {
   );
 }
 
+// ─── Insight card ─────────────────────────────────────────────────────────────
+
+function InsightCard({ title, description, recommendation, periodLabel }: {
+  title: string; description: string; recommendation: string; periodLabel: string;
+}) {
+  const colors = useColors();
+  return (
+    <View style={[styles.insightCard, { backgroundColor: colors.card, borderRadius: colors.radius, borderWidth: 1, borderColor: colors.border }]}>
+      <View style={styles.insightCardHeader}>
+        <View style={[styles.iconBox, { backgroundColor: `${colors.primary}22`, borderRadius: 10 }]}>
+          <Feather name="zap" size={16} color={colors.primary} />
+        </View>
+        <Text style={[styles.periodLabel, { color: colors.mutedForeground }]}>{periodLabel}</Text>
+      </View>
+      <Text style={[styles.insightTitle, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[styles.insightDescription, { color: colors.mutedForeground }]}>{description}</Text>
+      <View style={[styles.recommendationBox, { backgroundColor: `${colors.primary}11`, borderRadius: 8, borderLeftWidth: 3, borderLeftColor: colors.primary }]}>
+        <Text style={[styles.recommendationText, { color: colors.foreground }]}>{recommendation}</Text>
+      </View>
+    </View>
+  );
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function IntelligenceScreen() {
@@ -402,7 +552,6 @@ export default function IntelligenceScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Header */}
       <View
         style={[
           styles.header,
@@ -420,7 +569,6 @@ export default function IntelligenceScreen() {
         <SegmentedControl active={activeTab} onChange={setActiveTab} />
       </View>
 
-      {/* Tab content */}
       {activeTab === "analytics" ? <AnalyticsTab /> : <InsightsTab />}
     </View>
   );
@@ -433,19 +581,8 @@ const styles = StyleSheet.create({
   header: { gap: 14 },
   headerTitle: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
 
-  segControl: {
-    flexDirection: "row",
-    padding: 3,
-    gap: 2,
-  },
-  segItem: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-    gap: 6,
-  },
+  segControl: { flexDirection: "row", padding: 3, gap: 2 },
+  segItem: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 8, gap: 6 },
   segLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
 
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingTop: 80 },
@@ -457,15 +594,32 @@ const styles = StyleSheet.create({
 
   card: { borderWidth: 1, padding: 16, gap: 14 },
 
+  legendRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   legend: { flexDirection: "row", gap: 16 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  tapHint: { fontSize: 11, fontFamily: "Inter_400Regular" },
 
   barsRow: { flexDirection: "row", justifyContent: "space-around", alignItems: "flex-end" },
   barGroup: { alignItems: "center", gap: 6 },
   barsAligned: { flexDirection: "row", alignItems: "flex-end", gap: 3 },
+  barSelected: { opacity: 1 },
   barLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  barLabelSelected: { fontFamily: "Inter_600SemiBold" },
+  barDot: { width: 5, height: 5, borderRadius: 3 },
+
+  filterBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    marginTop: -12,
+  },
+  filterBadgeText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
   hBarRow: {},
   hBarHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
@@ -490,15 +644,7 @@ const styles = StyleSheet.create({
   recommendationBox: { padding: 12 },
   recommendationText: { fontSize: 13, fontFamily: "Inter_500Medium", lineHeight: 18 },
 
-  generateBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    marginHorizontal: 20,
-    marginBottom: 16,
-  },
+  generateBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, marginHorizontal: 20, marginBottom: 16 },
   generateBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
   emptyBox: { paddingTop: 60, alignItems: "center", gap: 12, paddingHorizontal: 24 },
