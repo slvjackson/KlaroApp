@@ -6,6 +6,7 @@ import parsedRecordsRouter from "./parsed-records";
 import transactionsRouter from "./transactions";
 import insightsRouter from "./insights";
 import dashboardRouter from "./dashboard";
+import chatRouter from "./chat";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(parsedRecordsRouter);
 router.use(transactionsRouter);
 router.use(insightsRouter);
 router.use(dashboardRouter);
+router.use(chatRouter);
 
 export default router;
