@@ -27,16 +27,14 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  // Fetch user profile and transactions in parallel
+  // Fetch user and transactions in parallel
   const [userRow, transactions] = await Promise.all([
-    db.select({ businessProfile: usersTable.businessProfile, name: usersTable.name })
+    db.select({ name: usersTable.name })
       .from(usersTable)
       .where(eq(usersTable.id, userId))
       .then((r) => r[0]),
     db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId)),
   ]);
-
-  const profile = userRow?.businessProfile;
 
   // Build financial summary
   const income = transactions.filter((t) => t.type === "income");
@@ -75,7 +73,6 @@ Você conversa diretamente com o dono do negócio, de forma simples, amigável e
 
 PERFIL DO NEGÓCIO:
   Nome: ${userRow?.name ?? "Usuário"}
-  Segmento: ${profile?.segment ?? "Geral"}${profile?.businessName ? `\n  Negócio: ${profile.businessName}` : ""}${profile?.mainProducts ? `\n  Produtos/serviços: ${profile.mainProducts}` : ""}${profile?.monthlyRevenueGoal ? `\n  Meta de receita mensal: R$${profile.monthlyRevenueGoal}` : ""}${profile?.profitMarginGoal ? `\n  Meta de margem: ${profile.profitMarginGoal}%` : ""}
 
 RESUMO FINANCEIRO ATUAL:
   Receita total: R$${totalIncome.toFixed(0)}
