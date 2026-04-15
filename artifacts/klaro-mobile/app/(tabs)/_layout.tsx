@@ -54,7 +54,7 @@ export default function TabLayout() {
           borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 0,
-          height: isWeb ? 84 : 60,
+          height: isWeb ? 84 : 76,
         },
         tabBarBackground: () =>
           isIOS ? (
@@ -141,28 +141,27 @@ const styles = StyleSheet.create({
   chatBtnWrapper: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "flex-end",
-    paddingBottom: 6,
-    gap: 3,
+    justifyContent: "flex-start",
+    paddingTop: 0,
   },
   chatBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: -10,
+    marginTop: -20,
     // Shadow for iOS
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     // Elevation for Android
-    elevation: 8,
+    elevation: 10,
   },
   chatBtnLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: "Inter_500Medium",
-    marginTop: 14,
+    marginTop: 5,
   },
 });
