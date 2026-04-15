@@ -337,8 +337,8 @@ function AnalyticsTab() {
 
   const { data: summary, isLoading: l1, refetch: r1 } = useGetDashboardSummary();
   const { data: trend, isLoading: l2, refetch: r2 } = useGetMonthlyTrend();
-  const { data: incomeTx, isLoading: l3, refetch: r3 } = useListTransactions({ type: "income", limit: 500 });
-  const { data: expenseTx, isLoading: l4, refetch: r4 } = useListTransactions({ type: "expense", limit: 500 });
+  const { data: incomeTx, isLoading: l3, refetch: r3 } = useListTransactions({ type: "income", limit: 5000 });
+  const { data: expenseTx, isLoading: l4, refetch: r4 } = useListTransactions({ type: "expense", limit: 5000 });
 
   const isLoading = l1 || l2 || l3 || l4;
   const trendData = Array.isArray(trend) ? trend : [];
