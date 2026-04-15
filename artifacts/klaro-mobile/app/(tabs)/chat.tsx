@@ -110,10 +110,15 @@ export default function ChatScreen() {
       setMessages((prev) => [...prev, assistantMsg]);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch {
+    } catch (err: unknown) {
+      console.error("[Chat] API error:", err);
+      const apiMsg =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "Desculpe, ocorreu um erro. Tente novamente.";
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: "assistant", content: "Desculpe, ocorreu um erro. Tente novamente." },
+        { id: (Date.now() + 1).toString(), role: "assistant", content: apiMsg },
       ]);
     }
   }
