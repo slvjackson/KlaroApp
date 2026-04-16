@@ -16,6 +16,11 @@ const app: Express = express();
 // which is required for secure session cookies in production.
 app.set("trust proxy", 1);
 
+// Health check FIRST — before any middleware that touches the database.
+// This ensures /health and /healthz always respond quickly even if the
+// database connection is slow or not yet ready.
+app.use(healthRouter);
+
 app.use(
   pinoHttp({
     logger,
@@ -59,9 +64,6 @@ app.use(
     },
   }),
 );
-
-// Health check at root level (no /api prefix) for Railway and other load balancers
-app.use(healthRouter);
 
 app.use("/api", router);
 
