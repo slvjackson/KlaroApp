@@ -3,6 +3,14 @@ import path from "path";
 import * as XLSX from "xlsx";
 import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "./logger";
+import { buildOcrPrompt, getSegmentProfile } from "../prompts/builder";
+
+export interface ParseBusinessContext {
+  businessName?: string;
+  segment?: string;
+  mainProducts?: string;
+  salesChannel?: string;
+}
 
 function getAnthropicClient(): Anthropic | null {
   if (!process.env.ANTHROPIC_API_KEY) return null;
@@ -498,7 +506,7 @@ const IMAGE_MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif"
   webp: "image/webp",
 };
 
-export async function extractImageText(filePath: string): Promise<string> {
+export async function extractImageText(filePath: string, ctx?: ParseBusinessContext): Promise<string> {
   const client = getAnthropicClient();
   if (!client) {
     logger.warn("ANTHROPIC_API_KEY not set — skipping image OCR");
@@ -508,6 +516,13 @@ export async function extractImageText(filePath: string): Promise<string> {
   const absPath = path.resolve(process.cwd(), filePath);
   const ext = path.extname(filePath).toLowerCase().replace(".", "");
   const mediaType = IMAGE_MEDIA_TYPES[ext] ?? "image/jpeg";
+
+  const promptText = buildOcrPrompt({
+    businessName: ctx?.businessName,
+    segment: getSegmentProfile(ctx?.segment),
+    mainProducts: ctx?.mainProducts,
+    salesChannel: ctx?.salesChannel,
+  });
 
   try {
     const imageData = fs.readFileSync(absPath);
@@ -524,25 +539,7 @@ export async function extractImageText(filePath: string): Promise<string> {
               type: "image",
               source: { type: "base64", media_type: mediaType, data: base64 },
             },
-            {
-              type: "text",
-              text: `Você é um assistente especializado em extração de dados financeiros de imagens.
-Analise esta imagem (pode ser extrato bancário, caderno de anotações, nota fiscal, recibo, etc.).
-Extraia as transações financeiras individuais e retorne SOMENTE um CSV com as colunas:
-data,descricao,valor
-
-Regras importantes:
-- Extraia apenas itens vendidos/comprados individualmente. NÃO inclua linhas de total, subtotal, saldo ou resumo (ex: "Total Dia", "Total", "Saldo", "Subtotal").
-- Se um item tiver quantidade (ex: "Água (3): 9,00"), o valor já é o total daquele item — use esse valor.
-- Datas no formato DD/MM/YYYY. Se houver uma data geral para o dia (ex: "14/05/24"), use-a para todos os itens daquele grupo.
-- Valores positivos para vendas/receitas/entradas. Negativos para compras/despesas/saídas.
-- Use ponto como separador decimal (ex: 13.00, não 13,00).
-- Use vírgula apenas para separar as colunas do CSV.
-- Se houver anotações como "pagar depois" ou "fiado", ainda assim inclua o item com seu valor correto.
-- Se a imagem tiver duas páginas ou seções semelhantes, extraia cada uma separadamente (não duplique).
-- Não inclua cabeçalho, não inclua explicações — retorne apenas as linhas CSV.
-- Se a imagem não contiver dados financeiros, retorne somente: SEM_DADOS`,
-            },
+            { type: "text", text: promptText },
           ],
         },
       ],
