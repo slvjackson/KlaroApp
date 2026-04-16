@@ -24,7 +24,7 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
   const userId = req.session.userId!;
 
   const [userRow, transactions] = await Promise.all([
-    db.select({ name: usersTable.name, segment: usersTable.segment })
+    db.select({ name: usersTable.name, businessProfile: usersTable.businessProfile })
       .from(usersTable)
       .where(eq(usersTable.id, userId))
       .then((r) => r[0]),
@@ -34,12 +34,19 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
       .orderBy(transactionsTable.date),
   ]);
 
+  const bp = userRow?.businessProfile as Record<string, unknown> | null;
+
   // Delete existing insights for the user (refresh)
   await db.delete(insightsTable).where(eq(insightsTable.userId, userId));
 
   const generated = await generateInsights(transactions, {
-    businessName: userRow?.name,
-    segment: userRow?.segment ?? undefined,
+    businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
+    segment: bp?.segment as string | undefined,
+    city: bp?.city as string | undefined,
+    state: bp?.state as string | undefined,
+    mainProducts: bp?.mainProducts as string | undefined,
+    salesChannel: bp?.salesChannel as string | undefined,
+    biggestChallenge: bp?.biggestChallenge as string | undefined,
   });
 
   if (generated.length === 0) {

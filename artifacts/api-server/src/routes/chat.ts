@@ -30,14 +30,15 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
 
   // Fetch user and transactions in parallel
   const [userRow, transactions] = await Promise.all([
-    db.select({ name: usersTable.name, segment: usersTable.segment })
+    db.select({ name: usersTable.name, businessProfile: usersTable.businessProfile })
       .from(usersTable)
       .where(eq(usersTable.id, userId))
       .then((r) => r[0]),
     db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId)),
   ]);
 
-  const segmentProfile = getSegmentProfile(userRow?.segment);
+  const bp = userRow?.businessProfile as Record<string, unknown> | null;
+  const segmentProfile = getSegmentProfile(bp?.segment as string | undefined);
 
   // Build financial summary
   const income = transactions.filter((t) => t.type === "income");

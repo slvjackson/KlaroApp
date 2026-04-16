@@ -80,11 +80,17 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
     .returning();
 
   // Fetch user profile for segment-aware parsing
-  const userRow = await db.select({ name: usersTable.name, segment: usersTable.segment })
+  const userRow = await db.select({ name: usersTable.name, businessProfile: usersTable.businessProfile })
     .from(usersTable)
     .where(eq(usersTable.id, userId))
     .then((r) => r[0]);
-  const parseCtx = { businessName: userRow?.name, segment: userRow?.segment ?? undefined };
+  const bp = userRow?.businessProfile as Record<string, unknown> | null;
+  const parseCtx = {
+    businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
+    segment: bp?.segment as string | undefined,
+    mainProducts: bp?.mainProducts as string | undefined,
+    salesChannel: bp?.salesChannel as string | undefined,
+  };
 
   // Parse the file synchronously so records are ready when the review page loads
   try {
