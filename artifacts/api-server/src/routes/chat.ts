@@ -80,7 +80,7 @@ PERFIL DO NEGÓCIO:
   Nome: ${userRow?.name ?? "Usuário"}
   Segmento: ${segmentProfile.label}
   Terminologia: receita = "${segmentProfile.terminologia.receita}", despesa = "${segmentProfile.terminologia.despesa}", cliente = "${segmentProfile.terminologia.cliente}"
-  Foco de análise: ${segmentProfile.focoInsights.join(", ")}
+  Foco de análise: ${segmentProfile.focoInsights}
 
 RESUMO FINANCEIRO ATUAL:
   Receita total: R$${totalIncome.toFixed(0)}
