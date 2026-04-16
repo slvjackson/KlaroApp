@@ -40,6 +40,8 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   const bp = userRow?.businessProfile as Record<string, unknown> | null;
   const segmentProfile = getSegmentProfile(bp?.segment as string | undefined);
 
+  const today = new Date().toISOString().slice(0, 10);
+
   // Build financial summary
   const income = transactions.filter((t) => t.type === "income");
   const expenses = transactions.filter((t) => t.type === "expense");
@@ -48,7 +50,25 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   const netBalance = totalIncome - totalExpenses;
   const margin = totalIncome > 0 ? ((netBalance / totalIncome) * 100).toFixed(1) : "0";
 
-  // Monthly breakdown (last 3 months)
+  // Today's transactions
+  const todayTx = transactions.filter((t) => t.date === today);
+  const todayIncome = todayTx.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const todayExpenses = todayTx.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const todayLines = todayTx.length > 0
+    ? todayTx.map((t) => `  ${t.type === "income" ? "+" : "-"}R$${t.amount.toFixed(0)} ${t.description} (${t.category})`).join("\n")
+    : "  Nenhuma transação registrada hoje";
+
+  // Last 30 days individual transactions (most recent first, max 50)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const recentTx = transactions
+    .filter((t) => t.date >= thirtyDaysAgo)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 50);
+  const recentTxLines = recentTx.length > 0
+    ? recentTx.map((t) => `  ${t.date} ${t.type === "income" ? "+" : "-"}R$${t.amount.toFixed(0)} ${t.description} (${t.category})`).join("\n")
+    : "  Sem transações nos últimos 30 dias";
+
+  // Monthly breakdown (last 6 months)
   const monthMap = new Map<string, { income: number; expenses: number }>();
   for (const t of transactions) {
     const m = t.date.substring(0, 7);
@@ -59,8 +79,8 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   }
   const recentMonths = [...monthMap.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
-    .slice(0, 3)
-    .map(([month, d]) => `  ${month}: receita R$${d.income.toFixed(0)}, despesas R$${d.expenses.toFixed(0)}`)
+    .slice(0, 6)
+    .map(([month, d]) => `  ${month}: receita R$${d.income.toFixed(0)}, despesas R$${d.expenses.toFixed(0)}, saldo R$${(d.income - d.expenses).toFixed(0)}`)
     .join("\n");
 
   // Top expense categories
@@ -68,13 +88,14 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   for (const t of expenses) catMap.set(t.category, (catMap.get(t.category) ?? 0) + t.amount);
   const topCats = [...catMap.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
+    .slice(0, 5)
     .map(([cat, val]) => `  ${cat}: R$${val.toFixed(0)}`)
     .join("\n");
 
   const systemPrompt = `Você é o Klaro, um consultor financeiro de IA para pequenos e médios negócios brasileiros.
 Você conversa diretamente com o dono do negócio, de forma simples, amigável e acionável.
 Tom de voz: ${segmentProfile.tom}
+Data de hoje: ${today}
 
 PERFIL DO NEGÓCIO:
   Nome: ${userRow?.name ?? "Usuário"}
@@ -82,14 +103,21 @@ PERFIL DO NEGÓCIO:
   Terminologia: receita = "${segmentProfile.terminologia.receita}", despesa = "${segmentProfile.terminologia.despesa}", cliente = "${segmentProfile.terminologia.cliente}"
   Foco de análise: ${segmentProfile.focoInsights}
 
-RESUMO FINANCEIRO ATUAL:
+HOJE (${today}):
+  Receita: R$${todayIncome.toFixed(0)} | Despesas: R$${todayExpenses.toFixed(0)}
+${todayLines}
+
+TRANSAÇÕES DOS ÚLTIMOS 30 DIAS (${recentTx.length} registros):
+${recentTxLines}
+
+RESUMO GERAL:
   Receita total: R$${totalIncome.toFixed(0)}
   Despesas totais: R$${totalExpenses.toFixed(0)}
   Saldo líquido: R$${netBalance.toFixed(0)}
   Margem de lucro: ${margin}%
   Total de transações: ${transactions.length}
 
-ÚLTIMOS 3 MESES:
+EVOLUÇÃO MENSAL (últimos 6 meses):
 ${recentMonths || "  Sem dados"}
 
 PRINCIPAIS DESPESAS POR CATEGORIA:
@@ -97,9 +125,9 @@ ${topCats || "  Sem dados"}
 
 INSTRUÇÕES:
 - Responda de forma direta e conversacional, como um amigo que entende de finanças
-- Use os dados acima para dar respostas personalizadas e concretas
-- Se o usuário perguntar algo que não está nos dados, diga que não tem essa informação
-- Cite números reais quando relevante
+- Você TEM ACESSO a todas as transações individuais — use-as para responder perguntas específicas
+- Cite datas, valores e descrições reais das transações quando relevante
+- Se o usuário perguntar sobre hoje, use a seção HOJE
 - Máximo de 3 parágrafos por resposta
 - Use linguagem simples e direta, adequada para pequenos e médios empresários`;
 
