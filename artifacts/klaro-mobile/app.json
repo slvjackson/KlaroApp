@@ -18,7 +18,9 @@
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "NSCameraUsageDescription": "Usado para fotografar comprovantes e documentos financeiros.",
+        "NSPhotoLibraryUsageDescription": "Usado para selecionar imagens de comprovantes da galeria."
       }
     },
     "android": {},
@@ -33,7 +35,14 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Usado para selecionar imagens de comprovantes da galeria.",
+          "cameraPermission": "Usado para fotografar comprovantes e documentos financeiros."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
