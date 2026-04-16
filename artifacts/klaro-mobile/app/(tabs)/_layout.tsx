@@ -20,16 +20,12 @@ function NativeTabLayout() {
         <Icon sf={{ default: "list.bullet", selected: "list.bullet" }} />
         <Label>Transações</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="upload">
-        <Icon sf={{ default: "arrow.up.doc", selected: "arrow.up.doc.fill" }} />
-        <Label>Upload</Label>
+      <NativeTabs.Trigger name="chat">
+        <Icon sf={{ default: "sparkles", selected: "sparkles" }} />
+        <Label>Klaro IA</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="analytics">
+      <NativeTabs.Trigger name="intelligence">
         <Icon sf={{ default: "chart.xyaxis.line", selected: "chart.xyaxis.line" }} />
-        <Label>Análise</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="insights">
-        <Icon sf={{ default: "lightbulb", selected: "lightbulb.fill" }} />
         <Label>Insights</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
@@ -107,42 +103,31 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="upload"
+        name="chat"
         options={{
-          title: "Upload",
-          tabBarIcon: ({ color }) =>
+          title: "Klaro IA",
+          tabBarActiveTintColor: colors.primary,
+          tabBarIcon: ({ color, focused }) =>
             isIOS ? (
-              <SymbolView
-                name="arrow.up.doc.fill"
-                tintColor={color}
-                size={22}
-              />
+              <SymbolView name="sparkles" tintColor={focused ? colors.primary : color} size={26} />
             ) : (
-              <Feather name="upload" size={22} color={color} />
+              <Feather name="zap" size={26} color={focused ? colors.primary : color} />
             ),
+          tabBarLabelStyle: {
+            fontFamily: "Inter_600SemiBold",
+            fontSize: 11,
+          },
         }}
       />
       <Tabs.Screen
-        name="analytics"
+        name="intelligence"
         options={{
-          title: "Análise",
+          title: "Insights",
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="chart.xyaxis.line" tintColor={color} size={22} />
             ) : (
               <Feather name="trending-up" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="insights"
-        options={{
-          title: "Insights",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="lightbulb.fill" tintColor={color} size={22} />
-            ) : (
-              <Feather name="zap" size={22} color={color} />
             ),
         }}
       />
@@ -158,6 +143,11 @@ function ClassicTabLayout() {
             ),
         }}
       />
+
+      {/* Hidden screens — accessible via router.push but not shown in tab bar */}
+      <Tabs.Screen name="upload" options={{ href: null }} />
+      <Tabs.Screen name="analytics" options={{ href: null }} />
+      <Tabs.Screen name="insights" options={{ href: null }} />
     </Tabs>
   );
 }
