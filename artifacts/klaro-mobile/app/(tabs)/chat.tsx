@@ -145,12 +145,21 @@ export default function ChatScreen() {
         <View style={[styles.headerIcon, { backgroundColor: `${colors.primary}22` }]}>
           <Feather name="zap" size={18} color={colors.primary} />
         </View>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Klaro IA</Text>
           <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
             Consultor financeiro do seu negócio
           </Text>
         </View>
+        {messages.length > 0 && (
+          <Pressable
+            onPress={() => setMessages([])}
+            hitSlop={12}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+          >
+            <Feather name="rotate-ccw" size={18} color={colors.mutedForeground} />
+          </Pressable>
+        )}
       </View>
 
       {/* Messages */}
