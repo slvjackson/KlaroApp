@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+.git
+.gitignore
+*.log
+npm-debug.log*
+artifacts/klaro-mobile/.expo
+artifacts/klaro-mobile/node_modules
+artifacts/klaro/.next
+artifacts/klaro/node_modules
+dist
+**/dist
