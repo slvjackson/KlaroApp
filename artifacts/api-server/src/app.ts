@@ -5,6 +5,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "@workspace/db";
 import router from "./routes";
+import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
 
 const PgSession = connectPgSimple(session);
@@ -58,6 +59,9 @@ app.use(
     },
   }),
 );
+
+// Health check at root level (no /api prefix) for Railway and other load balancers
+app.use(healthRouter);
 
 app.use("/api", router);
 
