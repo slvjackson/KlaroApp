@@ -4,6 +4,7 @@ import { db, transactionsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { logger } from "../lib/logger";
+import { getSegmentProfile } from "../prompts/builder";
 
 const router = Router();
 
@@ -29,12 +30,14 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
 
   // Fetch user and transactions in parallel
   const [userRow, transactions] = await Promise.all([
-    db.select({ name: usersTable.name })
+    db.select({ name: usersTable.name, segment: usersTable.segment })
       .from(usersTable)
       .where(eq(usersTable.id, userId))
       .then((r) => r[0]),
     db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId)),
   ]);
+
+  const segmentProfile = getSegmentProfile(userRow?.segment);
 
   // Build financial summary
   const income = transactions.filter((t) => t.type === "income");
@@ -70,9 +73,13 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
 
   const systemPrompt = `Você é o Klaro, um consultor financeiro de IA para pequenos e médios negócios brasileiros.
 Você conversa diretamente com o dono do negócio, de forma simples, amigável e acionável.
+Tom de voz: ${segmentProfile.tom}
 
 PERFIL DO NEGÓCIO:
   Nome: ${userRow?.name ?? "Usuário"}
+  Segmento: ${segmentProfile.label}
+  Terminologia: receita = "${segmentProfile.terminologia.receita}", despesa = "${segmentProfile.terminologia.despesa}", cliente = "${segmentProfile.terminologia.cliente}"
+  Foco de análise: ${segmentProfile.focoInsights.join(", ")}
 
 RESUMO FINANCEIRO ATUAL:
   Receita total: R$${totalIncome.toFixed(0)}

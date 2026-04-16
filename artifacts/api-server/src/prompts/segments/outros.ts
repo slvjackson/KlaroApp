@@ -1,32 +1,27 @@
 import type { SegmentProfile } from "../types";
-import { varejo } from "./varejo";
-import { alimentacao } from "./alimentacao";
-import { servicos } from "./servicos";
-import { saude } from "./saude";
-import { educacao } from "./educacao";
-import { tecnologia } from "./tecnologia";
-import { construcao } from "./construcao";
-import { transporte } from "./transporte";
-import { agro } from "./agro";
-import { outro } from "./outro";
 
-export { varejo, alimentacao, servicos, saude, educacao, tecnologia, construcao, transporte, agro, outro };
-
-const SEGMENT_REGISTRY: Record<string, SegmentProfile> = {
-  varejo,
-  alimentacao,
-  servicos,
-  saude,
-  educacao,
-  tecnologia,
-  construcao,
-  transporte,
-  agro,
-  outro,
+export const outro: SegmentProfile = {
+  label: "Outros",
+  terminologia: {
+    receita: "receita",
+    despesa: "despesa",
+    cliente: "cliente",
+    produto: "produto ou serviço",
+  },
+  categoriasComuns: [
+    "Receitas diversas", "Despesas operacionais", "Folha de Pagamento",
+    "Impostos", "Marketing", "Equipamentos", "Aluguel", "Outros",
+  ],
+  focoInsights: "equilíbrio entre receitas e despesas, margem de lucro, fluxo de caixa e sazonalidade",
+  tom: "direto e prático, como um consultor financeiro generalista — fale sobre fluxo de caixa, margem e planejamento",
+  exemplosDocumentos: [
+    "nota fiscal", "recibo", "boleto bancário", "extrato bancário",
+    "comprovante de pagamento", "planilha de controle",
+  ],
+  desafiosComuns: [
+    "falta de controle sobre entradas e saídas",
+    "mistura de finanças pessoais e empresariais",
+    "ausência de reserva financeira para emergências",
+    "precificação inadequada dos produtos ou serviços",
+  ],
 };
-
-/** Returns the SegmentProfile for the given segment key, falling back to `outro`. */
-export function getSegmentProfile(segment?: string | null): SegmentProfile {
-  if (!segment) return outro;
-  return SEGMENT_REGISTRY[segment.toLowerCase()] ?? outro;
-}

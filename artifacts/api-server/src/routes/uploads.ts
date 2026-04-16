@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { db, rawInputsTable, parsedRecordsTable } from "@workspace/db";
+import { db, rawInputsTable, parsedRecordsTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { saveFile, deleteFile } from "../lib/storage";
@@ -79,6 +79,13 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
     })
     .returning();
 
+  // Fetch user profile for segment-aware parsing
+  const userRow = await db.select({ name: usersTable.name, segment: usersTable.segment })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .then((r) => r[0]);
+  const parseCtx = { businessName: userRow?.name, segment: userRow?.segment ?? undefined };
+
   // Parse the file synchronously so records are ready when the review page loads
   try {
     let records;
@@ -96,8 +103,8 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
         .where(eq(rawInputsTable.id, rawInput.id));
       records = await rawTextToRecords(text);
     } else {
-      // Image: attempt OCR, fall back to mock for images pending real OCR
-      const text = await extractImageText(stored.storedPath);
+      // Image: OCR with segment context for better categorisation
+      const text = await extractImageText(stored.storedPath, parseCtx);
       if (text) {
         await db
           .update(rawInputsTable)

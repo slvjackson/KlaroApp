@@ -8,7 +8,7 @@ import { tecnologia } from "./tecnologia";
 import { construcao } from "./construcao";
 import { transporte } from "./transporte";
 import { agro } from "./agro";
-import { outro } from "./outro";
+import { outro } from "./outros";
 
 export { varejo, alimentacao, servicos, saude, educacao, tecnologia, construcao, transporte, agro, outro };
 
