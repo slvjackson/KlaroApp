@@ -5,6 +5,59 @@ import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
 
+// POST /transactions — manually create a transaction
+router.post("/transactions", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const { date, description, amount, type, category } = req.body;
+
+  if (!date || !description || amount == null || !type || !category) {
+    res.status(400).json({ error: "Todos os campos são obrigatórios." });
+    return;
+  }
+  if (type !== "income" && type !== "expense") {
+    res.status(400).json({ error: "Tipo inválido." });
+    return;
+  }
+
+  const [created] = await db
+    .insert(transactionsTable)
+    .values({ userId, date, description, amount: parseFloat(amount), type, category })
+    .returning();
+
+  res.status(201).json(created);
+});
+
+// PATCH /transactions/:id — edit a transaction
+router.patch("/transactions/:id", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const id = parseInt(req.params.id as string, 10);
+  const { date, description, amount, type, category } = req.body;
+
+  const [existing] = await db
+    .select()
+    .from(transactionsTable)
+    .where(and(eq(transactionsTable.id, id), eq(transactionsTable.userId, userId)));
+
+  if (!existing) {
+    res.status(404).json({ error: "Transação não encontrada." });
+    return;
+  }
+
+  const [updated] = await db
+    .update(transactionsTable)
+    .set({
+      ...(date !== undefined && { date }),
+      ...(description !== undefined && { description }),
+      ...(amount !== undefined && { amount: parseFloat(amount) }),
+      ...(type !== undefined && { type }),
+      ...(category !== undefined && { category }),
+    })
+    .where(eq(transactionsTable.id, id))
+    .returning();
+
+  res.json(updated);
+});
+
 // GET /transactions — list confirmed transactions with optional filters
 router.get("/transactions", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;

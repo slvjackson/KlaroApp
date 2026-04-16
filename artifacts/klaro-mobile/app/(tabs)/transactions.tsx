@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TransactionRow } from "@/components/TransactionRow";
+import { TransactionFormModal, type TransactionData } from "@/components/TransactionFormModal";
 import { useColors } from "@/hooks/useColors";
 
 type FilterType = "all" | "income" | "expense";
@@ -21,6 +22,8 @@ export default function TransactionsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<FilterType>("all");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<TransactionData | null>(null);
 
   const { data: transactions, isLoading, refetch } = useListTransactions({
     type: filter === "all" ? undefined : filter,
@@ -35,9 +38,19 @@ export default function TransactionsScreen() {
     { key: "expense", label: "Despesas" },
   ];
 
+  function openAdd() {
+    setEditingTransaction(null);
+    setModalVisible(true);
+  }
+
+  function openEdit(item: TransactionData) {
+    setEditingTransaction(item);
+    setModalVisible(true);
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Header row: title + upload button */}
+      {/* Header row: title + add + upload buttons */}
       <View
         style={[
           styles.titleRow,
@@ -50,19 +63,36 @@ export default function TransactionsScreen() {
         ]}
       >
         <Text style={[styles.screenTitle, { color: colors.foreground }]}>Transações</Text>
-        <Pressable
-          onPress={() => router.push("/(tabs)/upload")}
-          style={({ pressed }) => [
-            styles.uploadBtn,
-            {
-              backgroundColor: pressed ? `${colors.primary}dd` : colors.primary,
-              borderRadius: colors.radius,
-            },
-          ]}
-        >
-          <Feather name="upload" size={15} color={colors.primaryForeground} />
-          <Text style={[styles.uploadBtnText, { color: colors.primaryForeground }]}>Upload</Text>
-        </Pressable>
+        <View style={styles.headerBtns}>
+          <Pressable
+            onPress={openAdd}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              {
+                backgroundColor: pressed ? colors.secondary : colors.secondary,
+                borderRadius: colors.radius,
+                borderWidth: 1,
+                borderColor: colors.border,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Feather name="plus" size={17} color={colors.foreground} />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push("/(tabs)/upload")}
+            style={({ pressed }) => [
+              styles.uploadBtn,
+              {
+                backgroundColor: pressed ? `${colors.primary}dd` : colors.primary,
+                borderRadius: colors.radius,
+              },
+            ]}
+          >
+            <Feather name="upload" size={15} color={colors.primaryForeground} />
+            <Text style={[styles.uploadBtnText, { color: colors.primaryForeground }]}>Upload</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Filter chips */}
@@ -95,9 +125,7 @@ export default function TransactionsScreen() {
                 style={[
                   styles.chipText,
                   {
-                    color: active
-                      ? colors.primaryForeground
-                      : colors.mutedForeground,
+                    color: active ? colors.primaryForeground : colors.mutedForeground,
                   },
                 ]}
               >
@@ -120,9 +148,17 @@ export default function TransactionsScreen() {
             <TransactionRow
               description={item.description}
               amount={item.amount}
-              type={item.type}
+              type={item.type as "income" | "expense"}
               category={item.category}
               date={item.date}
+              onPress={() => openEdit({
+                id: item.id,
+                description: item.description,
+                amount: item.amount,
+                type: item.type as "income" | "expense",
+                category: item.category,
+                date: item.date,
+              })}
             />
           )}
           scrollEnabled={!!(transactions && transactions.length > 0)}
@@ -131,35 +167,42 @@ export default function TransactionsScreen() {
           contentContainerStyle={[
             styles.list,
             {
-              paddingBottom:
-                insets.bottom + (Platform.OS === "web" ? 34 : 0) + 100,
+              paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 100,
             },
           ]}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Feather name="inbox" size={36} color={colors.mutedForeground} />
-              <Text
-                style={[styles.emptyText, { color: colors.mutedForeground }]}
-              >
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
                 Sem transações{" "}
-                {filter !== "all"
-                  ? filter === "income"
-                    ? "de receita"
-                    : "de despesa"
-                  : ""}
+                {filter !== "all" ? (filter === "income" ? "de receita" : "de despesa") : ""}
               </Text>
+              <Pressable
+                onPress={openAdd}
+                style={[styles.emptyAddBtn, { borderColor: colors.border, borderRadius: colors.radius }]}
+              >
+                <Feather name="plus" size={14} color={colors.mutedForeground} />
+                <Text style={[styles.emptyAddText, { color: colors.mutedForeground }]}>
+                  Adicionar manualmente
+                </Text>
+              </Pressable>
             </View>
           }
         />
       )}
+
+      <TransactionFormModal
+        visible={modalVisible}
+        editing={editingTransaction}
+        onClose={() => setModalVisible(false)}
+        onSaved={refetch}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
+  root: { flex: 1 },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -169,6 +212,17 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontFamily: "Inter_700Bold",
     letterSpacing: -0.5,
+  },
+  headerBtns: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
   },
   uploadBtn: {
     flexDirection: "row",
@@ -215,5 +269,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
+  },
+  emptyAddBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  emptyAddText: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
   },
 });

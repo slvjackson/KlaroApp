@@ -2,11 +2,14 @@ import { Feather } from "@expo/vector-icons";
 import { useListUploads } from "@workspace/api-client-react";
 import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   FlatList,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -112,39 +115,19 @@ export default function UploadScreen() {
   const { token } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
 
   const { data: uploads, isLoading, refetch } = useListUploads();
 
   const baseUrl = getApiBaseUrl();
 
-  async function handlePick() {
+  async function uploadFile(uri: string, name: string, mimeType: string) {
+    setUploading(true);
     setUploadError("");
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          "text/csv",
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "application/vnd.ms-excel",
-          "application/pdf",
-          "image/*",
-        ],
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled) return;
-
-      const file = result.assets[0];
-      if (!file) return;
-
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setUploading(true);
-
       const formData = new FormData();
-      formData.append("file", {
-        uri: file.uri,
-        name: file.name,
-        type: file.mimeType ?? "application/octet-stream",
-      } as unknown as Blob);
+      formData.append("file", { uri, name, type: mimeType } as unknown as Blob);
 
       const res = await fetch(`${baseUrl}/api/uploads`, {
         method: "POST",
@@ -168,6 +151,74 @@ export default function UploadScreen() {
       setUploadError(`Erro: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleCamera() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      setUploadError("Permissão de câmera negada.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.85,
+      allowsEditing: false,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    await uploadFile(asset.uri, `foto_${Date.now()}.jpg`, asset.mimeType ?? "image/jpeg");
+  }
+
+  async function handleGallery() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      setUploadError("Permissão de galeria negada.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.85,
+      allowsEditing: false,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    const name = asset.uri.split("/").pop() ?? `imagem_${Date.now()}.jpg`;
+    await uploadFile(asset.uri, name, asset.mimeType ?? "image/jpeg");
+  }
+
+  async function handleFile() {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: [
+        "text/csv",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "application/pdf",
+        "image/*",
+      ],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const file = result.assets[0];
+    await uploadFile(file.uri, file.name, file.mimeType ?? "application/octet-stream");
+  }
+
+  function handleChooseSource() {
+    setUploadError("");
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Cancelar", "Câmera", "Galeria de Fotos", "Arquivo"],
+          cancelButtonIndex: 0,
+        },
+        (idx) => {
+          if (idx === 1) handleCamera();
+          else if (idx === 2) handleGallery();
+          else if (idx === 3) handleFile();
+        }
+      );
+    } else {
+      setShowSourcePicker(true);
     }
   }
 
@@ -214,7 +265,7 @@ export default function UploadScreen() {
               CSV, XLSX, PDF ou imagem
             </Text>
             <Pressable
-              onPress={handlePick}
+              onPress={handleChooseSource}
               style={({ pressed }) => [
                 styles.uploadBtn,
                 {
@@ -230,7 +281,7 @@ export default function UploadScreen() {
                   { color: colors.primaryForeground },
                 ]}
               >
-                Selecionar arquivo
+                Escolher origem
               </Text>
             </Pressable>
           </>
@@ -251,6 +302,36 @@ export default function UploadScreen() {
       >
         Histórico
       </Text>
+
+      {/* Android source picker (iOS uses ActionSheetIOS) */}
+      <Modal
+        visible={showSourcePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSourcePicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowSourcePicker(false)} />
+        <View style={[styles.sourceSheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 16 }]}>
+          <Text style={[styles.sourceTitle, { color: colors.foreground }]}>Escolher origem</Text>
+          {[
+            { icon: "camera" as const, label: "Câmera", action: () => { setShowSourcePicker(false); handleCamera(); } },
+            { icon: "image" as const, label: "Galeria de Fotos", action: () => { setShowSourcePicker(false); handleGallery(); } },
+            { icon: "file-text" as const, label: "Arquivo", action: () => { setShowSourcePicker(false); handleFile(); } },
+          ].map(({ icon, label, action }) => (
+            <Pressable
+              key={label}
+              onPress={action}
+              style={({ pressed }) => [
+                styles.sourceOption,
+                { backgroundColor: pressed ? colors.secondary : "transparent" },
+              ]}
+            >
+              <Feather name={icon} size={20} color={colors.foreground} />
+              <Text style={[styles.sourceOptionText, { color: colors.foreground }]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </Modal>
 
       {isLoading ? (
         <View style={styles.loadingBox}>
@@ -382,6 +463,33 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
+    fontFamily: "Inter_400Regular",
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  sourceSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    gap: 4,
+  },
+  sourceTitle: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    marginBottom: 8,
+  },
+  sourceOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+  },
+  sourceOptionText: {
+    fontSize: 16,
     fontFamily: "Inter_400Regular",
   },
 });

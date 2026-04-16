@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 
 interface TransactionRowProps {
@@ -9,6 +9,7 @@ interface TransactionRowProps {
   type: "income" | "expense";
   category: string;
   date: string;
+  onPress?: () => void;
 }
 
 export function TransactionRow({
@@ -17,6 +18,7 @@ export function TransactionRow({
   type,
   category,
   date,
+  onPress,
 }: TransactionRowProps) {
   const colors = useColors();
   const isIncome = type === "income";
@@ -38,14 +40,16 @@ export function TransactionRow({
   })();
 
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
         styles.row,
         {
           backgroundColor: colors.card,
           borderRadius: colors.radius,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
+          opacity: pressed && onPress ? 0.75 : 1,
         },
       ]}
     >
@@ -86,7 +90,10 @@ export function TransactionRow({
         {isIncome ? "+" : "-"}
         {formattedAmount}
       </Text>
-    </View>
+      {onPress && (
+        <Feather name="chevron-right" size={14} color={colors.mutedForeground} style={{ marginLeft: 2 }} />
+      )}
+    </Pressable>
   );
 }
 
