@@ -40,7 +40,9 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   const bp = userRow?.businessProfile as Record<string, unknown> | null;
   const segmentProfile = getSegmentProfile(bp?.segment as string | undefined);
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Use UTC-3 (Brazil) local date to match how dates are stored by the mobile app
+  const nowBrasilia = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const today = nowBrasilia.toISOString().slice(0, 10);
 
   // Build financial summary
   const income = transactions.filter((t) => t.type === "income");
