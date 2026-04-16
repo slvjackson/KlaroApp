@@ -149,8 +149,8 @@ INSTRUÇÕES:
     });
 
     const reply = response.content[0].type === "text" ? response.content[0].text : "";
-    logger.info({ userId, messageLen: message.length }, "Chat response generated");
-    res.json({ reply });
+    logger.info({ userId, messageLen: message.length, today, todayTxCount: todayTx.length }, "Chat response generated");
+    res.json({ reply, _debug: { today, todayTxCount: todayTx.length, todayIncome, todayTx: todayTx.map(t => ({ date: t.date, type: t.type, amount: t.amount, description: t.description })) } });
   } catch (err) {
     logger.error({ err }, "Chat generation failed");
     res.status(500).json({ error: "Erro ao gerar resposta. Tente novamente." });
