@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   useGenerateInsights,
   useListInsights,
@@ -181,7 +181,7 @@ function InsightCard({
         <View style={styles.insightCardHeader}>
           <View style={styles.insightCardHeaderLeft}>
             <View style={[styles.iconBox, { backgroundColor: `${colors.primary}22`, borderRadius: 10 }]}>
-              <Ionicons name="bulb-outline" size={18} color={colors.primary} />
+              <MaterialCommunityIcons name="lightbulb-outline" size={18} color={colors.primary} />
             </View>
             {isNew && (
               <View style={[styles.newBadge, { backgroundColor: colors.primary }]}>
@@ -297,7 +297,7 @@ function InsightsContent() {
             <ActivityIndicator color={colors.primaryForeground} size="small" />
           ) : (
             <>
-              <Ionicons name="bulb-outline" size={18} color={colors.primaryForeground} />
+              <MaterialCommunityIcons name="lightbulb-outline" size={18} color={colors.primaryForeground} />
               <Text style={[styles.generateBtnText, { color: colors.primaryForeground }]}>
                 Gerar novos insights
               </Text>
@@ -307,7 +307,7 @@ function InsightsContent() {
       }
       ListEmptyComponent={
         <View style={styles.emptyBox}>
-          <Ionicons name="bulb-outline" size={44} color={colors.mutedForeground} />
+          <MaterialCommunityIcons name="lightbulb-outline" size={44} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sem insights ainda</Text>
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
             Selecione o período e toque em "Gerar novos insights".

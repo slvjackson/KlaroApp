@@ -3,7 +3,7 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
@@ -24,8 +24,8 @@ function NativeTabLayout() {
         <Icon sf={{ default: "sparkles", selected: "sparkles" }} />
         <Label>Klaro IA</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="intelligence">
-        <Icon sf={{ default: "chart.xyaxis.line", selected: "chart.xyaxis.line" }} />
+      <NativeTabs.Trigger name="insights">
+        <Icon sf={{ default: "lightbulb", selected: "lightbulb.fill" }} />
         <Label>Insights</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
