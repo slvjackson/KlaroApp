@@ -128,16 +128,10 @@ function useDynamicSuggestions(): string[] {
 function useVoiceInput(onResult: (text: string) => void) {
   const [listening, setListening] = useState(false);
 
+  // Only functional on web via the Web Speech API
   function start() {
-    if (Platform.OS !== "web") {
-      Alert.alert(
-        "Ditação por voz",
-        "Toque no microfone do teclado do seu dispositivo para ditar.",
-        [{ text: "Entendi" }],
-      );
-      return;
-    }
-    // Web Speech API
+    if (Platform.OS !== "web") return;
+
     const SpeechRecognition =
       (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
         .SpeechRecognition ??
@@ -517,24 +511,26 @@ export default function ChatScreen() {
           blurOnSubmit={false}
         />
 
-        {/* Mic button */}
-        <Pressable
-          onPress={startVoice}
-          style={({ pressed }) => [
-            styles.iconBtn,
-            {
-              backgroundColor: listening ? `${colors.primary}33` : colors.secondary,
-              borderRadius: colors.radius,
-              opacity: pressed ? 0.7 : 1,
-            },
-          ]}
-        >
-          <Feather
-            name="mic"
-            size={18}
-            color={listening ? colors.primary : colors.mutedForeground}
-          />
-        </Pressable>
+        {/* Mic button — web only (Web Speech API) */}
+        {Platform.OS === "web" && (
+          <Pressable
+            onPress={startVoice}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              {
+                backgroundColor: listening ? `${colors.primary}33` : colors.secondary,
+                borderRadius: colors.radius,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Feather
+              name="mic"
+              size={18}
+              color={listening ? colors.primary : colors.mutedForeground}
+            />
+          </Pressable>
+        )}
 
         {/* Send button */}
         <Pressable
