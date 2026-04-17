@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, transactionsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
@@ -80,7 +80,7 @@ router.get("/transactions", requireAuth, async (req, res): Promise<void> => {
     .select()
     .from(transactionsTable)
     .where(and(...conditions))
-    .orderBy(transactionsTable.date)
+    .orderBy(desc(transactionsTable.date))
     .limit(limit)
     .offset(offset);
 
