@@ -15,6 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { TransactionFormProvider } from "@/contexts/TransactionFormContext";
 import { getApiBaseUrl } from "@/constants/api";
 
 // Configure API base URL for Expo (absolute URL required outside the web proxy)
@@ -70,7 +71,9 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <AuthProvider>
-              <RootLayoutNav />
+              <TransactionFormProvider>
+                <RootLayoutNav />
+              </TransactionFormProvider>
             </AuthProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
