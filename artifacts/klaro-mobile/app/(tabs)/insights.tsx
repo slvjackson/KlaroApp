@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import {
   useArchiveInsight,
   useCheckMilestones,
@@ -153,7 +153,7 @@ function InsightCard({
                 { backgroundColor: `${colors.primary}22`, borderRadius: 10 },
               ]}
             >
-              <Feather name="zap" size={16} color={colors.primary} />
+              <Ionicons name="bulb-outline" size={18} color={colors.primary} />
             </View>
             <Text
               style={[styles.periodLabel, { color: colors.mutedForeground }]}
@@ -335,7 +335,7 @@ export default function InsightsScreen() {
           {generateMutation.isPending ? (
             <ActivityIndicator color={colors.primaryForeground} size="small" />
           ) : (
-            <Feather name="zap" size={18} color={colors.primaryForeground} />
+            <Ionicons name="bulb-outline" size={20} color={colors.primaryForeground} />
           )}
         </Pressable>
       </View>
@@ -394,9 +394,9 @@ export default function InsightsScreen() {
           ]}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
-              <Feather
-                name="bar-chart-2"
-                size={40}
+              <Ionicons
+                name="bulb-outline"
+                size={44}
                 color={colors.mutedForeground}
               />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
