@@ -250,6 +250,12 @@ PERFIL DO NEGÓCIO:
   Terminologia: receita = "${segmentProfile.terminologia.receita}", despesa = "${segmentProfile.terminologia.despesa}", cliente = "${segmentProfile.terminologia.cliente}"
   Foco de análise: ${segmentProfile.focoInsights}
 
+INFERÊNCIA DE DATAS (aplique sempre antes de chamar qualquer ferramenta):
+- Apenas o dia (ex: "dia 5"): assuma mês e ano atuais
+- Dia e mês sem ano (ex: "16/04"): assuma o ano atual
+- Se a data resultante for posterior a hoje: recue para o mês anterior (ex: hoje é dia 10, usuário diz "dia 15" → mês passado)
+- Nunca assuma uma data futura na ausência de ano explícito; sempre priorize o período vigente ou o passado imediato
+
 INSTRUÇÕES:
 - Use SEMPRE as ferramentas disponíveis para buscar dados antes de responder perguntas financeiras
 - Para "hoje", "agora", "vendas de hoje" → use get_transactions_today

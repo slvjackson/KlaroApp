@@ -81,11 +81,26 @@ function classifyType(amount: number, description: string): "income" | "expense"
 // ─── Date normalization ───────────────────────────────────────────────────────
 
 /**
+ * Resolve a day+month (no year) to a full date using temporal inference:
+ * - If day/month is today or in the past this month → current year
+ * - If day/month would be in the future → previous year
+ */
+function inferYear(day: number, month: number): number {
+  const now = new Date();
+  const candidate = new Date(now.getFullYear(), month - 1, day);
+  // If the candidate date is strictly in the future, step back one year
+  if (candidate > now) return now.getFullYear() - 1;
+  return now.getFullYear();
+}
+
+/**
  * Convert any date value to "YYYY-MM-DD".
- * Handles: Excel serial ints, JS Date, DD/MM/YYYY, DD/MM/YY, M/D/YY, ISO, with/without time.
+ * Handles: Excel serial ints, JS Date, DD/MM/YYYY, DD/MM/YY, DD/MM (no year),
+ * day-only, ISO, with/without time. Applies temporal inference for incomplete dates.
  */
 function normalizeDate(raw: unknown): string {
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   if (raw === null || raw === undefined || raw === "") return today;
 
   // Excel serial date number
@@ -101,7 +116,8 @@ function normalizeDate(raw: unknown): string {
 
   // JS Date object
   if (raw instanceof Date && !isNaN(raw.getTime())) {
-    return raw.toISOString().split("T")[0];
+    const d = raw;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
   const s = String(raw).trim();
@@ -112,31 +128,48 @@ function normalizeDate(raw: unknown): string {
   // Strip time component if present: "01/01/2025 10:30:00" → "01/01/2025"
   const noTime = s.split(/\s+/)[0];
 
-  // DD/MM/YYYY, DD/MM/YY, DD-MM-YYYY, DD-MM-YY, M/D/YY, M/D/YYYY
-  const parts = noTime.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
-  if (parts) {
-    let [, p1, p2, yr] = parts;
+  // DD/MM/YYYY, DD/MM/YY, DD-MM-YYYY, DD-MM-YY, M/D/YY, M/D/YYYY (with year)
+  const partsWithYear = noTime.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  if (partsWithYear) {
+    const [, p1, p2, yr] = partsWithYear;
     const year = yr.length === 2 ? `20${yr}` : yr;
     const n1 = parseInt(p1, 10);
     const n2 = parseInt(p2, 10);
-
-    // If p1 > 12 → definitely day (DD/MM/YYYY)
-    if (n1 > 12) {
-      return `${year}-${p2.padStart(2, "0")}-${p1.padStart(2, "0")}`;
-    }
-    // If p2 > 12 → p2 is day (MM/DD/YYYY American)
-    if (n2 > 12) {
-      return `${year}-${p1.padStart(2, "0")}-${p2.padStart(2, "0")}`;
-    }
+    if (n1 > 12) return `${year}-${p2.padStart(2, "0")}-${p1.padStart(2, "0")}`;
+    if (n2 > 12) return `${year}-${p1.padStart(2, "0")}-${p2.padStart(2, "0")}`;
     // Ambiguous: assume DD/MM (Brazilian standard)
     return `${year}-${p2.padStart(2, "0")}-${p1.padStart(2, "0")}`;
+  }
+
+  // DD/MM or DD-MM without year → infer year
+  const partsNoYear = noTime.match(/^(\d{1,2})[\/\-\.](\d{1,2})$/);
+  if (partsNoYear) {
+    const [, p1, p2] = partsNoYear;
+    const n1 = parseInt(p1, 10);
+    const n2 = parseInt(p2, 10);
+    let day: number, month: number;
+    if (n1 > 12) { day = n1; month = n2; }
+    else if (n2 > 12) { day = n2; month = n1; }
+    else { day = n1; month = n2; } // assume DD/MM Brazilian
+    const year = inferYear(day, month);
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  // Day only (e.g. "16") → current month/year, or previous month if future
+  if (/^\d{1,2}$/.test(noTime)) {
+    const day = parseInt(noTime, 10);
+    if (day >= 1 && day <= 31) {
+      const month = now.getMonth() + 1;
+      const year = inferYear(day, month);
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
   }
 
   // Month name: "01 Jan 2025", "Jan-25", etc.
   try {
     const d = new Date(s);
     if (!isNaN(d.getTime()) && d.getFullYear() > 1970) {
-      return d.toISOString().split("T")[0];
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     }
   } catch { /* fall through */ }
 
