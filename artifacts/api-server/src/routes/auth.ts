@@ -140,6 +140,33 @@ router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
   res.json(user);
 });
 
+// POST /auth/change-password
+router.post("/auth/change-password", requireAuth, async (req, res): Promise<void> => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword || newPassword.length < 6) {
+    res.status(400).json({ error: "Dados inválidos. Nova senha deve ter ao menos 6 caracteres." });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId!));
+  if (!user) { res.status(401).json({ error: "Sessão inválida." }); return; }
+
+  const match = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!match) { res.status(400).json({ error: "Senha atual incorreta." }); return; }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, user.id));
+  res.json({ message: "Senha alterada com sucesso." });
+});
+
+// DELETE /auth/me — delete account
+router.delete("/auth/me", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  await db.delete(usersTable).where(eq(usersTable.id, userId));
+  req.session.destroy(() => {});
+  res.json({ message: "Conta excluída." });
+});
+
 // PATCH /auth/me — update business profile
 router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;

@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -10,6 +10,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -18,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KlaroButton } from "@/components/KlaroButton";
 import { SectionCollapsible } from "@/components/SectionCollapsible";
 import { useAuth, type BusinessProfile } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import { getApiBaseUrl } from "@/constants/api";
 
@@ -114,13 +116,14 @@ const CITIES_BY_STATE: Record<string, string[]> = {
   TO: ["Palmas", "Araguaína", "Gurupi", "Porto Nacional", "Paraíso do Tocantins", "Colinas do Tocantins"],
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatTime(next: string): string {
-  const digits = next.replace(/\D/g, "").slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+// Generate half-hour time slots from 05:00 to 23:30
+const TIME_SLOTS: string[] = [];
+for (let h = 5; h <= 23; h++) {
+  TIME_SLOTS.push(`${String(h).padStart(2, "0")}:00`);
+  if (h < 23) TIME_SLOTS.push(`${String(h).padStart(2, "0")}:30`);
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function computeCompletion(fields: {
   businessName: string; segment: string; city: string;
@@ -162,10 +165,7 @@ function PickerTrigger({
       ]}
     >
       <Text
-        style={[
-          styles.pickerTriggerText,
-          { color: value ? colors.foreground : colors.mutedForeground },
-        ]}
+        style={[styles.pickerTriggerText, { color: value ? colors.foreground : colors.mutedForeground }]}
         numberOfLines={1}
       >
         {value || placeholder}
@@ -181,6 +181,7 @@ export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token, updateUser, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const bp = user?.businessProfile;
 
   const [businessName, setBusinessName] = useState(bp?.businessName ?? "");
@@ -201,9 +202,31 @@ export default function ProfileScreen() {
   const [statePickerOpen, setStatePickerOpen] = useState(false);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const [citySearch, setCitySearch] = useState("");
+  const [timePickerFor, setTimePickerFor] = useState<"start" | "end" | null>(null);
+
+  // Change password modal
+  const [changePwdOpen, setChangePwdOpen] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [savingPwd, setSavingPwd] = useState(false);
 
   const baseUrl = getApiBaseUrl();
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
+
+  // Ref to track the current state for autosave
+  const stateRef = useRef({
+    businessName, segment, city, state, employeeCount, openDays,
+    openStart, openEnd, revenueGoal, marginGoal, mainProducts,
+    salesChannel, biggestChallenge,
+  });
+
+  // Keep ref in sync
+  stateRef.current = {
+    businessName, segment, city, state, employeeCount, openDays,
+    openStart, openEnd, revenueGoal, marginGoal, mainProducts,
+    salesChannel, biggestChallenge,
+  };
 
   const completion = computeCompletion({
     businessName, segment, city, employeeCount,
@@ -225,27 +248,35 @@ export default function ProfileScreen() {
     !citiesForState.some((c) => c.toLowerCase() === citySearch.trim().toLowerCase());
 
   function toggleDay(day: string) {
-    setOpenDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
+    const next = openDays.includes(day)
+      ? openDays.filter((d) => d !== day)
+      : [...openDays, day];
+    setOpenDays(next);
+    // Autosave immediately on day toggle
+    saveProfile({ openDays: next }, true);
   }
 
-  async function handleSave() {
-    setSaving(true);
+  // ── Save helpers ───────────────────────────────────────────────────────────
+
+  async function saveProfile(overrides: Partial<typeof stateRef.current> = {}, silent = false) {
+    const s = { ...stateRef.current, ...overrides };
     try {
+      if (!silent) setSaving(true);
       const profile: BusinessProfile = {
-        businessName: businessName.trim() || undefined,
-        segment: segment || undefined,
-        city: city.trim() || undefined,
-        state: state.trim() || undefined,
-        employeeCount: employeeCount ? Number(employeeCount) : undefined,
-        openDays: openDays.length > 0 ? openDays : undefined,
-        openHours: openStart && openEnd ? { start: openStart.trim(), end: openEnd.trim() } : undefined,
-        monthlyRevenueGoal: revenueGoal ? Number(revenueGoal.replace(",", ".")) : undefined,
-        profitMarginGoal: marginGoal ? Number(marginGoal.replace(",", ".")) : undefined,
-        mainProducts: mainProducts.trim() || undefined,
-        salesChannel: salesChannel || undefined,
-        biggestChallenge: biggestChallenge.trim() || undefined,
+        businessName: s.businessName.trim() || undefined,
+        segment: s.segment || undefined,
+        city: s.city.trim() || undefined,
+        state: s.state.trim() || undefined,
+        employeeCount: s.employeeCount ? Number(s.employeeCount) : undefined,
+        openDays: s.openDays.length > 0 ? s.openDays : undefined,
+        openHours: s.openStart && s.openEnd
+          ? { start: s.openStart.trim(), end: s.openEnd.trim() }
+          : undefined,
+        monthlyRevenueGoal: s.revenueGoal ? Number(s.revenueGoal.replace(",", ".")) : undefined,
+        profitMarginGoal: s.marginGoal ? Number(s.marginGoal.replace(",", ".")) : undefined,
+        mainProducts: s.mainProducts.trim() || undefined,
+        salesChannel: s.salesChannel || undefined,
+        biggestChallenge: s.biggestChallenge.trim() || undefined,
       };
 
       const res = await fetch(`${baseUrl}/api/auth/me`, {
@@ -259,19 +290,25 @@ export default function ProfileScreen() {
 
       const data = await res.json();
       if (!res.ok) {
-        Alert.alert("Erro", data.error ?? "Não foi possível salvar.");
+        if (!silent) Alert.alert("Erro", data.error ?? "Não foi possível salvar.");
         return;
       }
 
       await updateUser(data.user);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Salvo!", "Perfil atualizado com sucesso.");
+      if (!silent) Alert.alert("Salvo!", "Perfil atualizado com sucesso.");
     } catch {
-      Alert.alert("Erro de conexão", "Verifique sua internet e tente novamente.");
+      if (!silent) Alert.alert("Erro de conexão", "Verifique sua internet e tente novamente.");
     } finally {
-      setSaving(false);
+      if (!silent) setSaving(false);
     }
   }
+
+  function autoSave(overrides?: Partial<typeof stateRef.current>) {
+    saveProfile(overrides, true);
+  }
+
+  // ── Account actions ────────────────────────────────────────────────────────
 
   async function handleLogout() {
     Alert.alert("Sair", "Tem certeza que deseja sair?", [
@@ -287,6 +324,77 @@ export default function ProfileScreen() {
     ]);
   }
 
+  async function handleChangePassword() {
+    if (!newPwd || newPwd.length < 6) {
+      Alert.alert("Erro", "A nova senha deve ter ao menos 6 caracteres.");
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      Alert.alert("Erro", "As senhas não coincidem.");
+      return;
+    }
+    setSavingPwd(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd }),
+      });
+      const data = await res.json();
+      if (!res.ok) { Alert.alert("Erro", data.error ?? "Não foi possível alterar a senha."); return; }
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setChangePwdOpen(false);
+      setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
+      Alert.alert("Sucesso", "Senha alterada com sucesso.");
+    } catch {
+      Alert.alert("Erro de conexão", "Verifique sua internet e tente novamente.");
+    } finally {
+      setSavingPwd(false);
+    }
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      "Excluir conta",
+      "Esta ação é irreversível. Todos os seus dados serão apagados permanentemente.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir minha conta",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Confirmar exclusão",
+              "Digite 'EXCLUIR' abaixo para confirmar.",
+              [
+                { text: "Cancelar", style: "cancel" },
+                {
+                  text: "Confirmar",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      await fetch(`${baseUrl}/api/auth/me`, {
+                        method: "DELETE",
+                        headers: token ? { Authorization: `Bearer ${token}` } : {},
+                      });
+                      await logout();
+                      router.replace("/(auth)/login");
+                    } catch {
+                      Alert.alert("Erro", "Não foi possível excluir a conta.");
+                    }
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  }
+
   const inputStyle = [
     styles.input,
     { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background },
@@ -297,10 +405,7 @@ export default function ProfileScreen() {
       style={[styles.root, { backgroundColor: colors.background }]}
       contentContainerStyle={[
         styles.scroll,
-        {
-          paddingTop: topPad + 16,
-          paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 40,
-        },
+        { paddingTop: topPad + 16, paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 40 },
       ]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
@@ -354,6 +459,7 @@ export default function ProfileScreen() {
             style={inputStyle}
             value={businessName}
             onChangeText={setBusinessName}
+            onBlur={() => autoSave()}
             placeholder="Ex: Lanchonete da Maria"
             placeholderTextColor={colors.mutedForeground}
             autoCapitalize="words"
@@ -367,7 +473,11 @@ export default function ProfileScreen() {
               return (
                 <Pressable
                   key={s.key}
-                  onPress={() => setSegment(sel ? "" : s.key)}
+                  onPress={() => {
+                    const next = sel ? "" : s.key;
+                    setSegment(next);
+                    autoSave({ segment: next });
+                  }}
                   style={[styles.chip, { backgroundColor: sel ? colors.primary : colors.card, borderColor: sel ? colors.primary : colors.border }]}
                 >
                   <Text style={[styles.chipText, { color: sel ? colors.primaryForeground : colors.foreground }]}>{s.label}</Text>
@@ -406,6 +516,7 @@ export default function ProfileScreen() {
             style={[inputStyle, styles.inputSmall]}
             value={employeeCount}
             onChangeText={setEmployeeCount}
+            onBlur={() => autoSave()}
             placeholder="0"
             placeholderTextColor={colors.mutedForeground}
             keyboardType="number-pad"
@@ -431,24 +542,18 @@ export default function ProfileScreen() {
 
         <Field label="Horário de funcionamento">
           <View style={styles.row2}>
-            <TextInput
-              style={[inputStyle, styles.flex1, styles.timeInput]}
+            <PickerTrigger
               value={openStart}
-              onChangeText={(v) => setOpenStart(formatTime(v))}
               placeholder="08:00"
-              placeholderTextColor={colors.mutedForeground}
-              keyboardType="number-pad"
-              maxLength={5}
+              onPress={() => setTimePickerFor("start")}
+              style={styles.flex1}
             />
             <Text style={[styles.timeSep, { color: colors.mutedForeground }]}>até</Text>
-            <TextInput
-              style={[inputStyle, styles.flex1, styles.timeInput]}
+            <PickerTrigger
               value={openEnd}
-              onChangeText={(v) => setOpenEnd(formatTime(v))}
               placeholder="18:00"
-              placeholderTextColor={colors.mutedForeground}
-              keyboardType="number-pad"
-              maxLength={5}
+              onPress={() => setTimePickerFor("end")}
+              style={styles.flex1}
             />
           </View>
         </Field>
@@ -458,6 +563,7 @@ export default function ProfileScreen() {
             style={[inputStyle, styles.inputMulti]}
             value={mainProducts}
             onChangeText={setMainProducts}
+            onBlur={() => autoSave()}
             placeholder="Ex: Coxinha, pastel, suco natural"
             placeholderTextColor={colors.mutedForeground}
             multiline
@@ -473,7 +579,11 @@ export default function ProfileScreen() {
               return (
                 <Pressable
                   key={c.key}
-                  onPress={() => setSalesChannel(sel ? "" : c.key)}
+                  onPress={() => {
+                    const next = sel ? "" : c.key;
+                    setSalesChannel(next);
+                    autoSave({ salesChannel: next });
+                  }}
                   style={[styles.chip, { backgroundColor: sel ? colors.primary : colors.card, borderColor: sel ? colors.primary : colors.border }]}
                 >
                   <Text style={[styles.chipText, { color: sel ? colors.primaryForeground : colors.foreground }]}>{c.label}</Text>
@@ -496,6 +606,7 @@ export default function ProfileScreen() {
             style={[inputStyle, styles.inputSmall]}
             value={revenueGoal}
             onChangeText={setRevenueGoal}
+            onBlur={() => autoSave()}
             placeholder="Ex: 20000"
             placeholderTextColor={colors.mutedForeground}
             keyboardType="decimal-pad"
@@ -507,6 +618,7 @@ export default function ProfileScreen() {
             style={[inputStyle, styles.inputSmall]}
             value={marginGoal}
             onChangeText={setMarginGoal}
+            onBlur={() => autoSave()}
             placeholder="Ex: 20"
             placeholderTextColor={colors.mutedForeground}
             keyboardType="decimal-pad"
@@ -518,6 +630,7 @@ export default function ProfileScreen() {
             style={[inputStyle, styles.inputMulti]}
             value={biggestChallenge}
             onChangeText={setBiggestChallenge}
+            onBlur={() => autoSave()}
             placeholder="Ex: Controle de estoque, fluxo de caixa..."
             placeholderTextColor={colors.mutedForeground}
             multiline
@@ -527,30 +640,62 @@ export default function ProfileScreen() {
         </Field>
       </SectionCollapsible>
 
-      <KlaroButton title="Salvar perfil" onPress={handleSave} loading={saving} fullWidth />
+      <KlaroButton title="Salvar perfil" onPress={() => saveProfile()} loading={saving} fullWidth />
 
       {/* ── Conta ── */}
       <View style={styles.accountSection}>
         <Text style={[styles.accountTitle, { color: colors.mutedForeground }]}>Conta</Text>
         <View style={[styles.accountCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
+
+          {/* Theme toggle */}
+          <View style={[styles.accountRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+            <Feather name={theme === "dark" ? "moon" : "sun"} size={18} color={colors.foreground} />
+            <Text style={[styles.accountRowText, { color: colors.foreground }]}>
+              {theme === "dark" ? "Tema escuro" : "Tema claro"}
+            </Text>
+            <Switch
+              value={theme === "light"}
+              onValueChange={toggleTheme}
+              trackColor={{ false: colors.border, true: `${colors.primary}66` }}
+              thumbColor={theme === "light" ? colors.primary : colors.mutedForeground}
+              style={{ marginLeft: "auto" }}
+            />
+          </View>
+
+          {/* Change password */}
+          <Pressable
+            onPress={() => setChangePwdOpen(true)}
+            style={({ pressed }) => [styles.accountRow, { borderBottomWidth: 1, borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Feather name="lock" size={18} color={colors.foreground} />
+            <Text style={[styles.accountRowText, { color: colors.foreground }]}>Alterar senha</Text>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} style={{ marginLeft: "auto" }} />
+          </Pressable>
+
+          {/* Logout */}
           <Pressable
             onPress={handleLogout}
-            style={({ pressed }) => [styles.accountRow, { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [styles.accountRow, { borderBottomWidth: 1, borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
           >
             <Feather name="log-out" size={18} color={colors.destructive} />
             <Text style={[styles.accountRowText, { color: colors.destructive }]}>Sair da conta</Text>
+            <Feather name="chevron-right" size={16} color={colors.destructive} style={{ marginLeft: "auto" }} />
+          </Pressable>
+
+          {/* Delete account */}
+          <Pressable
+            onPress={handleDeleteAccount}
+            style={({ pressed }) => [styles.accountRow, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Feather name="trash-2" size={18} color={colors.destructive} />
+            <Text style={[styles.accountRowText, { color: colors.destructive }]}>Excluir conta</Text>
             <Feather name="chevron-right" size={16} color={colors.destructive} style={{ marginLeft: "auto" }} />
           </Pressable>
         </View>
       </View>
 
       {/* ── State picker modal ── */}
-      <Modal
-        visible={statePickerOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setStatePickerOpen(false)}
-      >
+      <Modal visible={statePickerOpen} transparent animationType="slide" onRequestClose={() => setStatePickerOpen(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setStatePickerOpen(false)} />
         <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 16 }]}>
           <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Selecionar estado</Text>
@@ -566,11 +711,9 @@ export default function ProfileScreen() {
                     setState(item.uf);
                     setCity("");
                     setStatePickerOpen(false);
+                    autoSave({ state: item.uf, city: "" });
                   }}
-                  style={({ pressed }) => [
-                    styles.sheetOption,
-                    { backgroundColor: pressed ? colors.secondary : "transparent" },
-                  ]}
+                  style={({ pressed }) => [styles.sheetOption, { backgroundColor: pressed ? colors.secondary : "transparent" }]}
                 >
                   <View style={[styles.ufBadge, { backgroundColor: sel ? colors.primary : colors.secondary }]}>
                     <Text style={[styles.ufText, { color: sel ? colors.primaryForeground : colors.foreground }]}>{item.uf}</Text>
@@ -585,12 +728,7 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* ── City picker modal ── */}
-      <Modal
-        visible={cityPickerOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setCityPickerOpen(false)}
-      >
+      <Modal visible={cityPickerOpen} transparent animationType="slide" onRequestClose={() => setCityPickerOpen(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setCityPickerOpen(false)} />
         <View style={[styles.sheet, styles.sheetTall, { backgroundColor: colors.card, paddingBottom: insets.bottom + 16 }]}>
           <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
@@ -612,7 +750,6 @@ export default function ProfileScreen() {
               </Pressable>
             ) : null}
           </View>
-
           <FlatList
             data={citiesForState}
             keyExtractor={(item) => item}
@@ -621,13 +758,16 @@ export default function ProfileScreen() {
             ListHeaderComponent={
               showCustomCityOption ? (
                 <Pressable
-                  onPress={() => { setCity(citySearch.trim()); setCityPickerOpen(false); }}
+                  onPress={() => {
+                    const c = citySearch.trim();
+                    setCity(c);
+                    setCityPickerOpen(false);
+                    autoSave({ city: c });
+                  }}
                   style={({ pressed }) => [styles.sheetOption, styles.customCityOption, { backgroundColor: pressed ? `${colors.primary}18` : `${colors.primary}0d`, borderColor: `${colors.primary}44` }]}
                 >
                   <Feather name="plus-circle" size={16} color={colors.primary} />
-                  <Text style={[styles.sheetOptionText, { color: colors.primary }]}>
-                    Usar "{citySearch.trim()}"
-                  </Text>
+                  <Text style={[styles.sheetOptionText, { color: colors.primary }]}>Usar "{citySearch.trim()}"</Text>
                 </Pressable>
               ) : null
             }
@@ -635,11 +775,12 @@ export default function ProfileScreen() {
               const sel = city === item;
               return (
                 <Pressable
-                  onPress={() => { setCity(item); setCityPickerOpen(false); }}
-                  style={({ pressed }) => [
-                    styles.sheetOption,
-                    { backgroundColor: pressed ? colors.secondary : "transparent" },
-                  ]}
+                  onPress={() => {
+                    setCity(item);
+                    setCityPickerOpen(false);
+                    autoSave({ city: item });
+                  }}
+                  style={({ pressed }) => [styles.sheetOption, { backgroundColor: pressed ? colors.secondary : "transparent" }]}
                 >
                   <Text style={[styles.sheetOptionText, { color: colors.foreground }]}>{item}</Text>
                   {sel && <Feather name="check" size={16} color={colors.primary} style={{ marginLeft: "auto" }} />}
@@ -653,6 +794,112 @@ export default function ProfileScreen() {
                 </Text>
               ) : null
             }
+          />
+        </View>
+      </Modal>
+
+      {/* ── Time picker modal ── */}
+      <Modal
+        visible={timePickerFor !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setTimePickerFor(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setTimePickerFor(null)} />
+        <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 16 }]}>
+          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
+            {timePickerFor === "start" ? "Hora de abertura" : "Hora de fechamento"}
+          </Text>
+          <FlatList
+            data={TIME_SLOTS}
+            keyExtractor={(item) => item}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const current = timePickerFor === "start" ? openStart : openEnd;
+              const sel = current === item;
+              return (
+                <Pressable
+                  onPress={() => {
+                    if (timePickerFor === "start") {
+                      setOpenStart(item);
+                      autoSave({ openStart: item });
+                    } else {
+                      setOpenEnd(item);
+                      autoSave({ openEnd: item });
+                    }
+                    setTimePickerFor(null);
+                  }}
+                  style={({ pressed }) => [
+                    styles.sheetOption,
+                    { backgroundColor: sel ? `${colors.primary}22` : pressed ? colors.secondary : "transparent" },
+                  ]}
+                >
+                  <Text style={[styles.sheetOptionText, { color: sel ? colors.primary : colors.foreground, fontFamily: sel ? "Inter_600SemiBold" : "Inter_400Regular" }]}>
+                    {item}
+                  </Text>
+                  {sel && <Feather name="check" size={16} color={colors.primary} style={{ marginLeft: "auto" }} />}
+                </Pressable>
+              );
+            }}
+          />
+        </View>
+      </Modal>
+
+      {/* ── Change password modal ── */}
+      <Modal
+        visible={changePwdOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setChangePwdOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setChangePwdOpen(false)} />
+        <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 16 }]}>
+          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Alterar senha</Text>
+
+          <View style={styles.pwdField}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Senha atual</Text>
+            <TextInput
+              style={[inputStyle]}
+              value={currentPwd}
+              onChangeText={setCurrentPwd}
+              placeholder="••••••••"
+              placeholderTextColor={colors.mutedForeground}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.pwdField}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nova senha</Text>
+            <TextInput
+              style={[inputStyle]}
+              value={newPwd}
+              onChangeText={setNewPwd}
+              placeholder="Mínimo 6 caracteres"
+              placeholderTextColor={colors.mutedForeground}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.pwdField}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Confirmar nova senha</Text>
+            <TextInput
+              style={[inputStyle]}
+              value={confirmPwd}
+              onChangeText={setConfirmPwd}
+              placeholder="Repita a nova senha"
+              placeholderTextColor={colors.mutedForeground}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+          </View>
+
+          <KlaroButton
+            title={savingPwd ? "Alterando..." : "Confirmar"}
+            onPress={handleChangePassword}
+            loading={savingPwd}
+            fullWidth
           />
         </View>
       </Modal>
@@ -699,7 +946,6 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: "Inter_400Regular" },
   inputSmall: { width: 140 },
   inputMulti: { height: 88, paddingTop: 12 },
-  timeInput: { textAlign: "center" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   chipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
@@ -715,6 +961,8 @@ const styles = StyleSheet.create({
   accountCard: { borderWidth: 1, overflow: "hidden" },
   accountRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
   accountRowText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+
+  pwdField: { gap: 6, marginBottom: 12 },
 
   // Modals
   modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)" },
