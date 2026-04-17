@@ -5,10 +5,13 @@ import {
   useListTransactions,
   useGenerateInsights,
   useListInsights,
+  useArchiveInsight,
+  useCheckMilestones,
 } from "@workspace/api-client-react";
+import type { GenerateInsightsBodyPeriod } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -17,10 +20,20 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import ReanimatedSwipeable, {
+  SwipeableMethods,
+} from "react-native-gesture-handler/ReanimatedSwipeable";
+import Animated, {
+  SharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Fab } from "@/components/Fab";
 import { GoalProgress } from "@/components/GoalProgress";
@@ -489,20 +502,117 @@ function AnalyticsTab() {
   );
 }
 
+// ─── Insights Tab helpers ─────────────────────────────────────────────────────
+
+type Period = GenerateInsightsBodyPeriod;
+
+const PERIODS: { key: Period; label: string }[] = [
+  { key: "30d", label: "30 dias" },
+  { key: "3m", label: "3 meses" },
+  { key: "6m", label: "6 meses" },
+  { key: "12m", label: "12 meses" },
+];
+
+const ARCHIVE_ACTION_W = 72;
+
+function ArchiveAction({
+  prog,
+  onArchive,
+}: {
+  prog: SharedValue<number>;
+  onArchive: () => void;
+}) {
+  const colors = useColors();
+  const style = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: interpolate(
+          prog.value,
+          [0, 1],
+          [ARCHIVE_ACTION_W, 0],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
+  }));
+  return (
+    <Animated.View style={[styles.archiveAction, style]}>
+      <Pressable
+        onPress={onArchive}
+        style={[styles.archiveBtn, { backgroundColor: colors.mutedForeground }]}
+      >
+        <Feather name="archive" size={20} color="#fff" />
+        <Text style={styles.archiveBtnLabel}>Arquivar</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function PeriodChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const colors = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.periodChip,
+        {
+          backgroundColor: selected ? colors.primary : `${colors.primary}18`,
+          borderRadius: 20,
+          opacity: pressed ? 0.75 : 1,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.periodChipText,
+          { color: selected ? colors.primaryForeground : colors.primary },
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 // ─── Insights Tab ─────────────────────────────────────────────────────────────
 
 function InsightsTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
 
   const { data: insights, isLoading, refetch } = useListInsights();
   const generateMutation = useGenerateInsights();
+  const archiveMutation = useArchiveInsight();
+  const checkMilestonesMutation = useCheckMilestones();
+
+  // Auto-check milestones silently on mount
+  useEffect(() => {
+    checkMilestonesMutation
+      .mutateAsync()
+      .then((result: { triggered: boolean }) => { if (result.triggered) refetch(); })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleGenerate() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await generateMutation.mutateAsync({});
+    await generateMutation.mutateAsync({ period: selectedPeriod });
     await refetch();
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
+  async function handleArchive(id: number) {
+    await archiveMutation.mutateAsync(id);
+    await refetch();
   }
 
   if (isLoading) {
@@ -517,15 +627,29 @@ function InsightsTab() {
       keyExtractor={(item, index) => item?.id != null ? String(item.id) : `insight-${index}`}
       renderItem={({ item }) => (
         <InsightCard
+          id={item.id}
           title={item.title}
           description={item.description}
           recommendation={item.recommendation}
           periodLabel={item.periodLabel}
           isNew={isRecentInsight((item as { createdAt?: string }).createdAt)}
+          onArchive={handleArchive}
         />
       )}
       refreshControl={
         <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={colors.primary} />
+      }
+      ListHeaderComponent={
+        <View style={[styles.periodRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+          {PERIODS.map((p) => (
+            <PeriodChip
+              key={p.key}
+              label={p.label}
+              selected={selectedPeriod === p.key}
+              onPress={() => setSelectedPeriod(p.key)}
+            />
+          ))}
+        </View>
       }
       contentContainerStyle={[
         styles.insightsList,
@@ -571,31 +695,62 @@ function InsightsTab() {
 
 // ─── Insight card ─────────────────────────────────────────────────────────────
 
-function InsightCard({ title, description, recommendation, periodLabel, isNew }: {
-  title: string; description: string; recommendation: string; periodLabel: string; isNew?: boolean;
+function InsightCard({ id, title, description, recommendation, periodLabel, isNew, onArchive }: {
+  id: number; title: string; description: string; recommendation: string;
+  periodLabel: string; isNew?: boolean; onArchive: (id: number) => void;
 }) {
   const colors = useColors();
+  const swipeRef = useRef<SwipeableMethods>(null);
+
+  function handleArchive() {
+    swipeRef.current?.close();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onArchive(id);
+  }
+
+  async function handleShare() {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await Share.share({
+      message: `${title}\n\n${description}\n\nRecomendação: ${recommendation}\n\nPeríodo: ${periodLabel}`,
+    });
+  }
+
   return (
-    <View style={[styles.insightCard, { backgroundColor: colors.card, borderRadius: colors.radius, borderWidth: 1, borderColor: isNew ? `${colors.primary}66` : colors.border }]}>
-      <View style={styles.insightCardHeader}>
-        <View style={styles.insightCardHeaderLeft}>
-          <View style={[styles.iconBox, { backgroundColor: `${colors.primary}22`, borderRadius: 10 }]}>
-            <Feather name="zap" size={16} color={colors.primary} />
-          </View>
-          {isNew && (
-            <View style={[styles.newBadge, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.newBadgeText, { color: colors.primaryForeground }]}>Novo</Text>
+    <ReanimatedSwipeable
+      ref={swipeRef}
+      friction={2}
+      overshootFriction={8}
+      rightThreshold={40}
+      renderRightActions={(prog) => (
+        <ArchiveAction prog={prog} onArchive={handleArchive} />
+      )}
+    >
+      <View style={[styles.insightCard, { backgroundColor: colors.card, borderRadius: colors.radius, borderWidth: 1, borderColor: isNew ? `${colors.primary}66` : colors.border }]}>
+        <View style={styles.insightCardHeader}>
+          <View style={styles.insightCardHeaderLeft}>
+            <View style={[styles.iconBox, { backgroundColor: `${colors.primary}22`, borderRadius: 10 }]}>
+              <Feather name="zap" size={16} color={colors.primary} />
             </View>
-          )}
+            {isNew && (
+              <View style={[styles.newBadge, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.newBadgeText, { color: colors.primaryForeground }]}>Novo</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.insightCardHeaderRight}>
+            <Text style={[styles.periodLabel, { color: colors.mutedForeground }]}>{periodLabel}</Text>
+            <Pressable onPress={handleShare} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+              <Feather name="share-2" size={15} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
         </View>
-        <Text style={[styles.periodLabel, { color: colors.mutedForeground }]}>{periodLabel}</Text>
+        <Text style={[styles.insightTitle, { color: colors.foreground }]}>{title}</Text>
+        <Text style={[styles.insightDescription, { color: colors.mutedForeground }]}>{description}</Text>
+        <View style={[styles.recommendationBox, { backgroundColor: `${colors.primary}11`, borderRadius: 8, borderLeftWidth: 3, borderLeftColor: colors.primary }]}>
+          <Text style={[styles.recommendationText, { color: colors.foreground }]}>{recommendation}</Text>
+        </View>
       </View>
-      <Text style={[styles.insightTitle, { color: colors.foreground }]}>{title}</Text>
-      <Text style={[styles.insightDescription, { color: colors.mutedForeground }]}>{description}</Text>
-      <View style={[styles.recommendationBox, { backgroundColor: `${colors.primary}11`, borderRadius: 8, borderLeftWidth: 3, borderLeftColor: colors.primary }]}>
-        <Text style={[styles.recommendationText, { color: colors.foreground }]}>{recommendation}</Text>
-      </View>
-    </View>
+    </ReanimatedSwipeable>
   );
 }
 
@@ -702,6 +857,13 @@ const styles = StyleSheet.create({
   insightCard: { padding: 18, gap: 10 },
   insightCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   insightCardHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  insightCardHeaderRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  periodRow: { flexDirection: "row", paddingHorizontal: 20, paddingVertical: 10, gap: 8 },
+  periodChip: { paddingHorizontal: 14, paddingVertical: 6 },
+  periodChipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  archiveAction: { width: ARCHIVE_ACTION_W, justifyContent: "center" },
+  archiveBtn: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4 },
+  archiveBtnLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#fff" },
   iconBox: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
   newBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   newBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold", textTransform: "uppercase", letterSpacing: 0.5 },

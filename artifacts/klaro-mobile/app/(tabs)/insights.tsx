@@ -276,7 +276,7 @@ export default function InsightsScreen() {
   useEffect(() => {
     checkMilestonesMutation
       .mutateAsync()
-      .then((result) => {
+      .then((result: { triggered: boolean }) => {
         if (result.triggered) {
           refetch();
         }
