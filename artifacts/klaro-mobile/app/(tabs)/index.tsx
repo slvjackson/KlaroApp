@@ -19,7 +19,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Fab } from "@/components/Fab";
+import { SpeedDialFab } from "@/components/SpeedDialFab";
 import { GoalProgress } from "@/components/GoalProgress";
 import { MetricCard } from "@/components/MetricCard";
 import { TransactionRow } from "@/components/TransactionRow";
@@ -566,7 +566,7 @@ export default function DashboardScreen() {
         )}
       </ScrollView>
 
-      <Fab onPress={openAdd} />
+      <SpeedDialFab onAdd={openAdd} />
     </View>
   );
 }

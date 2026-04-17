@@ -29,7 +29,7 @@ import Animated, {
   Extrapolation,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Fab } from "@/components/Fab";
+import { SpeedDialFab } from "@/components/SpeedDialFab";
 import { useTransactionForm } from "@/contexts/TransactionFormContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -348,7 +348,7 @@ export default function IntelligenceScreen() {
       </View>
 
       <InsightsContent />
-      <Fab onPress={openAdd} />
+      <SpeedDialFab onAdd={openAdd} />
     </View>
   );
 }

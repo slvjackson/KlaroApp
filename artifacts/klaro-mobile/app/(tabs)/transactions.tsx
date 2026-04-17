@@ -1,12 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { useListTransactions } from "@workspace/api-client-react";
-import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   FlatList,
@@ -19,7 +15,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Fab } from "@/components/Fab";
+import { SpeedDialFab } from "@/components/SpeedDialFab";
 import { SwipeableRow } from "@/components/SwipeableRow";
 import { TransactionRow } from "@/components/TransactionRow";
 import { useColors } from "@/hooks/useColors";
@@ -88,9 +84,6 @@ export default function TransactionsScreen() {
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [showSourcePicker, setShowSourcePicker] = useState(false);
-  const [fabOpen, setFabOpen] = useState(false);
 
   const { data: transactions, isLoading, refetch } = useListTransactions({
     type: filter === "all" ? undefined : filter,
@@ -151,58 +144,6 @@ export default function TransactionsScreen() {
     return out;
   }, [filtered]);
 
-  async function uploadFile(uri: string, name: string, mimeType: string) {
-    setUploading(true);
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const formData = new FormData();
-      formData.append("file", { uri, name, type: mimeType } as unknown as Blob);
-      const res = await fetch(`${baseUrl}/api/uploads`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
-      if (!res.ok) return;
-      const upload = await res.json();
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push(`/review/${upload.id}`);
-    } catch {
-      // silently ignore — review screen will show error
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleCamera() {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") return;
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.85 });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    await uploadFile(asset.uri, `foto_${Date.now()}.jpg`, asset.mimeType ?? "image/jpeg");
-  }
-
-  async function handleGallery() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85 });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    const name = asset.uri.split("/").pop() ?? `imagem_${Date.now()}.jpg`;
-    await uploadFile(asset.uri, name, asset.mimeType ?? "image/jpeg");
-  }
-
-  async function handleFile() {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: ["text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "application/vnd.ms-excel", "application/pdf", "image/*"],
-      copyToCacheDirectory: true,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    const file = result.assets[0];
-    await uploadFile(file.uri, file.name, file.mimeType ?? "application/octet-stream");
-  }
-
   function handleDeleteConfirm(id: number) {
     Alert.alert(
       "Excluir transação",
@@ -227,21 +168,6 @@ export default function TransactionsScreen() {
         },
       ],
     );
-  }
-
-  function handleChooseSource() {
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ["Cancelar", "Câmera", "Fotos", "Arquivo"], cancelButtonIndex: 0 },
-        (idx) => {
-          if (idx === 1) handleCamera();
-          else if (idx === 2) handleGallery();
-          else if (idx === 3) handleFile();
-        }
-      );
-    } else {
-      setShowSourcePicker(true);
-    }
   }
 
   const activeMonthLabel = month ? monthOptions.find((m) => m.key === month)?.label : null;
@@ -497,60 +423,7 @@ export default function TransactionsScreen() {
         />
       )}
 
-      {/* Speed dial FAB */}
-      {fabOpen && (
-        <>
-          <Pressable
-            style={[StyleSheet.absoluteFill, { zIndex: 98 }]}
-            onPress={() => setFabOpen(false)}
-          />
-          {/* Upload action */}
-          <View style={[styles.fabActionRow, { bottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 84 + 132 }]}>
-            <Text style={[styles.fabActionLabel, { backgroundColor: colors.card, color: colors.foreground }]}>
-              {uploading ? "Enviando…" : "Upload"}
-            </Text>
-            <Pressable
-              onPress={() => { setFabOpen(false); handleChooseSource(); }}
-              disabled={uploading}
-              style={[styles.fabSecondary, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-            >
-              {uploading
-                ? <ActivityIndicator size="small" color={colors.foreground} />
-                : <Feather name="upload" size={20} color={colors.foreground} />}
-            </Pressable>
-          </View>
-          {/* Add action */}
-          <View style={[styles.fabActionRow, { bottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 84 + 66 }]}>
-            <Text style={[styles.fabActionLabel, { backgroundColor: colors.card, color: colors.foreground }]}>
-              Adicionar
-            </Text>
-            <Pressable
-              onPress={() => { setFabOpen(false); openAdd(); }}
-              style={[styles.fabSecondary, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-            >
-              <Feather name="edit-2" size={20} color={colors.foreground} />
-            </Pressable>
-          </View>
-        </>
-      )}
-      <Pressable
-        onPress={async () => {
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          setFabOpen((v) => !v);
-        }}
-        hitSlop={8}
-        style={({ pressed }) => [
-          styles.fab,
-          {
-            backgroundColor: colors.primary,
-            bottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 84,
-            transform: [{ scale: pressed ? 0.94 : 1 }, { rotate: fabOpen ? "45deg" : "0deg" }],
-            shadowColor: colors.primary,
-          },
-        ]}
-      >
-        <Feather name="plus" size={24} color={colors.primaryForeground} />
-      </Pressable>
+      <SpeedDialFab onAdd={openAdd} />
 
       {/* Month picker */}
       <Modal
@@ -614,35 +487,6 @@ export default function TransactionsScreen() {
         </View>
       </Modal>
 
-      {/* Android source picker */}
-      <Modal
-        visible={showSourcePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowSourcePicker(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowSourcePicker(false)} />
-        <View style={[styles.sourceSheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 16 }]}>
-          <Text style={[styles.sourceTitle, { color: colors.foreground }]}>Escolher origem</Text>
-          {[
-            { icon: "camera" as const, label: "Câmera", action: () => { setShowSourcePicker(false); handleCamera(); } },
-            { icon: "image" as const, label: "Fotos", action: () => { setShowSourcePicker(false); handleGallery(); } },
-            { icon: "file-text" as const, label: "Arquivo", action: () => { setShowSourcePicker(false); handleFile(); } },
-          ].map(({ icon, label, action }) => (
-            <Pressable
-              key={label}
-              onPress={action}
-              style={({ pressed }) => [
-                styles.sourceOption,
-                { backgroundColor: pressed ? colors.secondary : "transparent" },
-              ]}
-            >
-              <Feather name={icon} size={20} color={colors.foreground} />
-              <Text style={[styles.sourceOptionText, { color: colors.foreground }]}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -692,49 +536,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     textTransform: "uppercase",
     letterSpacing: 0.8,
-  },
-  // Speed dial FAB
-  fab: {
-    position: "absolute",
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-    zIndex: 100,
-  },
-  fabActionRow: {
-    position: "absolute",
-    right: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    zIndex: 99,
-  },
-  fabActionLabel: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  fabSecondary: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
   },
   emptyBox: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 12 },
   emptyText: { fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "center" },
