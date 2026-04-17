@@ -90,6 +90,7 @@ export default function TransactionsScreen() {
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
 
   const { data: transactions, isLoading, refetch } = useListTransactions({
     type: filter === "all" ? undefined : filter,
@@ -262,47 +263,25 @@ export default function TransactionsScreen() {
         ]}
       >
         <Text style={[styles.screenTitle, { color: colors.foreground }]}>Transações</Text>
-        <View style={styles.headerBtns}>
-          <Pressable
-            onPress={() => setSearchOpen((v) => !v)}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              {
-                backgroundColor: searchOpen ? colors.primary : colors.secondary,
-                borderRadius: colors.radius,
-                borderWidth: 1,
-                borderColor: searchOpen ? colors.primary : colors.border,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <Feather
-              name="search"
-              size={17}
-              color={searchOpen ? colors.primaryForeground : colors.foreground}
-            />
-          </Pressable>
-          <Pressable
-            onPress={handleChooseSource}
-            disabled={uploading}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              {
-                backgroundColor: colors.secondary,
-                borderRadius: colors.radius,
-                borderWidth: 1,
-                borderColor: colors.border,
-                opacity: uploading ? 0.6 : pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            {uploading ? (
-              <ActivityIndicator size="small" color={colors.foreground} />
-            ) : (
-              <Feather name="upload" size={17} color={colors.foreground} />
-            )}
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={() => setSearchOpen((v) => !v)}
+          style={({ pressed }) => [
+            styles.iconBtn,
+            {
+              backgroundColor: searchOpen ? colors.primary : colors.secondary,
+              borderRadius: colors.radius,
+              borderWidth: 1,
+              borderColor: searchOpen ? colors.primary : colors.border,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <Feather
+            name="search"
+            size={17}
+            color={searchOpen ? colors.primaryForeground : colors.foreground}
+          />
+        </Pressable>
       </View>
 
       {/* Search bar (collapsible) */}
@@ -454,25 +433,8 @@ export default function TransactionsScreen() {
             if (item.kind === "header") {
               return (
                 <View style={styles.sectionHeader}>
-                  <Text
-                    style={[
-                      styles.sectionHeaderLabel,
-                      { color: colors.mutedForeground },
-                    ]}
-                  >
-                    {item.label} · {item.count}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.sectionHeaderTotal,
-                      {
-                        color:
-                          item.total >= 0 ? colors.income : colors.expense,
-                      },
-                    ]}
-                  >
-                    {item.total >= 0 ? "+" : ""}
-                    {brlCompact(item.total)}
+                  <Text style={[styles.sectionHeaderLabel, { color: colors.mutedForeground }]}>
+                    {item.label}
                   </Text>
                 </View>
               );
@@ -535,7 +497,60 @@ export default function TransactionsScreen() {
         />
       )}
 
-      <Fab onPress={openAdd} />
+      {/* Speed dial FAB */}
+      {fabOpen && (
+        <>
+          <Pressable
+            style={[StyleSheet.absoluteFill, { zIndex: 98 }]}
+            onPress={() => setFabOpen(false)}
+          />
+          {/* Upload action */}
+          <View style={[styles.fabActionRow, { bottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 84 + 132 }]}>
+            <Text style={[styles.fabActionLabel, { backgroundColor: colors.card, color: colors.foreground }]}>
+              {uploading ? "Enviando…" : "Upload"}
+            </Text>
+            <Pressable
+              onPress={() => { setFabOpen(false); handleChooseSource(); }}
+              disabled={uploading}
+              style={[styles.fabSecondary, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+            >
+              {uploading
+                ? <ActivityIndicator size="small" color={colors.foreground} />
+                : <Feather name="upload" size={20} color={colors.foreground} />}
+            </Pressable>
+          </View>
+          {/* Add action */}
+          <View style={[styles.fabActionRow, { bottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 84 + 66 }]}>
+            <Text style={[styles.fabActionLabel, { backgroundColor: colors.card, color: colors.foreground }]}>
+              Adicionar
+            </Text>
+            <Pressable
+              onPress={() => { setFabOpen(false); openAdd(); }}
+              style={[styles.fabSecondary, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+            >
+              <Feather name="edit-2" size={20} color={colors.foreground} />
+            </Pressable>
+          </View>
+        </>
+      )}
+      <Pressable
+        onPress={async () => {
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setFabOpen((v) => !v);
+        }}
+        hitSlop={8}
+        style={({ pressed }) => [
+          styles.fab,
+          {
+            backgroundColor: colors.primary,
+            bottom: insets.bottom + (Platform.OS === "web" ? 34 : 0) + 84,
+            transform: [{ scale: pressed ? 0.94 : 1 }, { rotate: fabOpen ? "45deg" : "0deg" }],
+            shadowColor: colors.primary,
+          },
+        ]}
+      >
+        <Feather name="plus" size={24} color={colors.primaryForeground} />
+      </Pressable>
 
       {/* Month picker */}
       <Modal
@@ -636,11 +651,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   screenTitle: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
-  headerBtns: { flexDirection: "row", alignItems: "center", gap: 8 },
-  iconBtn: {
-    width: 38, height: 38,
-    alignItems: "center", justifyContent: "center",
-  },
+  iconBtn: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -672,9 +683,6 @@ const styles = StyleSheet.create({
   loadingBox: { flex: 1, alignItems: "center", justifyContent: "center" },
   list: { paddingTop: 4, paddingHorizontal: 16 },
   sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingTop: 16,
     paddingBottom: 6,
     paddingHorizontal: 4,
@@ -685,9 +693,48 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
-  sectionHeaderTotal: {
-    fontSize: 12,
+  // Speed dial FAB
+  fab: {
+    position: "absolute",
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+    zIndex: 100,
+  },
+  fabActionRow: {
+    position: "absolute",
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    zIndex: 99,
+  },
+  fabActionLabel: {
+    fontSize: 13,
     fontFamily: "Inter_600SemiBold",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  fabSecondary: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
   emptyBox: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 12 },
   emptyText: { fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "center" },
