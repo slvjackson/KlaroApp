@@ -31,10 +31,12 @@ export function TransactionRow({
   const formattedDate = (() => {
     try {
       const [year, month, day] = date.split("-").map(Number);
-      return new Date(year, month - 1, day).toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "short",
-      });
+      const currentYear = new Date().getFullYear();
+      const options: Intl.DateTimeFormatOptions =
+        year !== currentYear
+          ? { day: "2-digit", month: "short", year: "numeric" }
+          : { day: "2-digit", month: "short" };
+      return new Date(year, month - 1, day).toLocaleDateString("pt-BR", options);
     } catch {
       return date;
     }
