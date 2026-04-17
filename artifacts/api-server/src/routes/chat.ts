@@ -1,9 +1,10 @@
 import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { db, transactionsTable, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { logger } from "../lib/logger";
+import { getSegmentProfile } from "../prompts/builder";
 
 const router = Router();
 
@@ -12,7 +13,208 @@ interface ChatMessage {
   content: string;
 }
 
-// POST /chat — conversational AI with full financial context
+function getTodayBrasilia(): string {
+  // Railway runs in UTC; subtract 3h to get Brasília local date
+  return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+// ─── Tool definitions ────────────────────────────────────────────────────────
+
+const TOOLS: Anthropic.Tool[] = [
+  {
+    name: "get_transactions_today",
+    description: "Busca todas as transações registradas hoje no banco de dados do usuário.",
+    input_schema: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "get_transactions_by_date",
+    description: "Busca todas as transações de uma data específica.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        date: { type: "string", description: "Data no formato YYYY-MM-DD" },
+      },
+      required: ["date"],
+    },
+  },
+  {
+    name: "get_transactions_by_period",
+    description: "Busca transações em um intervalo de datas. Útil para consultas de semana, mês específico, etc.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        start_date: { type: "string", description: "Data início no formato YYYY-MM-DD" },
+        end_date: { type: "string", description: "Data fim no formato YYYY-MM-DD" },
+        type: {
+          type: "string",
+          enum: ["income", "expense"],
+          description: "Filtrar por tipo (opcional)",
+        },
+      },
+      required: ["start_date", "end_date"],
+    },
+  },
+  {
+    name: "get_monthly_summary",
+    description: "Retorna resumo mensal de receitas, despesas e saldo líquido dos últimos meses.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        months: {
+          type: "number",
+          description: "Quantos meses incluir (padrão: 6)",
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "get_category_breakdown",
+    description: "Retorna totais agrupados por categoria para um período. Útil para saber onde está gastando mais.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        start_date: { type: "string", description: "Data início YYYY-MM-DD" },
+        end_date: { type: "string", description: "Data fim YYYY-MM-DD" },
+        type: {
+          type: "string",
+          enum: ["income", "expense"],
+          description: "Filtrar por tipo (opcional)",
+        },
+      },
+      required: ["start_date", "end_date"],
+    },
+  },
+];
+
+// ─── Tool executor ───────────────────────────────────────────────────────────
+
+async function executeTool(
+  name: string,
+  input: Record<string, unknown>,
+  userId: number,
+): Promise<string> {
+  const today = getTodayBrasilia();
+
+  try {
+    switch (name) {
+      case "get_transactions_today": {
+        const rows = await db
+          .select()
+          .from(transactionsTable)
+          .where(and(eq(transactionsTable.userId, userId), eq(transactionsTable.date, today)))
+          .orderBy(transactionsTable.date);
+        const income = rows.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+        const expenses = rows.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+        return JSON.stringify({ date: today, count: rows.length, total_income: income, total_expenses: expenses, transactions: rows });
+      }
+
+      case "get_transactions_by_date": {
+        const date = String(input.date);
+        const rows = await db
+          .select()
+          .from(transactionsTable)
+          .where(and(eq(transactionsTable.userId, userId), eq(transactionsTable.date, date)))
+          .orderBy(transactionsTable.date);
+        const income = rows.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+        const expenses = rows.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+        return JSON.stringify({ date, count: rows.length, total_income: income, total_expenses: expenses, transactions: rows });
+      }
+
+      case "get_transactions_by_period": {
+        const startDate = String(input.start_date);
+        const endDate = String(input.end_date);
+        const conditions = [
+          eq(transactionsTable.userId, userId),
+          gte(transactionsTable.date, startDate),
+          lte(transactionsTable.date, endDate),
+        ];
+        if (input.type === "income" || input.type === "expense") {
+          conditions.push(eq(transactionsTable.type, input.type as "income" | "expense"));
+        }
+        const rows = await db
+          .select()
+          .from(transactionsTable)
+          .where(and(...conditions))
+          .orderBy(transactionsTable.date);
+        const income = rows.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+        const expenses = rows.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+        return JSON.stringify({ start_date: startDate, end_date: endDate, count: rows.length, total_income: income, total_expenses: expenses, transactions: rows });
+      }
+
+      case "get_monthly_summary": {
+        const months = Number(input.months ?? 6);
+        const rows = await db
+          .select()
+          .from(transactionsTable)
+          .where(eq(transactionsTable.userId, userId));
+
+        const monthMap = new Map<string, { income: number; expenses: number; count: number }>();
+        for (const t of rows) {
+          const month = t.date.substring(0, 7);
+          const cur = monthMap.get(month) ?? { income: 0, expenses: 0, count: 0 };
+          if (t.type === "income") cur.income += t.amount;
+          else cur.expenses += t.amount;
+          cur.count++;
+          monthMap.set(month, cur);
+        }
+
+        const summary = [...monthMap.entries()]
+          .sort(([a], [b]) => b.localeCompare(a))
+          .slice(0, months)
+          .map(([month, d]) => ({
+            month,
+            income: d.income,
+            expenses: d.expenses,
+            net: d.income - d.expenses,
+            transaction_count: d.count,
+          }));
+
+        return JSON.stringify({ months: summary });
+      }
+
+      case "get_category_breakdown": {
+        const startDate = String(input.start_date);
+        const endDate = String(input.end_date);
+        const conditions = [
+          eq(transactionsTable.userId, userId),
+          gte(transactionsTable.date, startDate),
+          lte(transactionsTable.date, endDate),
+        ];
+        if (input.type === "income" || input.type === "expense") {
+          conditions.push(eq(transactionsTable.type, input.type as "income" | "expense"));
+        }
+        const rows = await db
+          .select()
+          .from(transactionsTable)
+          .where(and(...conditions));
+
+        const catMap = new Map<string, { total: number; count: number; type: string }>();
+        for (const t of rows) {
+          const cur = catMap.get(t.category) ?? { total: 0, count: 0, type: t.type };
+          cur.total += t.amount;
+          cur.count++;
+          catMap.set(t.category, cur);
+        }
+
+        const breakdown = [...catMap.entries()]
+          .sort((a, b) => b[1].total - a[1].total)
+          .map(([category, d]) => ({ category, total: d.total, count: d.count, type: d.type }));
+
+        return JSON.stringify({ start_date: startDate, end_date: endDate, breakdown });
+      }
+
+      default:
+        return JSON.stringify({ error: `Ferramenta desconhecida: ${name}` });
+    }
+  } catch (err) {
+    logger.error({ err, tool: name }, "Tool execution failed");
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
+// ─── Route ───────────────────────────────────────────────────────────────────
+
 router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
   const { message, history = [] } = req.body as { message: string; history: ChatMessage[] };
@@ -27,88 +229,78 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  // Fetch user and transactions in parallel
-  const [userRow, transactions] = await Promise.all([
-    db.select({ name: usersTable.name })
-      .from(usersTable)
-      .where(eq(usersTable.id, userId))
-      .then((r) => r[0]),
-    db.select().from(transactionsTable).where(eq(transactionsTable.userId, userId)),
-  ]);
+  const userRow = await db
+    .select({ name: usersTable.name, businessProfile: usersTable.businessProfile })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .then((r) => r[0]);
 
-  // Build financial summary
-  const income = transactions.filter((t) => t.type === "income");
-  const expenses = transactions.filter((t) => t.type === "expense");
-  const totalIncome = income.reduce((s, t) => s + t.amount, 0);
-  const totalExpenses = expenses.reduce((s, t) => s + t.amount, 0);
-  const netBalance = totalIncome - totalExpenses;
-  const margin = totalIncome > 0 ? ((netBalance / totalIncome) * 100).toFixed(1) : "0";
-
-  // Monthly breakdown (last 3 months)
-  const monthMap = new Map<string, { income: number; expenses: number }>();
-  for (const t of transactions) {
-    const m = t.date.substring(0, 7);
-    const cur = monthMap.get(m) ?? { income: 0, expenses: 0 };
-    if (t.type === "income") cur.income += t.amount;
-    else cur.expenses += t.amount;
-    monthMap.set(m, cur);
-  }
-  const recentMonths = [...monthMap.entries()]
-    .sort(([a], [b]) => b.localeCompare(a))
-    .slice(0, 3)
-    .map(([month, d]) => `  ${month}: receita R$${d.income.toFixed(0)}, despesas R$${d.expenses.toFixed(0)}`)
-    .join("\n");
-
-  // Top expense categories
-  const catMap = new Map<string, number>();
-  for (const t of expenses) catMap.set(t.category, (catMap.get(t.category) ?? 0) + t.amount);
-  const topCats = [...catMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
-    .map(([cat, val]) => `  ${cat}: R$${val.toFixed(0)}`)
-    .join("\n");
+  const bp = userRow?.businessProfile as Record<string, unknown> | null;
+  const segmentProfile = getSegmentProfile(bp?.segment as string | undefined);
+  const today = getTodayBrasilia();
 
   const systemPrompt = `Você é o Klaro, um consultor financeiro de IA para pequenos e médios negócios brasileiros.
 Você conversa diretamente com o dono do negócio, de forma simples, amigável e acionável.
+Tom de voz: ${segmentProfile.tom}
+Data de hoje: ${today}
 
 PERFIL DO NEGÓCIO:
   Nome: ${userRow?.name ?? "Usuário"}
-
-RESUMO FINANCEIRO ATUAL:
-  Receita total: R$${totalIncome.toFixed(0)}
-  Despesas totais: R$${totalExpenses.toFixed(0)}
-  Saldo líquido: R$${netBalance.toFixed(0)}
-  Margem de lucro: ${margin}%
-  Total de transações: ${transactions.length}
-
-ÚLTIMOS 3 MESES:
-${recentMonths || "  Sem dados"}
-
-PRINCIPAIS DESPESAS POR CATEGORIA:
-${topCats || "  Sem dados"}
+  Segmento: ${segmentProfile.label}
+  Terminologia: receita = "${segmentProfile.terminologia.receita}", despesa = "${segmentProfile.terminologia.despesa}", cliente = "${segmentProfile.terminologia.cliente}"
+  Foco de análise: ${segmentProfile.focoInsights}
 
 INSTRUÇÕES:
-- Responda de forma direta e conversacional, como um amigo que entende de finanças
-- Use os dados acima para dar respostas personalizadas e concretas
-- Se o usuário perguntar algo que não está nos dados, diga que não tem essa informação
-- Cite números reais quando relevante
+- Use SEMPRE as ferramentas disponíveis para buscar dados antes de responder perguntas financeiras
+- Para "hoje", "agora", "vendas de hoje" → use get_transactions_today
+- Para datas ou períodos específicos → use get_transactions_by_date ou get_transactions_by_period
+- Para visão geral de meses → use get_monthly_summary
+- Para saber onde gasta mais → use get_category_breakdown
+- Cite números reais dos dados retornados pelas ferramentas
 - Máximo de 3 parágrafos por resposta
-- Use linguagem simples e direta, adequada para pequenos e médios empresários`;
+- Use linguagem simples e direta`;
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const response = await client.messages.create({
+    const messages: Anthropic.MessageParam[] = [
+      ...history.map((h) => ({ role: h.role as "user" | "assistant", content: h.content })),
+      { role: "user", content: message },
+    ];
+
+    let response = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1024,
       system: systemPrompt,
-      messages: [
-        ...history.map((h) => ({ role: h.role, content: h.content })),
-        { role: "user", content: message },
-      ],
+      tools: TOOLS,
+      messages,
     });
 
-    const reply = response.content[0].type === "text" ? response.content[0].text : "";
+    // Agentic loop — execute tools until the model is done
+    while (response.stop_reason === "tool_use") {
+      messages.push({ role: "assistant", content: response.content });
+
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      for (const block of response.content) {
+        if (block.type === "tool_use") {
+          logger.info({ tool: block.name, userId }, "Executing tool");
+          const result = await executeTool(block.name, block.input as Record<string, unknown>, userId);
+          toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
+        }
+      }
+
+      messages.push({ role: "user", content: toolResults });
+
+      response = await client.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1024,
+        system: systemPrompt,
+        tools: TOOLS,
+        messages,
+      });
+    }
+
+    const reply = response.content.find((b) => b.type === "text")?.text ?? "";
     logger.info({ userId, messageLen: message.length }, "Chat response generated");
     res.json({ reply });
   } catch (err) {

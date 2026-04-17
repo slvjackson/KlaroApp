@@ -111,7 +111,7 @@ router.post("/auth/token/signup", async (req, res): Promise<void> => {
   const [user] = await db
     .insert(usersTable)
     .values({ name, email, passwordHash })
-    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, createdAt: usersTable.createdAt });
+    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt });
 
   const token = signJwt(user.id);
   res.status(201).json({ token, user, message: "Conta criada com sucesso!" });
@@ -127,7 +127,7 @@ router.post("/auth/logout", (req, res): void => {
 // GET /auth/me
 router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
   const [user] = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, createdAt: usersTable.createdAt })
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt })
     .from(usersTable)
     .where(eq(usersTable.id, req.session.userId!));
 
@@ -138,6 +138,25 @@ router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
   }
 
   res.json(user);
+});
+
+// PATCH /auth/me — update business profile
+router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const { businessProfile } = req.body;
+
+  if (businessProfile === undefined) {
+    res.status(400).json({ error: "Nenhum dado enviado." });
+    return;
+  }
+
+  const [updated] = await db
+    .update(usersTable)
+    .set({ businessProfile })
+    .where(eq(usersTable.id, userId))
+    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt });
+
+  res.json({ user: updated });
 });
 
 export default router;

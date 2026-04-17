@@ -5,6 +5,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "@workspace/db";
 import router from "./routes";
+import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
 
 const PgSession = connectPgSimple(session);
@@ -14,6 +15,11 @@ const app: Express = express();
 // Trust Replit's reverse proxy so Express correctly detects HTTPS,
 // which is required for secure session cookies in production.
 app.set("trust proxy", 1);
+
+// Health check FIRST — before any middleware that touches the database.
+// This ensures /health and /healthz always respond quickly even if the
+// database connection is slow or not yet ready.
+app.use(healthRouter);
 
 app.use(
   pinoHttp({

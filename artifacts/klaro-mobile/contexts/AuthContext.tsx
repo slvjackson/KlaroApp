@@ -12,10 +12,26 @@ import React, {
 const TOKEN_KEY = "klaro_auth_token";
 const USER_KEY = "klaro_auth_user";
 
+export interface BusinessProfile {
+  businessName?: string;
+  segment?: string;
+  city?: string;
+  state?: string;
+  employeeCount?: number;
+  openDays?: string[];
+  openHours?: { start: string; end: string };
+  monthlyRevenueGoal?: number;
+  profitMarginGoal?: number;
+  mainProducts?: string;
+  salesChannel?: string;
+  biggestChallenge?: string;
+}
+
 export interface AuthUser {
   id: number;
   name: string;
   email: string;
+  businessProfile?: BusinessProfile | null;
   createdAt: string;
 }
 
@@ -25,6 +41,7 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (token: string, user: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (user: AuthUser) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -76,8 +93,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.clear();
   }, [queryClient]);
 
+  const updateUser = useCallback(async (updatedUser: AuthUser) => {
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
