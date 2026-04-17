@@ -24,12 +24,14 @@ import type {
   CreateParsedRecordsBody,
   DashboardSummary,
   ErrorResponse,
+  GenerateInsightsBody,
   HealthStatus,
   Insight,
   ListParsedRecordsParams,
   ListTransactionsParams,
   LoginBody,
   MessageResponse,
+  MilestoneCheckResult,
   MonthlyTrendPoint,
   ParsedRecord,
   RawInput,
@@ -1479,11 +1481,13 @@ export const getGenerateInsightsUrl = () => {
 };
 
 export const generateInsights = async (
+  body: GenerateInsightsBody,
   options?: RequestInit,
 ): Promise<Insight[]> => {
   return customFetch<Insight[]>(getGenerateInsightsUrl(), {
     ...options,
     method: "POST",
+    body: JSON.stringify(body),
   });
 };
 
@@ -1494,14 +1498,14 @@ export const getGenerateInsightsMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof generateInsights>>,
     TError,
-    void,
+    GenerateInsightsBody,
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof generateInsights>>,
   TError,
-  void,
+  GenerateInsightsBody,
   TContext
 > => {
   const mutationKey = ["generateInsights"];
@@ -1515,9 +1519,9 @@ export const getGenerateInsightsMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof generateInsights>>,
-    void
-  > = () => {
-    return generateInsights(requestOptions);
+    GenerateInsightsBody
+  > = (body) => {
+    return generateInsights(body, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1539,17 +1543,176 @@ export const useGenerateInsights = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof generateInsights>>,
     TError,
-    void,
+    GenerateInsightsBody,
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof generateInsights>>,
   TError,
-  void,
+  GenerateInsightsBody,
   TContext
 > => {
   return useMutation(getGenerateInsightsMutationOptions(options));
+};
+
+// ─── Archive Insight ──────────────────────────────────────────────────────────
+
+/**
+ * @summary Soft-archive (dismiss) an insight
+ */
+export const getArchiveInsightUrl = (id: number) => {
+  return `/api/insights/${id}`;
+};
+
+export const archiveInsight = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getArchiveInsightUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getArchiveInsightMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof archiveInsight>>,
+    TError,
+    number,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof archiveInsight>>,
+  TError,
+  number,
+  TContext
+> => {
+  const mutationKey = ["archiveInsight"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof archiveInsight>>,
+    number
+  > = (id) => {
+    return archiveInsight(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ArchiveInsightMutationResult = NonNullable<
+  Awaited<ReturnType<typeof archiveInsight>>
+>;
+export type ArchiveInsightMutationError = ErrorType<unknown>;
+
+export const useArchiveInsight = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof archiveInsight>>,
+    TError,
+    number,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof archiveInsight>>,
+  TError,
+  number,
+  TContext
+> => {
+  return useMutation(getArchiveInsightMutationOptions(options));
+};
+
+// ─── Check Milestones ─────────────────────────────────────────────────────────
+
+/**
+ * @summary Check if a milestone was hit and auto-generate insights if so
+ */
+export const getCheckMilestonesUrl = () => {
+  return `/api/insights/check-milestones`;
+};
+
+export const checkMilestones = async (
+  options?: RequestInit,
+): Promise<MilestoneCheckResult> => {
+  return customFetch<MilestoneCheckResult>(getCheckMilestonesUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCheckMilestonesMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof checkMilestones>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof checkMilestones>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["checkMilestones"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof checkMilestones>>,
+    void
+  > = () => {
+    return checkMilestones(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CheckMilestonesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof checkMilestones>>
+>;
+export type CheckMilestonesMutationError = ErrorType<unknown>;
+
+export const useCheckMilestones = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof checkMilestones>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof checkMilestones>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getCheckMilestonesMutationOptions(options));
 };
 
 /**

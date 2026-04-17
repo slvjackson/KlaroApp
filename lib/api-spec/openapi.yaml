@@ -436,6 +436,12 @@ paths:
       operationId: generateInsights
       tags: [insights]
       summary: Generate new insights from current transaction data
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateInsightsBody"
       responses:
         "200":
           description: Generated insights
@@ -445,6 +451,40 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Insight"
+
+  /insights/check-milestones:
+    post:
+      operationId: checkMilestones
+      tags: [insights]
+      summary: Check if a milestone was hit and auto-generate insights if so
+      responses:
+        "200":
+          description: Milestone check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MilestoneCheckResult"
+
+  /insights/{id}:
+    delete:
+      operationId: archiveInsight
+      tags: [insights]
+      summary: Soft-archive (dismiss) an insight
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Archived
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ─── Dashboard ───────────────────────────────────────────────────────────────
   /dashboard/summary:
@@ -789,6 +829,9 @@ components:
         createdAt:
           type: string
           format: date-time
+        archivedAt:
+          type: ["string", "null"]
+          format: date-time
       required:
         - id
         - userId
@@ -797,6 +840,27 @@ components:
         - recommendation
         - periodLabel
         - createdAt
+
+    GenerateInsightsBody:
+      type: object
+      properties:
+        period:
+          type: string
+          enum: [30d, 3m, 6m, 12m]
+
+    MilestoneCheckResult:
+      type: object
+      properties:
+        triggered:
+          type: boolean
+        reason:
+          type: string
+        insights:
+          type: array
+          items:
+            $ref: "#/components/schemas/Insight"
+      required:
+        - triggered
 
     # ─── Dashboard Schemas ─────────────────────────────────────────────────────
     DashboardSummary:

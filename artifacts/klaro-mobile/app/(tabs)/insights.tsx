@@ -1,100 +1,300 @@
 import { Feather } from "@expo/vector-icons";
 import {
+  useArchiveInsight,
+  useCheckMilestones,
   useGenerateInsights,
   useListInsights,
 } from "@workspace/api-client-react";
+import type { GenerateInsightsBodyPeriod } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Platform,
   Pressable,
   RefreshControl,
+  Share,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import ReanimatedSwipeable, {
+  SwipeableMethods,
+} from "react-native-gesture-handler/ReanimatedSwipeable";
+import Animated, {
+  SharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Period = GenerateInsightsBodyPeriod;
+
+const PERIODS: { key: Period; label: string }[] = [
+  { key: "30d", label: "30 dias" },
+  { key: "3m", label: "3 meses" },
+  { key: "6m", label: "6 meses" },
+  { key: "12m", label: "12 meses" },
+];
+
+const ACTION_WIDTH = 72;
+const NEW_BADGE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function isNewInsight(createdAt: string): boolean {
+  return Date.now() - new Date(createdAt).getTime() < NEW_BADGE_TTL_MS;
+}
+
+// ─── Archive swipe action ─────────────────────────────────────────────────────
+
+function ArchiveAction({
+  prog,
+  onArchive,
+}: {
+  prog: SharedValue<number>;
+  onArchive: () => void;
+}) {
+  const colors = useColors();
+  const style = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: interpolate(
+          prog.value,
+          [0, 1],
+          [ACTION_WIDTH, 0],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
+  }));
+
+  return (
+    <Animated.View style={[styles.action, style]}>
+      <Pressable
+        onPress={onArchive}
+        style={[styles.actionBtn, { backgroundColor: colors.mutedForeground }]}
+      >
+        <Feather name="archive" size={20} color="#fff" />
+        <Text style={styles.actionLabel}>Arquivar</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ─── Insight card ─────────────────────────────────────────────────────────────
+
 interface InsightCardProps {
+  id: number;
   title: string;
   description: string;
   recommendation: string;
   periodLabel: string;
+  createdAt: string;
+  onArchive: (id: number) => void;
 }
 
 function InsightCard({
+  id,
   title,
   description,
   recommendation,
   periodLabel,
+  createdAt,
+  onArchive,
 }: InsightCardProps) {
   const colors = useColors();
+  const swipeRef = useRef<SwipeableMethods>(null);
+  const fresh = isNewInsight(createdAt);
+
+  function handleArchive() {
+    swipeRef.current?.close();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onArchive(id);
+  }
+
+  async function handleShare() {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await Share.share({
+      message: `${title}\n\n${description}\n\nRecomendação: ${recommendation}\n\nPeríodo: ${periodLabel}`,
+    });
+  }
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: colors.card,
-          borderRadius: colors.radius,
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-      ]}
+    <ReanimatedSwipeable
+      ref={swipeRef}
+      friction={2}
+      overshootFriction={8}
+      rightThreshold={40}
+      renderRightActions={(prog) => (
+        <ArchiveAction prog={prog} onArchive={handleArchive} />
+      )}
     >
-      <View style={styles.cardHeader}>
-        <View
-          style={[
-            styles.iconBox,
-            { backgroundColor: `${colors.primary}22`, borderRadius: 10 },
-          ]}
-        >
-          <Feather name="zap" size={16} color={colors.primary} />
-        </View>
-        <Text style={[styles.periodLabel, { color: colors.mutedForeground }]}>
-          {periodLabel}
-        </Text>
-      </View>
-      <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
-      <Text style={[styles.description, { color: colors.mutedForeground }]}>
-        {description}
-      </Text>
       <View
         style={[
-          styles.recommendationBox,
+          styles.card,
           {
-            backgroundColor: `${colors.primary}11`,
-            borderRadius: 8,
-            borderLeftWidth: 3,
-            borderLeftColor: colors.primary,
+            backgroundColor: colors.card,
+            borderRadius: colors.radius,
+            borderWidth: 1,
+            borderColor: colors.border,
           },
         ]}
       >
-        <Text style={[styles.recommendationText, { color: colors.foreground }]}>
-          {recommendation}
+        {/* Header row: icon + period label + share button */}
+        <View style={styles.cardHeader}>
+          <View style={styles.cardHeaderLeft}>
+            <View
+              style={[
+                styles.iconBox,
+                { backgroundColor: `${colors.primary}22`, borderRadius: 10 },
+              ]}
+            >
+              <Feather name="zap" size={16} color={colors.primary} />
+            </View>
+            <Text
+              style={[styles.periodLabel, { color: colors.mutedForeground }]}
+            >
+              {periodLabel}
+            </Text>
+          </View>
+
+          <View style={styles.cardHeaderRight}>
+            {fresh && (
+              <View
+                style={[
+                  styles.newBadge,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.newBadgeText,
+                    { color: colors.primaryForeground },
+                  ]}
+                >
+                  Novo
+                </Text>
+              </View>
+            )}
+            <Pressable
+              onPress={handleShare}
+              hitSlop={8}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+            >
+              <Feather
+                name="share-2"
+                size={16}
+                color={colors.mutedForeground}
+              />
+            </Pressable>
+          </View>
+        </View>
+
+        <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+        <Text style={[styles.description, { color: colors.mutedForeground }]}>
+          {description}
         </Text>
+        <View
+          style={[
+            styles.recommendationBox,
+            {
+              backgroundColor: `${colors.primary}11`,
+              borderRadius: 8,
+              borderLeftWidth: 3,
+              borderLeftColor: colors.primary,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.recommendationText, { color: colors.foreground }]}
+          >
+            {recommendation}
+          </Text>
+        </View>
       </View>
-    </View>
+    </ReanimatedSwipeable>
   );
 }
+
+// ─── Period chip ──────────────────────────────────────────────────────────────
+
+function PeriodChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const colors = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        {
+          backgroundColor: selected
+            ? colors.primary
+            : `${colors.primary}18`,
+          borderRadius: 20,
+          opacity: pressed ? 0.75 : 1,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.chipText,
+          { color: selected ? colors.primaryForeground : colors.primary },
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function InsightsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
 
   const { data: insights, isLoading, refetch } = useListInsights();
   const generateMutation = useGenerateInsights();
+  const archiveMutation = useArchiveInsight();
+  const checkMilestonesMutation = useCheckMilestones();
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
 
+  // Auto-check milestones on mount (silent)
+  useEffect(() => {
+    checkMilestonesMutation
+      .mutateAsync()
+      .then((result) => {
+        if (result.triggered) {
+          refetch();
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleGenerate() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await generateMutation.mutateAsync({});
+    await generateMutation.mutateAsync({ period: selectedPeriod });
     await refetch();
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
+  async function handleArchive(id: number) {
+    await archiveMutation.mutateAsync(id);
+    await refetch();
   }
 
   return (
@@ -106,7 +306,7 @@ export default function InsightsScreen() {
           {
             paddingTop: topPad + 16,
             paddingHorizontal: 20,
-            paddingBottom: 16,
+            paddingBottom: 12,
             borderBottomWidth: 1,
             borderBottomColor: colors.border,
           },
@@ -116,9 +316,7 @@ export default function InsightsScreen() {
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>
             Insights
           </Text>
-          <Text
-            style={[styles.headerSub, { color: colors.mutedForeground }]}
-          >
+          <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
             Recomendações baseadas nos seus dados
           </Text>
         </View>
@@ -142,6 +340,23 @@ export default function InsightsScreen() {
         </Pressable>
       </View>
 
+      {/* Period selector */}
+      <View
+        style={[
+          styles.periodRow,
+          { borderBottomWidth: 1, borderBottomColor: colors.border },
+        ]}
+      >
+        {PERIODS.map((p) => (
+          <PeriodChip
+            key={p.key}
+            label={p.label}
+            selected={selectedPeriod === p.key}
+            onPress={() => setSelectedPeriod(p.key)}
+          />
+        ))}
+      </View>
+
       {isLoading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color={colors.primary} size="large" />
@@ -152,10 +367,13 @@ export default function InsightsScreen() {
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
             <InsightCard
+              id={item.id}
               title={item.title}
               description={item.description}
               recommendation={item.recommendation}
               periodLabel={item.periodLabel}
+              createdAt={item.createdAt}
+              onArchive={handleArchive}
             />
           )}
           scrollEnabled={!!(insights && insights.length > 0)}
@@ -181,16 +399,14 @@ export default function InsightsScreen() {
                 size={40}
                 color={colors.mutedForeground}
               />
-              <Text
-                style={[styles.emptyTitle, { color: colors.foreground }]}
-              >
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                 Sem insights ainda
               </Text>
               <Text
                 style={[styles.emptyText, { color: colors.mutedForeground }]}
               >
-                Toque no ⚡ para gerar recomendações baseadas nas suas
-                transações.
+                Selecione o período e toque no ⚡ para gerar recomendações
+                baseadas nas suas transações.
               </Text>
             </View>
           }
@@ -199,6 +415,8 @@ export default function InsightsScreen() {
     </View>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: {
@@ -225,6 +443,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  periodRow: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  chipText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
   loadingBox: {
     flex: 1,
     alignItems: "center",
@@ -234,6 +466,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 14,
   },
+  // card
   card: {
     padding: 18,
     gap: 10,
@@ -242,6 +475,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  cardHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  cardHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   iconBox: {
     width: 34,
@@ -254,6 +498,16 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     textTransform: "uppercase",
     letterSpacing: 0.5,
+  },
+  newBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  newBadgeText: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.3,
   },
   title: {
     fontSize: 16,
@@ -273,6 +527,23 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     lineHeight: 18,
   },
+  // swipe action
+  action: {
+    width: ACTION_WIDTH,
+    justifyContent: "center",
+  },
+  actionBtn: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  actionLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
+  // empty
   emptyBox: {
     paddingTop: 60,
     alignItems: "center",

@@ -180,6 +180,28 @@ export interface Insight {
   recommendation: string;
   periodLabel: string;
   createdAt: string;
+  /** @nullable */
+  archivedAt?: string | null;
+}
+
+export type GenerateInsightsBodyPeriod =
+  (typeof GenerateInsightsBodyPeriod)[keyof typeof GenerateInsightsBodyPeriod];
+
+export const GenerateInsightsBodyPeriod = {
+  "30d": "30d",
+  "3m": "3m",
+  "6m": "6m",
+  "12m": "12m",
+} as const;
+
+export interface GenerateInsightsBody {
+  period?: GenerateInsightsBodyPeriod;
+}
+
+export interface MilestoneCheckResult {
+  triggered: boolean;
+  reason?: string;
+  insights?: Insight[];
 }
 
 export interface DashboardSummary {
