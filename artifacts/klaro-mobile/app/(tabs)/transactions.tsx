@@ -8,6 +8,7 @@ import React, { useMemo, useState } from "react";
 import {
   ActionSheetIOS,
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Platform,
@@ -19,6 +20,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Fab } from "@/components/Fab";
+import { SwipeableRow } from "@/components/SwipeableRow";
 import { TransactionRow } from "@/components/TransactionRow";
 import { useColors } from "@/hooks/useColors";
 import { getApiBaseUrl } from "@/constants/api";
@@ -198,6 +200,32 @@ export default function TransactionsScreen() {
     if (result.canceled || !result.assets[0]) return;
     const file = result.assets[0];
     await uploadFile(file.uri, file.name, file.mimeType ?? "application/octet-stream");
+  }
+
+  function handleDeleteConfirm(id: number) {
+    Alert.alert(
+      "Excluir transação",
+      "Tem certeza que deseja excluir esta transação?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await fetch(`${baseUrl}/api/transactions/${id}`, {
+                method: "DELETE",
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+              });
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              refetch();
+            } catch {
+              Alert.alert("Erro", "Não foi possível excluir a transação.");
+            }
+          },
+        },
+      ],
+    );
   }
 
   function handleChooseSource() {
@@ -450,24 +478,28 @@ export default function TransactionsScreen() {
               );
             }
             const t = item.tx;
+            const editPayload = {
+              id: t.id,
+              description: t.description,
+              amount: t.amount,
+              type: t.type as "income" | "expense",
+              category: t.category,
+              date: t.date,
+            };
             return (
-              <TransactionRow
-                description={t.description}
-                amount={t.amount}
-                type={t.type as "income" | "expense"}
-                category={t.category}
-                date={t.date}
-                onPress={() =>
-                  openEdit({
-                    id: t.id,
-                    description: t.description,
-                    amount: t.amount,
-                    type: t.type as "income" | "expense",
-                    category: t.category,
-                    date: t.date,
-                  })
-                }
-              />
+              <SwipeableRow
+                onEdit={() => openEdit(editPayload)}
+                onDelete={() => handleDeleteConfirm(t.id)}
+              >
+                <TransactionRow
+                  description={t.description}
+                  amount={t.amount}
+                  type={t.type as "income" | "expense"}
+                  category={t.category}
+                  date={t.date}
+                  onPress={() => openEdit(editPayload)}
+                />
+              </SwipeableRow>
             );
           }}
           refreshing={isLoading}
