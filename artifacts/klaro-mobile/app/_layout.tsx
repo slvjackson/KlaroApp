@@ -55,6 +55,8 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    // Bundled locally so pnpm store path is never fetched over tunnel
+    MaterialCommunityIcons: require("../assets/fonts/MaterialCommunityIcons.ttf"),
   });
 
   useEffect(() => {

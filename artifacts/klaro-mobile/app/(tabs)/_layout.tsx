@@ -123,11 +123,15 @@ function ClassicTabLayout() {
         name="intelligence"
         options={{
           title: "Insights",
-          tabBarIcon: ({ color }) =>
+          tabBarIcon: ({ color, focused }) =>
             isIOS ? (
-              <SymbolView name="chart.xyaxis.line" tintColor={color} size={22} />
+              <SymbolView name={focused ? "lightbulb.fill" : "lightbulb"} tintColor={color} size={22} />
             ) : (
-              <Feather name="trending-up" size={22} color={color} />
+              <MaterialCommunityIcons
+                name={focused ? "lightbulb" : "lightbulb-outline"}
+                size={22}
+                color={color}
+              />
             ),
         }}
       />
