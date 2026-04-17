@@ -1,11 +1,17 @@
 import { Feather } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { customFetch } from "@workspace/api-client-react";
+import {
+  customFetch,
+  useGetMonthlyTrend,
+  useListTransactions,
+  useGetDashboardSummary,
+} from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MarkdownText } from "@/components/MarkdownText";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
+import { getApiBaseUrl } from "@/constants/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,22 +38,150 @@ interface Message {
 const CHAT_HISTORY_KEY = "klaro_chat_history";
 const MAX_PERSISTED = 40;
 
-const STATIC_SUGGESTIONS = [
-  "Como foi o mês passado?",
-  "Onde estou gastando mais?",
-  "Qual foi meu melhor mês?",
-  "Como está minha margem de lucro?",
-  "Quais são minhas principais receitas?",
+// ─── Dynamic suggestions ──────────────────────────────────────────────────────
+
+const MONTH_NAMES_PT = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
+
+function useDynamicSuggestions(): string[] {
+  const { data: trend } = useGetMonthlyTrend();
+  const { data: summary } = useGetDashboardSummary();
+  const { data: expenseTx } = useListTransactions({ type: "expense", limit: 500 });
+
+  return useMemo(() => {
+    const suggestions: string[] = [];
+    const trendData = Array.isArray(trend) ? trend : [];
+
+    // Previous month name
+    const now = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const prevMonthIdx = now.getUTCMonth() === 0 ? 11 : now.getUTCMonth() - 1;
+    const prevMonthName = MONTH_NAMES_PT[prevMonthIdx];
+
+    // Month-over-month growth
+    const last2 = trendData.slice(-2);
+    if (last2.length === 2 && last2[0].income > 0) {
+      const growth = ((last2[1].income - last2[0].income) / last2[0].income) * 100;
+      if (Math.abs(growth) >= 5) {
+        suggestions.push(
+          growth >= 0
+            ? `Minha receita cresceu ${growth.toFixed(0)}% este mês. Qual o motivo?`
+            : `Por que minha receita caiu ${Math.abs(growth).toFixed(0)}% em relação ao mês passado?`,
+        );
+      }
+    }
+
+    // Previous month question
+    if (prevMonthName) {
+      suggestions.push(`Como foi ${prevMonthName}?`);
+    }
+
+    // Top expense category
+    if (Array.isArray(expenseTx) && expenseTx.length > 0) {
+      const catMap = new Map<string, number>();
+      for (const t of expenseTx) catMap.set(t.category, (catMap.get(t.category) ?? 0) + t.amount);
+      const top = [...catMap.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (top) suggestions.push(`Por que estou gastando tanto em ${top[0]}?`);
+    }
+
+    // Expense ratio
+    const totalIncome = summary?.totalIncome ?? 0;
+    const totalExpenses = summary?.totalExpenses ?? 0;
+    if (totalIncome > 0) {
+      const ratio = totalExpenses / totalIncome;
+      if (ratio > 0.8) {
+        suggestions.push("Como posso reduzir minhas despesas?");
+      } else {
+        suggestions.push("Como está minha margem de lucro?");
+      }
+    }
+
+    // Best month
+    if (trendData.length > 1) {
+      const best = trendData.reduce((b, m) => (m.income > b.income ? m : b), trendData[0]);
+      const [, m] = best.month.split("-");
+      suggestions.push(`Qual foi meu melhor mês? (Dica: ${MONTH_NAMES_PT[parseInt(m, 10) - 1]})`);
+    }
+
+    // Fallbacks to always have 5
+    const fallbacks = [
+      "Como está minha margem de lucro?",
+      "Quais são minhas principais receitas?",
+      "Onde estou gastando mais?",
+      "Qual foi meu melhor mês?",
+      `Como foi ${prevMonthName}?`,
+    ];
+
+    const final = [...suggestions];
+    for (const fb of fallbacks) {
+      if (final.length >= 5) break;
+      if (!final.includes(fb)) final.push(fb);
+    }
+
+    return final.slice(0, 5);
+  }, [trend, summary, expenseTx]);
+}
+
+// ─── Voice input hook ─────────────────────────────────────────────────────────
+
+function useVoiceInput(onResult: (text: string) => void) {
+  const [listening, setListening] = useState(false);
+
+  function start() {
+    if (Platform.OS !== "web") {
+      Alert.alert(
+        "Ditação por voz",
+        "Toque no microfone do teclado do seu dispositivo para ditar.",
+        [{ text: "Entendi" }],
+      );
+      return;
+    }
+    // Web Speech API
+    const SpeechRecognition =
+      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
+        .SpeechRecognition ??
+      (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
+        .webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      Alert.alert("Não disponível", "Seu navegador não suporta reconhecimento de voz.");
+      return;
+    }
+
+    const recognition = new (SpeechRecognition as new () => {
+      lang: string;
+      interimResults: boolean;
+      onresult: (e: { results: { [key: number]: { [key: number]: { transcript: string } } } }) => void;
+      onerror: () => void;
+      onend: () => void;
+      start: () => void;
+    })();
+    recognition.lang = "pt-BR";
+    recognition.interimResults = false;
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      onResult(transcript);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    setListening(true);
+    recognition.start();
+  }
+
+  return { listening, start };
+}
 
 // ─── Bubble ───────────────────────────────────────────────────────────────────
 
 function Bubble({
   message,
   colors,
+  onSave,
 }: {
   message: Message;
   colors: ReturnType<typeof useColors>;
+  onSave?: (content: string) => void;
 }) {
   const isUser = message.role === "user";
   return (
@@ -56,29 +191,38 @@ function Bubble({
           <Feather name="zap" size={14} color={colors.primary} />
         </View>
       )}
-      <View
-        style={[
-          styles.bubble,
-          isUser
-            ? { backgroundColor: colors.primary, borderBottomRightRadius: 4 }
-            : {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                borderWidth: 1,
-                borderBottomLeftRadius: 4,
-              },
-        ]}
-      >
-        {isUser ? (
-          <Text style={[styles.bubbleText, { color: colors.primaryForeground }]}>
-            {message.content}
-          </Text>
-        ) : (
-          <MarkdownText
-            text={message.content}
-            color={colors.foreground}
-            style={styles.bubbleText}
-          />
+      <View style={isUser ? styles.bubbleUserWrap : styles.bubbleAssistantWrap}>
+        <View
+          style={[
+            styles.bubble,
+            isUser
+              ? { backgroundColor: colors.primary, borderBottomRightRadius: 4 }
+              : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderBottomLeftRadius: 4 },
+          ]}
+        >
+          {isUser ? (
+            <Text style={[styles.bubbleText, { color: colors.primaryForeground }]}>
+              {message.content}
+            </Text>
+          ) : (
+            <MarkdownText
+              text={message.content}
+              color={colors.foreground}
+              style={styles.bubbleText}
+            />
+          )}
+        </View>
+        {!isUser && onSave && (
+          <Pressable
+            onPress={() => onSave(message.content)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.saveBtn, { opacity: pressed ? 0.5 : 1 }]}
+          >
+            <Feather name="bookmark" size={13} color={colors.mutedForeground} />
+            <Text style={[styles.saveBtnText, { color: colors.mutedForeground }]}>
+              Salvar como insight
+            </Text>
+          </Pressable>
         )}
       </View>
     </View>
@@ -87,13 +231,7 @@ function Bubble({
 
 // ─── Typing indicator ─────────────────────────────────────────────────────────
 
-function TypingIndicator({
-  hint,
-  colors,
-}: {
-  hint: string | null;
-  colors: ReturnType<typeof useColors>;
-}) {
+function TypingIndicator({ hint, colors }: { hint: string | null; colors: ReturnType<typeof useColors> }) {
   return (
     <View style={[styles.typingRow, { paddingHorizontal: 20 }]}>
       <View style={[styles.avatar, { backgroundColor: `${colors.primary}22` }]}>
@@ -120,15 +258,23 @@ function TypingIndicator({
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [toolHint, setToolHint] = useState<string | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const inputRef = useRef<TextInput>(null);
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
+  const baseUrl = getApiBaseUrl();
 
-  // Load persisted history on mount
+  const suggestions = useDynamicSuggestions();
+
+  const { listening, start: startVoice } = useVoiceInput((transcript) => {
+    setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+  });
+
+  // Load persisted history
   useEffect(() => {
     (async () => {
       try {
@@ -145,7 +291,7 @@ export default function ChatScreen() {
     })();
   }, []);
 
-  // Persist whenever messages change (after initial load)
+  // Persist history
   useEffect(() => {
     if (!historyLoaded) return;
     AsyncStorage.setItem(
@@ -162,10 +308,18 @@ export default function ChatScreen() {
       message: string;
       history: { role: string; content: string }[];
     }) =>
-      customFetch<{ reply: string; _debug?: { toolResults?: { tool: string }[] } }>(
-        "/api/chat",
-        { method: "POST", body: JSON.stringify({ message, history }) },
-      ),
+      customFetch<{ reply: string }>("/api/chat", {
+        method: "POST",
+        body: JSON.stringify({ message, history }),
+      }),
+  });
+
+  const saveInsightMutation = useMutation({
+    mutationFn: (body: { title: string; description: string; recommendation: string; periodLabel: string }) =>
+      customFetch<{ id: number }>(`${baseUrl}/api/insights`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   });
 
   function inferHint(msg: string): string {
@@ -174,7 +328,7 @@ export default function ChatScreen() {
     if (/categor|gastando|despesa/.test(l)) return "Analisando categorias…";
     if (/mês|mes|mensal|janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro/.test(l))
       return "Analisando o mês…";
-    if (/resumo|visão|geral|histórico|trend/.test(l)) return "Buscando resumo mensal…";
+    if (/resumo|visão|geral|histórico/.test(l)) return "Buscando resumo mensal…";
     return "Consultando dados…";
   }
 
@@ -192,14 +346,12 @@ export default function ChatScreen() {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const history = nextMessages
-        .slice(-12)
-        .map((m) => ({ role: m.role, content: m.content }));
+      const history = nextMessages.slice(-12).map((m) => ({ role: m.role, content: m.content }));
       const result = await sendMutation.mutateAsync({
         message: msg,
         history: history.slice(0, -1),
       });
-      const { reply } = result as { reply: string; _debug?: unknown };
+      const { reply } = result as { reply: string };
 
       setMessages((prev) => [
         ...prev,
@@ -221,6 +373,28 @@ export default function ChatScreen() {
     }
   }
 
+  async function handleSaveInsight(content: string) {
+    try {
+      // Extract a short title from the first sentence/line
+      const firstLine = content.split("\n").find((l) => l.trim()) ?? content;
+      const title = firstLine.replace(/[*#`]/g, "").trim().slice(0, 80);
+      const now = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      const periodLabel = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+      await saveInsightMutation.mutateAsync({
+        title,
+        description: content,
+        recommendation: "",
+        periodLabel,
+      });
+
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Salvo!", "Insight salvo na aba Inteligência.");
+    } catch {
+      Alert.alert("Erro", "Não foi possível salvar o insight.");
+    }
+  }
+
   async function handleClear() {
     setMessages([]);
     await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
@@ -239,11 +413,7 @@ export default function ChatScreen() {
       <View
         style={[
           styles.header,
-          {
-            paddingTop: topPad + 12,
-            borderBottomColor: colors.border,
-            backgroundColor: colors.background,
-          },
+          { paddingTop: topPad + 12, borderBottomColor: colors.border, backgroundColor: colors.background },
         ]}
       >
         <View style={[styles.headerIcon, { backgroundColor: `${colors.primary}22` }]}>
@@ -271,7 +441,13 @@ export default function ChatScreen() {
         ref={listRef}
         data={messages}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <Bubble message={item} colors={colors} />}
+        renderItem={({ item }) => (
+          <Bubble
+            message={item}
+            colors={colors}
+            onSave={item.role === "assistant" ? handleSaveInsight : undefined}
+          />
+        )}
         contentContainerStyle={[
           styles.messagesList,
           { paddingBottom: insets.bottom + 76 + 90 },
@@ -285,7 +461,7 @@ export default function ChatScreen() {
               Pergunte qualquer coisa sobre as finanças do seu negócio.
             </Text>
             <View style={styles.suggestionsGrid}>
-              {STATIC_SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <Pressable
                   key={s}
                   onPress={() => handleSend(s)}
@@ -321,6 +497,7 @@ export default function ChatScreen() {
         ]}
       >
         <TextInput
+          ref={inputRef}
           value={input}
           onChangeText={setInput}
           placeholder="Pergunte algo sobre seu negócio…"
@@ -339,6 +516,27 @@ export default function ChatScreen() {
           onSubmitEditing={() => handleSend()}
           blurOnSubmit={false}
         />
+
+        {/* Mic button */}
+        <Pressable
+          onPress={startVoice}
+          style={({ pressed }) => [
+            styles.iconBtn,
+            {
+              backgroundColor: listening ? `${colors.primary}33` : colors.secondary,
+              borderRadius: colors.radius,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <Feather
+            name="mic"
+            size={18}
+            color={listening ? colors.primary : colors.mutedForeground}
+          />
+        </Pressable>
+
+        {/* Send button */}
         <Pressable
           onPress={() => handleSend()}
           disabled={!input.trim() || sendMutation.isPending}
@@ -372,20 +570,10 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: 1,
   },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  headerIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
 
@@ -393,21 +581,14 @@ const styles = StyleSheet.create({
 
   bubbleRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   bubbleRowUser: { flexDirection: "row-reverse" },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  bubble: {
-    maxWidth: "78%",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18,
-  },
+  bubbleUserWrap: { maxWidth: "78%" },
+  bubbleAssistantWrap: { maxWidth: "78%", gap: 4 },
+  avatar: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
   bubbleText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22 },
+
+  saveBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingLeft: 4 },
+  saveBtnText: { fontSize: 11, fontFamily: "Inter_500Medium" },
 
   typingRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingBottom: 8 },
   typingBubble: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -421,25 +602,13 @@ const styles = StyleSheet.create({
   suggestionText: { fontSize: 14, fontFamily: "Inter_400Regular" },
 
   inputBar: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    gap: 10,
-    borderTopWidth: 1,
-    alignItems: "flex-end",
+    flexDirection: "row", paddingHorizontal: 16, paddingTop: 10,
+    gap: 8, borderTopWidth: 1, alignItems: "flex-end",
   },
   input: {
-    flex: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-    maxHeight: 100,
+    flex: 1, paddingHorizontal: 14, paddingVertical: 10,
+    fontSize: 15, fontFamily: "Inter_400Regular", maxHeight: 100,
   },
-  sendBtn: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  iconBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  sendBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
 });

@@ -70,4 +70,33 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
   res.json(inserted);
 });
 
+// POST /insights — save a single custom insight (e.g. from chat)
+router.post("/insights", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const { title, description, recommendation, periodLabel } = req.body as {
+    title?: string;
+    description?: string;
+    recommendation?: string;
+    periodLabel?: string;
+  };
+
+  if (!title?.trim() || !description?.trim()) {
+    res.status(400).json({ error: "title e description são obrigatórios." });
+    return;
+  }
+
+  const [inserted] = await db
+    .insert(insightsTable)
+    .values({
+      userId,
+      title: title.trim(),
+      description: description.trim(),
+      recommendation: recommendation?.trim() ?? "",
+      periodLabel: periodLabel?.trim() ?? new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+    })
+    .returning();
+
+  res.status(201).json(inserted);
+});
+
 export default router;
