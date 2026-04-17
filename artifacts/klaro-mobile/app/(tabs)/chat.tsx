@@ -79,7 +79,7 @@ export default function ChatScreen() {
 
   const sendMutation = useMutation({
     mutationFn: ({ message, history }: { message: string; history: { role: string; content: string }[] }) =>
-      customFetch<{ reply: string }>("/api/chat", {
+      customFetch<{ reply: string; _debug?: unknown }>("/api/chat", {
         method: "POST",
         body: JSON.stringify({ message, history }),
       }),
@@ -100,7 +100,8 @@ export default function ChatScreen() {
 
     try {
       const history = nextMessages.slice(-10).map((m) => ({ role: m.role, content: m.content }));
-      const { reply } = await sendMutation.mutateAsync({ message: msg, history: history.slice(0, -1) });
+      const { reply, _debug } = await sendMutation.mutateAsync({ message: msg, history: history.slice(0, -1) });
+      if (_debug) console.log("[Chat] _debug:", JSON.stringify(_debug, null, 2));
 
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),

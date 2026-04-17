@@ -277,14 +277,17 @@ INSTRUÇÕES:
     });
 
     // Agentic loop — execute tools until the model is done
+    const debugToolResults: { tool: string; input: Record<string, unknown>; result: string }[] = [];
     while (response.stop_reason === "tool_use") {
       messages.push({ role: "assistant", content: response.content });
 
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const block of response.content) {
         if (block.type === "tool_use") {
-          logger.info({ tool: block.name, userId }, "Executing tool");
+          logger.info({ tool: block.name, input: block.input, userId }, "Executing tool");
           const result = await executeTool(block.name, block.input as Record<string, unknown>, userId);
+          logger.info({ tool: block.name, result }, "Tool result");
+          debugToolResults.push({ tool: block.name, input: block.input as Record<string, unknown>, result });
           toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
         }
       }
@@ -302,7 +305,7 @@ INSTRUÇÕES:
 
     const reply = response.content.find((b) => b.type === "text")?.text ?? "";
     logger.info({ userId, messageLen: message.length }, "Chat response generated");
-    res.json({ reply });
+    res.json({ reply, _debug: { today, userId, toolResults: debugToolResults } });
   } catch (err) {
     logger.error({ err }, "Chat generation failed");
     res.status(500).json({ error: "Erro ao gerar resposta. Tente novamente." });
