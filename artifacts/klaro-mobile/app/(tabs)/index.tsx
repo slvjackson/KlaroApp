@@ -8,7 +8,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Modal,
   Platform,
   Pressable,
@@ -22,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SpeedDialFab } from "@/components/SpeedDialFab";
 import { GoalProgress } from "@/components/GoalProgress";
 import { MetricCard } from "@/components/MetricCard";
+import { SkeletonChart, SkeletonGoal, SkeletonMetricRow } from "@/components/Skeleton";
 import { TransactionRow } from "@/components/TransactionRow";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTransactionForm } from "@/contexts/TransactionFormContext";
@@ -441,7 +441,9 @@ export default function DashboardScreen() {
 
         {isLoading ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator color={colors.primary} size="large" />
+            <SkeletonMetricRow />
+            <SkeletonGoal />
+            <SkeletonChart />
           </View>
         ) : (
           <>

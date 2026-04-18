@@ -3,7 +3,6 @@ import { useListTransactions } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -16,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SpeedDialFab } from "@/components/SpeedDialFab";
+import { SkeletonSectionHeader, SkeletonTransactionRow } from "@/components/Skeleton";
 import { SwipeableRow } from "@/components/SwipeableRow";
 import { TransactionRow } from "@/components/TransactionRow";
 import { useColors } from "@/hooks/useColors";
@@ -349,7 +349,14 @@ export default function TransactionsScreen() {
 
       {isLoading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator color={colors.primary} size="large" />
+          {[0, 1, 2].map((g) => (
+            <React.Fragment key={g}>
+              <SkeletonSectionHeader />
+              <SkeletonTransactionRow />
+              <SkeletonTransactionRow />
+              <SkeletonTransactionRow />
+            </React.Fragment>
+          ))}
         </View>
       ) : (
         <FlatList

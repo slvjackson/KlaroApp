@@ -29,6 +29,7 @@ import Animated, {
   Extrapolation,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SkeletonInsightCard } from "@/components/Skeleton";
 import { SpeedDialFab } from "@/components/SpeedDialFab";
 import { useTransactionForm } from "@/contexts/TransactionFormContext";
 import { useColors } from "@/hooks/useColors";
@@ -239,7 +240,13 @@ function InsightsContent() {
   }
 
   if (isLoading) {
-    return <View style={styles.centered}><ActivityIndicator color={colors.primary} size="large" /></View>;
+    return (
+      <View style={[styles.centered, { paddingHorizontal: 20, gap: 14, justifyContent: "flex-start", paddingTop: 20 }]}>
+        <SkeletonInsightCard />
+        <SkeletonInsightCard />
+        <SkeletonInsightCard />
+      </View>
+    );
   }
 
   const insightList = Array.isArray(insights) ? insights : [];

@@ -69,7 +69,7 @@ export default function SignupScreen() {
 
       await login(data.token, data.user);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/(tabs)/");
+      router.replace("/onboarding");
     } catch {
       setError("Erro de conexão. Verifique sua internet.");
     } finally {
