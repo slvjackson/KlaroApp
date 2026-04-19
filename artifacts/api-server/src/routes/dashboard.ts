@@ -80,17 +80,19 @@ router.get("/dashboard/by-category", requireAuth, async (req, res): Promise<void
     .from(transactionsTable)
     .where(eq(transactionsTable.userId, userId));
 
-  const catMap = new Map<string, { total: number; count: number }>();
+  // Key by "type::category" so income and expense categories are tracked separately
+  const catMap = new Map<string, { total: number; count: number; type: string }>();
 
   for (const t of transactions) {
-    const existing = catMap.get(t.category) ?? { total: 0, count: 0 };
+    const key = `${t.type}::${t.category}`;
+    const existing = catMap.get(key) ?? { total: 0, count: 0, type: t.type };
     existing.total += t.amount;
     existing.count++;
-    catMap.set(t.category, existing);
+    catMap.set(key, existing);
   }
 
   const breakdown = [...catMap.entries()]
-    .map(([category, data]) => ({ category, ...data }))
+    .map(([key, data]) => ({ category: key.split("::")[1], ...data }))
     .sort((a, b) => b.total - a.total);
 
   res.json(breakdown);

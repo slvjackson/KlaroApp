@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 import {
@@ -147,7 +148,10 @@ export default function Dashboard() {
   const totalExpenses = summary?.totalExpenses ?? 0;
   const txCount = summary?.transactionCount ?? 0;
 
-  const catData = (categoryBreakdown ?? []) as { category: string; total: number }[];
+  const [donutType, setDonutType] = useState<"expense" | "income">("expense");
+
+  const allCatData = (categoryBreakdown ?? []) as { category: string; total: number; type: string }[];
+  const catData = allCatData.filter((c) => c.type === donutType);
   const catTotal = catData.reduce((s, c) => s + c.total, 0);
 
   // Top 7 categories, group rest as "Outros"
@@ -275,18 +279,34 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Donut – Saídas por Categoria */}
+          {/* Donut – por Categoria */}
           <Card className="col-span-1 bg-card border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-white text-base">Saídas por Categoria</CardTitle>
-              <p className="text-xs text-muted-foreground">Distribuição de despesas</p>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white text-base">Por Categoria</CardTitle>
+              {/* Toggle */}
+              <div className="flex gap-1 p-1 bg-secondary mt-1" style={{ borderRadius: "8px", width: "fit-content" }}>
+                {(["expense", "income"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setDonutType(t)}
+                    className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                      donutType === t
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    style={{ borderRadius: "6px" }}
+                  >
+                    {t === "expense" ? "Saídas" : "Entradas"}
+                  </button>
+                ))}
+              </div>
             </CardHeader>
             <CardContent>
               {isCategoryLoading ? (
                 <Skeleton className="w-full h-48 bg-muted" />
               ) : donutData.length === 0 ? (
                 <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-                  Sem despesas registradas.
+                  {donutType === "expense" ? "Sem despesas registradas." : "Sem entradas registradas."}
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
