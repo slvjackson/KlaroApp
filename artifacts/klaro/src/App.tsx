@@ -12,6 +12,7 @@ import Upload from "@/pages/upload";
 import Review from "@/pages/review";
 import Transactions from "@/pages/transactions";
 import Insights from "@/pages/insights";
+import Profile from "@/pages/profile";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/review/:id" component={Review} />
       <Route path="/transactions" component={Transactions} />
       <Route path="/insights" component={Insights} />
+      <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );
