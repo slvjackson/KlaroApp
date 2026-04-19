@@ -135,6 +135,8 @@ function DonutLegend({
 export default function Dashboard() {
   const { isLoading: isAuthLoading } = useRequireAuth();
 
+  const [donutType, setDonutType] = useState<"expense" | "income">("expense");
+
   const { data: summary, isLoading: isSummaryLoading } = useGetDashboardSummary();
   const { data: monthlyTrend, isLoading: isMonthlyLoading } = useGetMonthlyTrend();
   const { data: categoryBreakdown, isLoading: isCategoryLoading } = useGetTransactionsByCategory();
@@ -147,8 +149,6 @@ export default function Dashboard() {
   const totalIncome = summary?.totalIncome ?? 0;
   const totalExpenses = summary?.totalExpenses ?? 0;
   const txCount = summary?.transactionCount ?? 0;
-
-  const [donutType, setDonutType] = useState<"expense" | "income">("expense");
 
   const allCatData = (categoryBreakdown ?? []) as { category: string; total: number; type: string }[];
   const catData = allCatData.filter((c) => c.type === donutType);
