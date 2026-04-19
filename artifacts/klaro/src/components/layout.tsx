@@ -2,13 +2,14 @@ import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, Home, Upload, List, Lightbulb, User } from "lucide-react";
+import { LogOut, Home, Upload, List, Lightbulb, User, MessageSquare } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
   { href: "/upload", icon: Upload, label: "Upload" },
   { href: "/transactions", icon: List, label: "Transações" },
   { href: "/insights", icon: Lightbulb, label: "Insights" },
+  { href: "/chat", icon: MessageSquare, label: "Chat" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
