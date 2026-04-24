@@ -125,7 +125,7 @@ export default function Home() {
                     <p className="text-[9px] text-white/40">Tendência mensal</p>
                     <span className="text-[9px] text-[var(--income)] font-medium">últimos 7 meses</span>
                   </div>
-                  <div className="flex items-end gap-1 h-[52px]">
+                  <div className="relative flex items-end gap-1 h-[52px]">
                     {BARS.map((h, i) => (
                       <div key={i} className="flex-1">
                         <div
@@ -137,6 +137,37 @@ export default function Home() {
                         />
                       </div>
                     ))}
+                    {/* Animated trend line overlay */}
+                    <svg
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                    >
+                      <defs>
+                        <linearGradient id="trendGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="rgba(106,248,47,0.2)" />
+                          <stop offset="100%" stopColor="rgba(106,248,47,0.9)" />
+                        </linearGradient>
+                      </defs>
+                      <polyline
+                        points="7,52 21.5,35 36,60 50.5,18 65,40 79.5,22 94,4"
+                        fill="none"
+                        stroke="url(#trendGrad)"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{
+                          strokeDasharray: 300,
+                          strokeDashoffset: 300,
+                          animation: "drawLine 1.6s ease-out forwards 0.4s",
+                        }}
+                      />
+                      <circle
+                        cx="94" cy="4" r="2.5"
+                        fill="#6af82f"
+                        style={{ opacity: 0, animation: "fadeDot 0.3s ease forwards 2s" }}
+                      />
+                    </svg>
                   </div>
                   <div className="flex justify-between mt-1.5">
                     {MONTHS.map((m) => (
