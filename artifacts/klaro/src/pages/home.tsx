@@ -159,13 +159,13 @@ export default function Home() {
                         style={{
                           strokeDasharray: 300,
                           strokeDashoffset: 300,
-                          animation: "drawLine 1.6s ease-out forwards 0.4s",
+                          animation: "drawLine 3.2s ease-in-out forwards 0.6s",
                         }}
                       />
                       <circle
                         cx="94" cy="4" r="2.5"
                         fill="#6af82f"
-                        style={{ opacity: 0, animation: "fadeDot 0.3s ease forwards 2s" }}
+                        style={{ opacity: 0, animation: "fadeDot 0.4s ease forwards 3.8s" }}
                       />
                     </svg>
                   </div>
