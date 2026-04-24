@@ -248,9 +248,6 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <KlaroMark size={20} />
-            <span className="text-[14px] font-bold text-white">
-              klaro<span style={{ color: "var(--accent)" }}>.</span>
-            </span>
           </div>
           <p className="text-[12px] text-[var(--muted)]">
             © {new Date().getFullYear()} Klaro. Todos os direitos reservados.
