@@ -35,9 +35,6 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <KlaroMark size={26} />
-            <span className="text-[18px] font-bold tracking-tight text-white">
-              klaro<span style={{ color: "var(--accent)" }}>.</span>
-            </span>
           </div>
 
           <div className="hidden md:flex items-center gap-8 text-[13px] text-[var(--muted)]">
