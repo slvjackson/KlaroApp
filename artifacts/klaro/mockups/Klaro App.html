@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Klaro — App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/@tailwindcss/browser@4.0.6/dist/index.global.js"></script>
+<script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.min.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<style>
+  :root{
+    --bg:#09090b;
+    --bg-2:#0c0c0f;
+    --card:#141418;
+    --card-2:#1a1a1f;
+    --border:#26262c;
+    --border-2:#2f2f37;
+    --muted:#8a8a95;
+    --fg:#f4f4f5;
+    --accent:#7c5cff;       /* brand violet */
+    --accent-2:#5b8cff;     /* blue highlight */
+    --income:#10b981;       /* emerald */
+    --expense:#f43f5e;      /* rose */
+    --income-soft:rgba(16,185,129,.12);
+    --expense-soft:rgba(244,63,94,.12);
+    --accent-soft:rgba(124,92,255,.14);
+  }
+  html,body{background:var(--bg);color:var(--fg);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+  .font-mono{font-family:'JetBrains Mono',ui-monospace,monospace;}
+  .tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1,"cv11" 1;}
+  .klaro-scroll::-webkit-scrollbar{width:10px;height:10px}
+  .klaro-scroll::-webkit-scrollbar-track{background:transparent}
+  .klaro-scroll::-webkit-scrollbar-thumb{background:#26262c;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+  .klaro-scroll::-webkit-scrollbar-thumb:hover{background:#3a3a42;background-clip:padding-box;border:2px solid transparent}
+
+  /* Glass card */
+  .glass{
+    background: linear-gradient(180deg, rgba(26,26,31,.85), rgba(20,20,24,.7));
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border:1px solid var(--border);
+  }
+  .glass-strong{
+    background: linear-gradient(180deg, rgba(32,32,38,.92), rgba(22,22,26,.82));
+    backdrop-filter: blur(18px) saturate(160%);
+    border:1px solid var(--border-2);
+  }
+
+  /* Ambient brand glow in background */
+  .bg-ambient{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(124,92,255,.12), transparent 60%),
+      radial-gradient(800px 500px at -5% 110%, rgba(91,140,255,.08), transparent 60%),
+      radial-gradient(600px 400px at 50% 50%, rgba(16,185,129,.04), transparent 70%),
+      var(--bg);
+  }
+
+  /* Subtle grain */
+  .grain::before{
+    content:"";position:absolute;inset:0;pointer-events:none;opacity:.035;mix-blend-mode:overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='1'/></svg>");
+  }
+
+  /* Bubble shapes */
+  .bubble-user{border-radius:16px 16px 4px 16px}
+  .bubble-bot{border-radius:16px 16px 16px 4px}
+
+  /* Suggestion pill */
+  .pill{transition:all .16s ease}
+  .pill:hover{transform:translateY(-1px);border-color:var(--accent);color:#fff;box-shadow:0 6px 20px -10px rgba(124,92,255,.6)}
+
+  /* Input focus ring */
+  .chat-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.18)}
+
+  /* Animated dots */
+  @keyframes dotpulse{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-2px)}}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:999px;background:var(--muted);margin:0 2px;animation:dotpulse 1.2s infinite ease-in-out}
+  .dot:nth-child(2){animation-delay:.15s}
+  .dot:nth-child(3){animation-delay:.3s}
+
+  /* Fade-in */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .fadeUp{animation:fadeUp .28s ease both}
+
+  /* Mini bar chart bars */
+  .bar-income{background:linear-gradient(180deg,#10b981,#059669)}
+  .bar-expense{background:linear-gradient(180deg,#f43f5e,#be123c)}
+  .bar-income:hover{filter:brightness(1.15)}
+  .bar-expense:hover{filter:brightness(1.15)}
+
+  /* Sparkline */
+  .spark path{stroke-linecap:round;stroke-linejoin:round}
+
+  /* Nav item */
+  .nav-item{position:relative}
+  .nav-item.active::before{
+    content:"";position:absolute;left:-14px;top:8px;bottom:8px;width:2px;border-radius:2px;
+    background:linear-gradient(180deg,var(--accent),var(--accent-2))
+  }
+
+  /* Hide scroll on horizontal chips */
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  .no-scrollbar{scrollbar-width:none}
+
+  /* Button glow */
+  .btn-primary{
+    background:linear-gradient(180deg,#8a6bff,#6a4fe8);
+    box-shadow: 0 1px 0 rgba(255,255,255,.14) inset, 0 8px 24px -12px rgba(124,92,255,.7);
+  }
+  .btn-primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
+  .btn-primary:active{transform:translateY(0)}
+
+  /* Tweak panel */
+  .tweak-panel{background:rgba(18,18,22,.92);backdrop-filter:blur(18px);border:1px solid var(--border-2);box-shadow:0 30px 60px -20px rgba(0,0,0,.6)}
+
+  /* Selection */
+  ::selection{background:rgba(124,92,255,.35);color:#fff}
+
+  /* Form fields */
+  .field{
+    width:100%;background:rgba(255,255,255,0.02);border:1px solid var(--border);
+    color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  .field::placeholder{color:var(--muted)}
+  .field:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.15)}
+  .field-sm{
+    background:rgba(255,255,255,0.02);border:1px solid var(--border);color:#fff;
+    border-radius:8px;padding:6px 10px;font-size:12px;
+  }
+  select.field,select.field-sm{appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'><path d='M1 1l4 4 4-4' stroke='%238a8a95' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;
+  }
+
+  /* Chip (selectable pill) */
+  .chip{
+    padding:6px 12px;border-radius:999px;border:1px solid var(--border);
+    font-size:11.5px;font-weight:500;color:var(--muted);
+    background:rgba(255,255,255,0.02);transition:all .15s;cursor:pointer;
+  }
+  .chip:hover{color:#fff;border-color:var(--border-2)}
+  .chip-on{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+</style>
+</head>
+<template id="__bundler_thumbnail" data-bg-color="#09090b">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="kg" x1="0" x2="1" y1="0" y2="1">
+        <stop offset="0" stop-color="#a18bff"/>
+        <stop offset="1" stop-color="#5b8cff"/>
+      </linearGradient>
+    </defs>
+    <rect width="1200" height="800" fill="#09090b"/>
+    <rect x="440" y="220" width="320" height="320" rx="90" fill="url(#kg)"/>
+    <path d="M540 320 V520 M540 420 L660 320 M540 420 L680 520" stroke="#0c0c0f" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="700" cy="330" r="26" fill="#10b981" stroke="#0c0c0f" stroke-width="10"/>
+  </svg>
+</template>
+<body class="bg-ambient min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react" src="data.jsx"></script>
+  <script type="text/babel" data-presets="react" src="components.jsx"></script>
+  <script type="text/babel" data-presets="react" src="chat.jsx"></script>
+  <script type="text/babel" data-presets="react" src="app.jsx"></script>
+</body>
+</html>
