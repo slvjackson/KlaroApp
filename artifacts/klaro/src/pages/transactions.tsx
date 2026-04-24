@@ -2,11 +2,8 @@ import { useMemo, useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 import { useListTransactions } from "@workspace/api-client-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
-import { Pencil, Plus, Search, X, Inbox } from "lucide-react";
+import { Pencil, Plus, Search, X, Inbox, ArrowUp, ArrowDown } from "lucide-react";
 import { TransactionDialog, type TransactionData } from "@/components/TransactionDialog";
 
 type FilterType = "all" | "income" | "expense";
@@ -22,8 +19,27 @@ function buildMonthOptions(transactions: TransactionData[]): { key: string; labe
   });
 }
 
-function formatCurrency(value: number) {
+function brl(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+const CAT_ICONS: Record<string, string> = {
+  alimentação: "🍽", restaurante: "🍽", mercado: "🛒", supermercado: "🛒",
+  transporte: "🚗", uber: "🚗", gasolina: "⛽",
+  saúde: "💊", farmácia: "💊", médico: "🏥",
+  entretenimento: "🎬", lazer: "🎭",
+  educação: "📚", curso: "📚",
+  salário: "💰", receita: "💰", venda: "💰",
+  moradia: "🏠", aluguel: "🏠",
+  serviços: "⚙️", assinatura: "📱",
+};
+
+function catIcon(cat: string) {
+  const lower = cat.toLowerCase();
+  for (const [key, icon] of Object.entries(CAT_ICONS)) {
+    if (lower.includes(key)) return icon;
+  }
+  return "📂";
 }
 
 export default function Transactions() {
@@ -39,7 +55,6 @@ export default function Transactions() {
   if (isAuthLoading) return null;
 
   const transactions = (rawTransactions ?? []) as TransactionData[];
-
   const monthOptions = useMemo(() => buildMonthOptions(transactions), [transactions]);
 
   const filtered = useMemo(() => {
@@ -52,70 +67,52 @@ export default function Transactions() {
     });
   }, [transactions, filter, search, month]);
 
-  const summary = useMemo(() => {
-    return filtered.reduce(
-      (acc, t) => {
-        if (t.type === "income") acc.income += t.amount;
-        else acc.expense += t.amount;
-        return acc;
-      },
-      { income: 0, expense: 0 },
-    );
-  }, [filtered]);
-
-  function openAdd() {
-    setEditing(null);
-    setDialogOpen(true);
-  }
-
-  function openEdit(tx: TransactionData) {
-    setEditing(tx);
-    setDialogOpen(true);
-  }
+  const summary = useMemo(() =>
+    filtered.reduce((acc, t) => {
+      if (t.type === "income") acc.income += t.amount;
+      else acc.expense += t.amount;
+      return acc;
+    }, { income: 0, expense: 0 }),
+  [filtered]);
 
   const FILTERS: { key: FilterType; label: string }[] = [
     { key: "all", label: "Todas" },
-    { key: "income", label: "Receitas" },
-    { key: "expense", label: "Despesas" },
+    { key: "income", label: "Entradas" },
+    { key: "expense", label: "Saídas" },
   ];
 
   return (
-    <Layout>
+    <Layout title="Transações">
       <div className="space-y-5">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Transações</h1>
-            <p className="text-sm text-muted-foreground mt-1">Todas as suas transações confirmadas.</p>
-          </div>
+        <div>
+          <h1 className="text-[22px] font-bold tracking-tight text-white">Transações</h1>
+          <p className="text-[12.5px] text-[var(--muted)] mt-1">Todas as suas transações confirmadas.</p>
         </div>
 
-        {/* Filters row */}
+        {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Type chips */}
-          <div className="flex gap-1 p-1 bg-card border border-border" style={{ borderRadius: "10px" }}>
+          <div className="flex gap-1 p-0.5 rounded-md bg-[rgba(255,255,255,0.04)] border border-[var(--border)]">
             {FILTERS.map((f) => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
-                className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  filter === f.key
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                className={`px-2.5 py-1 text-[10.5px] font-semibold rounded-[5px] transition-colors ${
+                  filter === f.key ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)] hover:text-white"
                 }`}
-                style={{ borderRadius: "7px" }}
               >
                 {f.label}
               </button>
             ))}
           </div>
 
-          {/* Month selector */}
+          {/* Month */}
           <select
             value={month ?? ""}
             onChange={(e) => setMonth(e.target.value || null)}
-            className="h-8 px-3 text-xs bg-card border border-border text-muted-foreground hover:text-foreground transition-colors"
-            style={{ borderRadius: "8px" }}
+            className="field px-3 py-1.5 text-[12px] rounded-lg"
+            style={{ width: "auto" }}
           >
             <option value="">Todos os meses</option>
             {monthOptions.map((m) => (
@@ -124,20 +121,17 @@ export default function Transactions() {
           </select>
 
           {/* Search */}
-          <div className="relative flex-1 min-w-[160px]">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <Input
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
+            <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar descrição ou categoria..."
-              className="pl-8 pr-8 h-8 text-xs bg-card border-border text-white"
+              placeholder="Buscar descrição ou categoria…"
+              className="field pl-9 pr-9 py-2 text-[12.5px]"
             />
             {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3.5 h-3.5" />
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white">
+                <X size={13} />
               </button>
             )}
           </div>
@@ -145,115 +139,97 @@ export default function Transactions() {
 
         {/* Summary bar */}
         {!isLoading && (
-          <div className="flex flex-wrap gap-4 px-1 text-xs text-muted-foreground">
-            <span>
+          <div className="flex flex-wrap items-center gap-4 px-1 text-[12px]">
+            <span className="text-[var(--muted)]">
               {filtered.length} {filtered.length === 1 ? "transação" : "transações"}
             </span>
-            <span className="text-primary font-medium">+{formatCurrency(summary.income)}</span>
-            <span className="text-destructive font-medium">-{formatCurrency(summary.expense)}</span>
-            <span className="font-semibold text-white">
-              Saldo: {formatCurrency(summary.income - summary.expense)}
+            <span className="text-[var(--income)] font-semibold tnum">+{brl(summary.income)}</span>
+            <span className="text-[var(--expense)] font-semibold tnum">−{brl(summary.expense)}</span>
+            <span className={`font-bold tnum ${summary.income - summary.expense >= 0 ? "text-white" : "text-[var(--expense)]"}`}>
+              Saldo: {brl(summary.income - summary.expense)}
             </span>
           </div>
         )}
 
-        {/* Table */}
-        <div className="bg-card border border-border rounded-md overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border">
-                <TableHead className="text-xs">Data</TableHead>
-                <TableHead className="text-xs">Descrição</TableHead>
-                <TableHead className="text-xs">Categoria</TableHead>
-                <TableHead className="text-xs">Tipo</TableHead>
-                <TableHead className="text-xs text-right">Valor</TableHead>
-                <TableHead className="w-10"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <TableRow key={i} className="border-border">
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-44" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-6" /></TableCell>
-                  </TableRow>
-                ))
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-16 text-center">
-                    <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                      <Inbox className="w-8 h-8" />
-                      <p className="text-sm">
-                        {search || month || filter !== "all"
-                          ? "Nenhum resultado para este filtro."
-                          : "Sem transações ainda."}
-                      </p>
+        {/* Transaction list */}
+        <div className="glass rounded-2xl overflow-hidden">
+          {isLoading ? (
+            <div className="p-5 space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 animate-pulse">
+                  <div className="w-9 h-9 rounded-lg bg-white/5 shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 bg-white/5 rounded w-44" />
+                    <div className="h-3 bg-white/5 rounded w-24" />
+                  </div>
+                  <div className="h-4 bg-white/5 rounded w-20" />
+                </div>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-16 flex flex-col items-center gap-3 text-center">
+              <Inbox size={32} className="text-[var(--muted)]/40" />
+              <p className="text-[13px] text-[var(--muted)]">
+                {search || month || filter !== "all" ? "Nenhum resultado para este filtro." : "Sem transações ainda."}
+              </p>
+              <button onClick={() => { setEditing(null); setDialogOpen(true); }} className="text-[12px] text-[var(--accent)] hover:brightness-110">
+                Adicionar manualmente
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--border)]">
+              {filtered.map((t) => {
+                const isIn = t.type === "income";
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => { setEditing(t); setDialogOpen(true); }}
+                    className="group flex items-center gap-3 px-5 py-3 hover:bg-white/[0.025] transition-colors cursor-pointer"
+                  >
+                    <div className={`w-9 h-9 rounded-lg grid place-items-center text-base shrink-0 ${
+                      isIn ? "bg-[var(--income-soft)]" : "bg-white/5"
+                    }`}>
+                      {catIcon(t.category)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-medium text-white truncate">{t.description}</div>
+                      <div className="text-[11px] text-[var(--muted)] flex items-center gap-1.5 mt-0.5">
+                        <span>{t.category}</span>
+                        <span>·</span>
+                        <span>{format(new Date(t.date + "T12:00:00"), "dd/MM/yyyy")}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className={`text-[13.5px] font-semibold tnum ${isIn ? "text-[var(--income)]" : "text-white"}`}>
+                        {isIn ? "+ " : "− "}{brl(Math.abs(t.amount))}
+                      </div>
+                      <div className={`w-5 h-5 rounded-full grid place-items-center ${
+                        isIn ? "bg-[var(--income-soft)] text-[var(--income)]" : "bg-[var(--expense-soft)] text-[var(--expense)]"
+                      }`}>
+                        {isIn ? <ArrowDown size={11} /> : <ArrowUp size={11} />}
+                      </div>
                       <button
-                        onClick={openAdd}
-                        className="text-xs text-primary hover:underline"
+                        onClick={(e) => { e.stopPropagation(); setEditing(t); setDialogOpen(true); }}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5 transition-all"
                       >
-                        Adicionar manualmente
+                        <Pencil size={13} />
                       </button>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((t) => (
-                  <TableRow
-                    key={t.id}
-                    className="border-border hover:bg-muted/30 cursor-pointer"
-                    onClick={() => openEdit(t)}
-                  >
-                    <TableCell className="text-muted-foreground text-sm">
-                      {format(new Date(t.date + "T12:00:00"), "dd/MM/yyyy")}
-                    </TableCell>
-                    <TableCell className="font-medium text-white text-sm">{t.description}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{t.category}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          t.type === "income"
-                            ? "bg-primary/10 text-primary"
-                            : "bg-destructive/10 text-destructive"
-                        }`}
-                      >
-                        {t.type === "income" ? "Entrada" : "Saída"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right text-sm font-medium">
-                      <span className={t.type === "income" ? "text-primary" : "text-white"}>
-                        {t.type === "expense" ? "-" : ""}
-                        {formatCurrency(t.amount)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openEdit(t); }}
-                        className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
       {/* FAB */}
       <button
-        onClick={openAdd}
-        className="fixed bottom-8 right-8 w-14 h-14 bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center z-50"
-        style={{ borderRadius: "16px" }}
+        onClick={() => { setEditing(null); setDialogOpen(true); }}
+        className="btn-primary fixed bottom-8 right-8 w-14 h-14 rounded-2xl grid place-items-center z-50 shadow-[0_12px_32px_-12px_rgba(124,92,255,0.8)]"
         aria-label="Nova transação"
       >
-        <Plus className="w-6 h-6" />
+        <Plus size={22} className="text-white" />
       </button>
 
       <TransactionDialog

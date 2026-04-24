@@ -1,16 +1,12 @@
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 import { useListInsights, useGenerateInsights, getListInsightsQueryKey } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Lightbulb, RefreshCw, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Lightbulb, RefreshCw, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
 
 export default function Insights() {
   const { isLoading: isAuthLoading } = useRequireAuth();
   const queryClient = useQueryClient();
-  
   const { data: insights, isLoading } = useListInsights();
   const generateInsights = useGenerateInsights();
 
@@ -18,91 +14,112 @@ export default function Insights() {
     generateInsights.mutate(undefined, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
-      }
+      },
     });
   };
 
   if (isAuthLoading) return null;
 
-  const getIcon = (title: string) => {
+  function getIcon(title: string) {
     const t = title.toLowerCase();
-    if (t.includes('aumento') || t.includes('crescimento') || t.includes('positivo')) return <TrendingUp className="w-5 h-5 text-primary" />;
-    if (t.includes('queda') || t.includes('redução') || t.includes('negativo')) return <TrendingDown className="w-5 h-5 text-destructive" />;
-    if (t.includes('alerta') || t.includes('atenção')) return <AlertCircle className="w-5 h-5 text-yellow-500" />;
-    return <Lightbulb className="w-5 h-5 text-primary" />;
-  };
+    if (t.includes("aumento") || t.includes("crescimento") || t.includes("positivo"))
+      return <TrendingUp size={13} />;
+    if (t.includes("queda") || t.includes("redução") || t.includes("negativo"))
+      return <TrendingDown size={13} />;
+    if (t.includes("alerta") || t.includes("atenção"))
+      return <AlertCircle size={13} />;
+    return <Lightbulb size={13} />;
+  }
+
+  function getTone(title: string) {
+    const t = title.toLowerCase();
+    if (t.includes("aumento") || t.includes("crescimento") || t.includes("positivo")) return "good";
+    if (t.includes("alerta") || t.includes("atenção")) return "warn";
+    return "neutral";
+  }
 
   return (
-    <Layout>
+    <Layout title="Insights">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Insights</h1>
-            <p className="text-muted-foreground">Análises automáticas sobre a saúde do seu negócio.</p>
+            <h1 className="text-[22px] font-bold tracking-tight text-white">Insights</h1>
+            <p className="text-[12.5px] text-[var(--muted)] mt-1">Análises automáticas sobre a saúde do seu negócio.</p>
           </div>
-          <Button 
-            onClick={handleGenerate} 
+          <button
+            onClick={handleGenerate}
             disabled={generateInsights.isPending}
-            className="gap-2 font-bold"
-            variant="outline"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.02)] text-[12.5px] text-[var(--muted)] hover:text-white hover:border-[var(--border-2)] transition-colors disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 ${generateInsights.isPending ? 'animate-spin' : ''}`} />
-            {generateInsights.isPending ? "Analisando..." : "Gerar Novos Insights"}
-          </Button>
+            <RefreshCw size={13} className={generateInsights.isPending ? "animate-spin" : ""} />
+            {generateInsights.isPending ? "Analisando…" : "Gerar novos insights"}
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="bg-card border-border">
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4" />
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-5/6" />
-                  <div className="pt-4 mt-4 border-t border-border">
-                    <Skeleton className="h-4 w-1/2" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : insights?.length === 0 ? (
-            <div className="col-span-full text-center py-12 bg-card border border-border rounded-lg">
-              <Lightbulb className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-medium text-white mb-2">Nenhum insight disponível</h3>
-              <p className="text-muted-foreground mb-6">Adicione mais transações para que nossa IA possa analisar seu negócio.</p>
-              <Button onClick={handleGenerate} disabled={generateInsights.isPending}>
-                Gerar Análise
-              </Button>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="glass rounded-2xl p-5 animate-pulse h-40" />
+            ))}
+          </div>
+        ) : !insights || insights.length === 0 ? (
+          <div className="glass rounded-2xl p-12 flex flex-col items-center gap-4 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--accent-soft)] grid place-items-center">
+              <Lightbulb size={22} className="text-[#a18bff]" />
             </div>
-          ) : (
-            insights?.map((insight) => (
-              <Card key={insight.id} className="bg-card border-border hover:border-primary/50 transition-colors">
-                <CardHeader className="flex flex-row items-start gap-4 space-y-0">
-                  <div className="p-2 bg-muted rounded-md shrink-0">
-                    {getIcon(insight.title)}
+            <div>
+              <div className="text-[15px] font-semibold text-white">Nenhum insight disponível</div>
+              <p className="text-[12.5px] text-[var(--muted)] max-w-xs mt-1 leading-relaxed">
+                Adicione mais transações para que nossa IA possa analisar seu negócio.
+              </p>
+            </div>
+            <button
+              onClick={handleGenerate}
+              disabled={generateInsights.isPending}
+              className="btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-50"
+            >
+              Gerar análise
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {insights.map((insight) => {
+              const tone = getTone(insight.title);
+              const iconCls =
+                tone === "good" ? "bg-[var(--income-soft)] text-[var(--income)]" :
+                tone === "warn" ? "bg-[rgba(245,158,11,0.12)] text-[#f59e0b]" :
+                "bg-[var(--accent-soft)] text-[#a18bff]";
+
+              return (
+                <div
+                  key={insight.id}
+                  className="glass rounded-2xl p-5 hover:border-[var(--border-2)] transition-colors"
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${iconCls}`}>
+                      {getIcon(insight.title)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13.5px] font-semibold text-white leading-snug">{insight.title}</div>
+                      {insight.periodLabel && (
+                        <div className="text-[11px] text-[var(--muted)] mt-0.5">{insight.periodLabel}</div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg text-white mb-1">{insight.title}</CardTitle>
-                    <CardDescription className="text-xs">{insight.periodLabel}</CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {insight.description}
-                  </p>
-                  <div className="pt-4 border-t border-border">
-                    <h4 className="text-xs font-semibold text-white uppercase tracking-wider mb-2">Recomendação</h4>
-                    <p className="text-sm text-primary">
-                      {insight.recommendation}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
+
+                  <p className="text-[12.5px] text-[var(--muted)] leading-relaxed">{insight.description}</p>
+
+                  {insight.recommendation && (
+                    <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                      <div className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-[0.14em] mb-1">Recomendação</div>
+                      <p className="text-[12.5px] text-[var(--accent)] leading-relaxed">{insight.recommendation}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </Layout>
   );

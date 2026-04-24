@@ -2,17 +2,18 @@ import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, Home, Upload, List, Lightbulb, User, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Upload, ArrowLeftRight, Lightbulb, Sparkles, User, LogOut } from "lucide-react";
+import { KlaroMark } from "@/components/KlaroMark";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", icon: Home, label: "Dashboard" },
-  { href: "/upload", icon: Upload, label: "Upload" },
-  { href: "/transactions", icon: List, label: "Transações" },
-  { href: "/insights", icon: Lightbulb, label: "Insights" },
-  { href: "/chat", icon: MessageSquare, label: "Chat" },
+  { href: "/dashboard",    label: "Dashboard",  icon: LayoutDashboard },
+  { href: "/upload",       label: "Upload",     icon: Upload },
+  { href: "/transactions", label: "Transações", icon: ArrowLeftRight },
+  { href: "/insights",     label: "Insights",   icon: Lightbulb },
+  { href: "/chat",         label: "Chat Klaro", icon: Sparkles, badge: "IA" },
 ];
 
-export function Layout({ children }: { children: ReactNode }) {
+export function Layout({ children, title = "Dashboard" }: { children: ReactNode; title?: string }) {
   const [location, setLocation] = useLocation();
   const logout = useLogout();
   const queryClient = useQueryClient();
@@ -27,70 +28,108 @@ export function Layout({ children }: { children: ReactNode }) {
     });
   };
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
-      {/* Sidebar */}
-      <aside className="w-full md:w-56 bg-card border-r border-border flex flex-col md:h-screen md:sticky top-0 shrink-0">
-        {/* Logo */}
-        <div className="px-5 py-4 border-b border-border">
-          <Link href="/dashboard">
-            <span className="text-xl font-bold tracking-tight select-none cursor-pointer">
-              klaro<span className="text-primary">.</span>
-            </span>
-          </Link>
-        </div>
+  const initials = user?.name
+    ? user.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()
+    : "??";
 
-        {/* Nav links */}
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+  return (
+    <div className="flex min-h-screen bg-ambient">
+      {/* Sidebar */}
+      <aside className="hidden md:flex flex-col w-[232px] shrink-0 h-screen sticky top-0 px-4 py-5 border-r border-[var(--border)] bg-[rgba(12,12,15,0.7)] backdrop-blur-xl">
+        {/* Brand */}
+        <Link href="/dashboard" className="flex items-center gap-2.5 px-1.5 mb-7">
+          <KlaroMark size={28} />
+          <div className="leading-tight">
+            <div className="text-[15px] font-bold tracking-tight text-white">
+              klaro<span style={{ color: "var(--accent)" }}>.</span>
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">finanças claras</div>
+          </div>
+        </Link>
+
+        {/* Main nav */}
+        <nav className="flex flex-col gap-0.5">
+          <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]/70 px-2 mb-1.5">Geral</div>
+          {NAV_ITEMS.map(({ href, label, icon: Icon, badge }) => {
             const isActive = location === href || location.startsWith(href + "/");
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors ${
+                className={`nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                   isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    ? "text-white bg-[rgba(124,92,255,0.12)] active"
+                    : "text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.03)]"
                 }`}
-                style={{ borderRadius: "6px" }}
               >
-                <Icon className="w-4 h-4 shrink-0" />
-                {label}
+                <Icon size={16} className="shrink-0" />
+                <span className="flex-1">{label}</span>
+                {badge && (
+                  <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-br from-[#8a6bff] to-[#5b8cff] text-white">
+                    {badge}
+                  </span>
+                )}
               </Link>
             );
           })}
         </nav>
 
-        {/* Footer: profile + logout */}
-        <div className="p-3 border-t border-border space-y-0.5">
+        {/* Secondary nav */}
+        <div className="mt-auto pt-4 flex flex-col gap-0.5">
           <Link
             href="/profile"
-            className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors w-full ${
+            className={`nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
               location === "/profile"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                ? "text-white bg-[rgba(124,92,255,0.12)] active"
+                : "text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.03)]"
             }`}
-            style={{ borderRadius: "6px" }}
           >
-            <User className="w-4 h-4 shrink-0" />
-            <span className="truncate">{user?.name ?? "Perfil"}</span>
+            <User size={16} />
+            <span>Perfil</span>
           </Link>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            style={{ borderRadius: "6px" }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.03)] transition-colors"
           >
-            <LogOut className="w-4 h-4 shrink-0" />
-            Sair
+            <LogOut size={16} />
+            <span>Sair</span>
           </button>
+        </div>
+
+        {/* User chip */}
+        <div className="mt-3 flex items-center gap-2.5 px-1 py-1 border-t border-[var(--border)] pt-3">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7c5cff] to-[#5b8cff] grid place-items-center text-[12px] font-bold text-white shrink-0">
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0 leading-tight">
+            <div className="text-[12.5px] font-semibold text-white truncate">{user?.name ?? "—"}</div>
+            <div className="text-[11px] text-[var(--muted)] truncate">{user?.email ?? ""}</div>
+          </div>
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-x-hidden min-h-screen p-6 md:p-8">
-        <div className="max-w-6xl mx-auto">{children}</div>
-      </main>
+      {/* Main */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top bar */}
+        <div className="flex items-center gap-3 px-6 md:px-8 py-4 border-b border-[var(--border)] bg-[rgba(9,9,11,0.5)] backdrop-blur-xl sticky top-0 z-20">
+          <div className="flex items-center gap-2 text-[12px] text-[var(--muted)]">
+            <span>Klaro</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18 6-6-6-6"/>
+            </svg>
+            <span className="text-white">{title}</span>
+          </div>
+          <div className="flex-1" />
+          {/* Mobile logo */}
+          <Link href="/dashboard" className="md:hidden">
+            <KlaroMark size={24} />
+          </Link>
+        </div>
+
+        <main className="flex-1 min-w-0 px-6 md:px-8 py-6 overflow-y-auto klaro-scroll">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

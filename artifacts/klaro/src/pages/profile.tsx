@@ -3,43 +3,27 @@ import { useRequireAuth } from "@/hooks/use-auth";
 import { useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, CheckCircle2, AlertCircle, Lock, Trash2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Lock, Trash2, X } from "lucide-react";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
 const SEGMENTS = [
-  { key: "varejo", label: "Varejo / Loja" },
-  { key: "alimentacao", label: "Alimentação" },
-  { key: "servicos", label: "Serviços" },
-  { key: "saude", label: "Saúde / Beleza" },
-  { key: "educacao", label: "Educação" },
-  { key: "tecnologia", label: "Tecnologia" },
-  { key: "construcao", label: "Construção" },
-  { key: "transporte", label: "Transporte" },
-  { key: "agro", label: "Agronegócio" },
-  { key: "outro", label: "Outro" },
+  { key: "varejo", label: "Varejo / Loja" }, { key: "alimentacao", label: "Alimentação" },
+  { key: "servicos", label: "Serviços" }, { key: "saude", label: "Saúde / Beleza" },
+  { key: "educacao", label: "Educação" }, { key: "tecnologia", label: "Tecnologia" },
+  { key: "construcao", label: "Construção" }, { key: "transporte", label: "Transporte" },
+  { key: "agro", label: "Agronegócio" }, { key: "outro", label: "Outro" },
 ];
 
 const SALES_CHANNELS = [
-  { key: "presencial", label: "Presencial" },
-  { key: "online", label: "Online" },
-  { key: "ambos", label: "Presencial + Online" },
-  { key: "delivery", label: "Delivery" },
+  { key: "presencial", label: "Presencial" }, { key: "online", label: "Online" },
+  { key: "ambos", label: "Presencial + Online" }, { key: "delivery", label: "Delivery" },
   { key: "whatsapp", label: "WhatsApp" },
 ];
 
 const ALL_DAYS = [
-  { key: "seg", label: "Seg" },
-  { key: "ter", label: "Ter" },
-  { key: "qua", label: "Qua" },
-  { key: "qui", label: "Qui" },
-  { key: "sex", label: "Sex" },
-  { key: "sab", label: "Sáb" },
+  { key: "seg", label: "Seg" }, { key: "ter", label: "Ter" }, { key: "qua", label: "Qua" },
+  { key: "qui", label: "Qui" }, { key: "sex", label: "Sex" }, { key: "sab", label: "Sáb" },
   { key: "dom", label: "Dom" },
 ];
 
@@ -92,13 +76,10 @@ for (let h = 5; h <= 23; h++) {
   if (h < 23) TIME_SLOTS.push(`${String(h).padStart(2, "0")}:30`);
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function computeCompletion(fields: {
-  businessName: string; segment: string; city: string;
-  employeeCount: string; openDays: string[]; revenueGoal: string;
-  marginGoal: string; mainProducts: string; salesChannel: string;
-  biggestChallenge: string;
+  businessName: string; segment: string; city: string; employeeCount: string;
+  openDays: string[]; revenueGoal: string; marginGoal: string; mainProducts: string;
+  salesChannel: string; biggestChallenge: string;
 }) {
   const checks = [
     !!fields.businessName.trim(), !!fields.segment, !!fields.city.trim(),
@@ -109,49 +90,43 @@ function computeCompletion(fields: {
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
 
-// ─── Chip button ──────────────────────────────────────────────────────────────
+// ─── UI atoms ─────────────────────────────────────────────────────────────────
 
-function Chip({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+function GlassSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 text-xs font-medium border transition-colors rounded-full ${
-        selected
-          ? "bg-primary text-primary-foreground border-primary"
-          : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-// ─── Field wrapper ────────────────────────────────────────────────────────────
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground uppercase tracking-wider">{label}</Label>
+    <div className="glass rounded-2xl p-5 space-y-4">
+      <div className="text-[13px] font-semibold text-white">{title}</div>
       {children}
     </div>
   );
 }
 
-// ─── Section card ─────────────────────────────────────────────────────────────
+function FieldLabel({ label }: { label: string }) {
+  return <div className="text-[10.5px] uppercase tracking-[0.14em] font-semibold text-[var(--muted)] mb-1.5">{label}</div>;
+}
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function GlassDialog({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+  if (!open) return null;
   return (
-    <Card className="bg-card border-border">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-white text-sm font-semibold">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">{children}</CardContent>
-    </Card>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="glass-strong rounded-2xl p-6 w-full max-w-sm relative z-10 fadeUp"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div className="text-[15px] font-semibold text-white">{title}</div>
+          <button onClick={onClose} className="w-7 h-7 grid place-items-center rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5">
+            <X size={14} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Profile() {
   const { isLoading: isAuthLoading } = useRequireAuth();
@@ -167,12 +142,8 @@ export default function Profile() {
   const [city, setCity] = useState(String(bp?.city ?? ""));
   const [employeeCount, setEmployeeCount] = useState(bp?.employeeCount ? String(bp.employeeCount) : "");
   const [openDays, setOpenDays] = useState<string[]>((bp?.openDays as string[]) ?? []);
-  const [openStart, setOpenStart] = useState(
-    (bp?.openHours as Record<string, string> | undefined)?.start ?? ""
-  );
-  const [openEnd, setOpenEnd] = useState(
-    (bp?.openHours as Record<string, string> | undefined)?.end ?? ""
-  );
+  const [openStart, setOpenStart] = useState((bp?.openHours as Record<string, string> | undefined)?.start ?? "");
+  const [openEnd, setOpenEnd] = useState((bp?.openHours as Record<string, string> | undefined)?.end ?? "");
   const [revenueGoal, setRevenueGoal] = useState(bp?.monthlyRevenueGoal ? String(bp.monthlyRevenueGoal) : "");
   const [marginGoal, setMarginGoal] = useState(bp?.profitMarginGoal ? String(bp.profitMarginGoal) : "");
   const [mainProducts, setMainProducts] = useState(String(bp?.mainProducts ?? ""));
@@ -181,7 +152,6 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
-  // Change password dialog
   const [changePwdOpen, setChangePwdOpen] = useState(false);
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -189,31 +159,21 @@ export default function Profile() {
   const [savingPwd, setSavingPwd] = useState(false);
   const [pwdError, setPwdError] = useState("");
 
-  // Delete account dialog
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  const completion = computeCompletion({
-    businessName, segment, city, employeeCount,
-    openDays, revenueGoal, marginGoal, mainProducts, salesChannel, biggestChallenge,
-  });
-
-  const citiesForState = useMemo(() => {
-    return state ? (CITIES_BY_STATE[state] ?? []) : [];
-  }, [state]);
+  const completion = computeCompletion({ businessName, segment, city, employeeCount, openDays, revenueGoal, marginGoal, mainProducts, salesChannel, biggestChallenge });
+  const citiesForState = useMemo(() => state ? (CITIES_BY_STATE[state] ?? []) : [], [state]);
 
   if (isAuthLoading) return null;
 
   function toggleDay(day: string) {
-    setOpenDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
+    setOpenDays((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]);
   }
 
   async function handleSave() {
-    setSaving(true);
-    setSaveMsg("");
+    setSaving(true); setSaveMsg("");
     try {
       const res = await fetch("/api/auth/me", {
         method: "PATCH",
@@ -221,10 +181,8 @@ export default function Profile() {
         body: JSON.stringify({
           name: name.trim() || undefined,
           businessProfile: {
-            businessName: businessName.trim() || undefined,
-            segment: segment || undefined,
-            state: state || undefined,
-            city: city.trim() || undefined,
+            businessName: businessName.trim() || undefined, segment: segment || undefined,
+            state: state || undefined, city: city.trim() || undefined,
             employeeCount: employeeCount ? Number(employeeCount) : undefined,
             openDays: openDays.length > 0 ? openDays : undefined,
             openHours: openStart && openEnd ? { start: openStart, end: openEnd } : undefined,
@@ -236,20 +194,12 @@ export default function Profile() {
           },
         }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setSaveMsg(data.error ?? "Erro ao salvar.");
-        return;
-      }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); setSaveMsg(d.error ?? "Erro ao salvar."); return; }
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["getMe"] });
       setSaveMsg("ok");
-    } catch {
-      setSaveMsg("Erro de conexão.");
-    } finally {
-      setSaving(false);
-      setTimeout(() => setSaveMsg(""), 3000);
-    }
+    } catch { setSaveMsg("Erro de conexão."); }
+    finally { setSaving(false); setTimeout(() => setSaveMsg(""), 3000); }
   }
 
   async function handleChangePassword() {
@@ -267,11 +217,8 @@ export default function Profile() {
       if (!res.ok) { setPwdError(data.error ?? "Não foi possível alterar a senha."); return; }
       setChangePwdOpen(false);
       setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
-    } catch {
-      setPwdError("Erro de conexão.");
-    } finally {
-      setSavingPwd(false);
-    }
+    } catch { setPwdError("Erro de conexão."); }
+    finally { setSavingPwd(false); }
   }
 
   async function handleDeleteAccount() {
@@ -280,358 +227,307 @@ export default function Profile() {
       await fetch("/api/auth/me", { method: "DELETE" });
       queryClient.clear();
       window.location.href = "/";
-    } catch {
-      setDeleting(false);
-    }
+    } catch { setDeleting(false); }
   }
 
+  const initials = (user?.name ?? "?").split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+
   return (
-    <Layout>
+    <Layout title="Perfil">
       <div className="space-y-6 max-w-2xl">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Perfil do Negócio</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Essas informações melhoram a leitura dos seus arquivos e os insights gerados.
-          </p>
+          <h1 className="text-[22px] font-bold tracking-tight text-white">Perfil do Negócio</h1>
+          <p className="text-[12.5px] text-[var(--muted)] mt-1">Essas informações melhoram a leitura dos arquivos e os insights gerados.</p>
         </div>
 
-        {/* Completion bar */}
-        <Card className="bg-card border-border">
-          <CardContent className="pt-4 pb-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {completion === 100 ? (
-                  <CheckCircle2 className="w-4 h-4 text-primary" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-yellow-500" />
-                )}
-                <span className="text-sm font-semibold text-white">Perfil {completion}% completo</span>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {completion === 100 ? "Tudo certo!" : "Complete para melhores insights"}
-              </span>
+        {/* Completion */}
+        <div className="glass rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              {completion === 100
+                ? <CheckCircle2 size={15} className="text-[var(--income)]" />
+                : <AlertCircle size={15} className="text-[#f59e0b]" />}
+              <span className="text-[13px] font-semibold text-white">Perfil {completion}% completo</span>
             </div>
-            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-500"
-                style={{ width: `${completion}%` }}
-              />
+            <span className="text-[11.5px] text-[var(--muted)]">
+              {completion === 100 ? "Tudo certo!" : "Complete para melhores insights"}
+            </span>
+          </div>
+          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${completion}%`,
+                background: "linear-gradient(90deg, var(--accent), var(--accent-2))",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Avatar + account */}
+        <GlassSection title="Dados da conta">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#7c5cff] to-[#5b8cff] grid place-items-center text-[20px] font-bold text-white shrink-0">
+              {initials}
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <div className="text-[14px] font-semibold text-white">{user?.name}</div>
+              <div className="text-[12px] text-[var(--muted)]">{user?.email}</div>
+            </div>
+          </div>
 
-        {/* Account info */}
-        <Section title="Dados da conta">
-          <Field label="Nome">
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="bg-background border-border text-white"
-              placeholder="Seu nome"
-            />
-          </Field>
-          <Field label="Email">
-            <Input
-              value={user?.email ?? ""}
-              disabled
-              className="bg-background border-border text-muted-foreground"
-            />
-          </Field>
-        </Section>
+          <div>
+            <FieldLabel label="Nome" />
+            <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
+          </div>
+          <div>
+            <FieldLabel label="Email" />
+            <input className="field opacity-60" value={user?.email ?? ""} disabled />
+          </div>
+        </GlassSection>
 
-        {/* Identity */}
-        <Section title="Identidade do negócio">
-          <Field label="Nome do negócio">
-            <Input
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              placeholder="Ex: Lanchonete da Maria"
-              className="bg-background border-border text-white"
-            />
-          </Field>
+        {/* Business identity */}
+        <GlassSection title="Identidade do negócio">
+          <div>
+            <FieldLabel label="Nome do negócio" />
+            <input className="field" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Ex: Lanchonete da Maria" />
+          </div>
 
-          <Field label="Segmento">
+          <div>
+            <FieldLabel label="Segmento" />
             <div className="flex flex-wrap gap-2">
               {SEGMENTS.map((s) => (
-                <Chip
+                <button
                   key={s.key}
-                  label={s.label}
-                  selected={segment === s.key}
-                  onClick={() => setSegment(segment === s.key ? "" : s.key)}
-                />
+                  type="button"
+                  onClick={() => setSegment(s.key === segment ? "" : s.key)}
+                  className={`chip ${segment === s.key ? "chip-on" : ""}`}
+                >
+                  {s.label}
+                </button>
               ))}
             </div>
-          </Field>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Estado">
-              <select
-                value={state}
-                onChange={(e) => { setState(e.target.value); setCity(""); }}
-                className="w-full h-9 px-3 text-sm bg-background border border-border text-white rounded-md"
-              >
+            <div>
+              <FieldLabel label="Estado" />
+              <select className="field" value={state} onChange={(e) => { setState(e.target.value); setCity(""); }}>
                 <option value="">Selecionar estado</option>
-                {BRAZIL_STATES.map((s) => (
-                  <option key={s.uf} value={s.uf}>{s.uf} — {s.name}</option>
-                ))}
+                {BRAZIL_STATES.map((s) => <option key={s.uf} value={s.uf}>{s.name}</option>)}
               </select>
-            </Field>
-
-            <Field label="Cidade">
+            </div>
+            <div>
+              <FieldLabel label="Cidade" />
               {citiesForState.length > 0 ? (
-                <select
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full h-9 px-3 text-sm bg-background border border-border text-white rounded-md"
-                >
+                <select className="field" value={city} onChange={(e) => setCity(e.target.value)}>
                   <option value="">Selecionar cidade</option>
-                  {citiesForState.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
+                  {citiesForState.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               ) : (
-                <Input
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder={state ? "Digite a cidade" : "Selecione o estado"}
-                  disabled={!state}
-                  className="bg-background border-border text-white"
-                />
+                <input className="field" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Nome da cidade" />
               )}
-            </Field>
+            </div>
           </div>
-        </Section>
 
-        {/* Operation */}
-        <Section title="Operação">
-          <Field label="Funcionários (aprox.)">
-            <Input
-              value={employeeCount}
-              onChange={(e) => setEmployeeCount(e.target.value)}
-              placeholder="0"
-              type="number"
-              min={0}
-              className="bg-background border-border text-white w-32"
-            />
-          </Field>
+          <div>
+            <FieldLabel label="Nº de funcionários" />
+            <input className="field" type="number" min="0" value={employeeCount} onChange={(e) => setEmployeeCount(e.target.value)} placeholder="0" />
+          </div>
+        </GlassSection>
 
-          <Field label="Dias de funcionamento">
+        {/* Operations */}
+        <GlassSection title="Operações">
+          <div>
+            <FieldLabel label="Dias de funcionamento" />
             <div className="flex flex-wrap gap-2">
               {ALL_DAYS.map((d) => (
-                <Chip
+                <button
                   key={d.key}
-                  label={d.label}
-                  selected={openDays.includes(d.key)}
+                  type="button"
                   onClick={() => toggleDay(d.key)}
-                />
+                  className={`chip ${openDays.includes(d.key) ? "chip-on" : ""}`}
+                >
+                  {d.label}
+                </button>
               ))}
             </div>
-          </Field>
-
-          <Field label="Horário de funcionamento">
-            <div className="flex items-center gap-3">
-              <select
-                value={openStart}
-                onChange={(e) => setOpenStart(e.target.value)}
-                className="h-9 px-3 text-sm bg-background border border-border text-white rounded-md"
-              >
-                <option value="">Abertura</option>
-                {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <span className="text-muted-foreground text-sm">até</span>
-              <select
-                value={openEnd}
-                onChange={(e) => setOpenEnd(e.target.value)}
-                className="h-9 px-3 text-sm bg-background border border-border text-white rounded-md"
-              >
-                <option value="">Fechamento</option>
-                {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-          </Field>
-
-          <Field label="Canal de vendas principal">
-            <div className="flex flex-wrap gap-2">
-              {SALES_CHANNELS.map((c) => (
-                <Chip
-                  key={c.key}
-                  label={c.label}
-                  selected={salesChannel === c.key}
-                  onClick={() => setSalesChannel(salesChannel === c.key ? "" : c.key)}
-                />
-              ))}
-            </div>
-          </Field>
-
-          <Field label="Principais produtos / serviços">
-            <textarea
-              value={mainProducts}
-              onChange={(e) => setMainProducts(e.target.value)}
-              placeholder="Ex: Coxinha, pastel, suco natural"
-              rows={3}
-              className="w-full px-3 py-2 text-sm bg-background border border-border text-white rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </Field>
-        </Section>
-
-        {/* Goals */}
-        <Section title="Metas & Desafios">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Meta de receita mensal (R$)">
-              <Input
-                value={revenueGoal}
-                onChange={(e) => setRevenueGoal(e.target.value)}
-                placeholder="Ex: 20000"
-                inputMode="decimal"
-                className="bg-background border-border text-white"
-              />
-            </Field>
-            <Field label="Meta de margem de lucro (%)">
-              <Input
-                value={marginGoal}
-                onChange={(e) => setMarginGoal(e.target.value)}
-                placeholder="Ex: 20"
-                inputMode="decimal"
-                className="bg-background border-border text-white"
-              />
-            </Field>
           </div>
 
-          <Field label="Maior desafio do negócio">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel label="Abertura" />
+              <select className="field" value={openStart} onChange={(e) => setOpenStart(e.target.value)}>
+                <option value="">--:--</option>
+                {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <FieldLabel label="Fechamento" />
+              <select className="field" value={openEnd} onChange={(e) => setOpenEnd(e.target.value)}>
+                <option value="">--:--</option>
+                {TIME_SLOTS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel label="Canal de vendas" />
+            <div className="flex flex-wrap gap-2">
+              {SALES_CHANNELS.map((sc) => (
+                <button
+                  key={sc.key}
+                  type="button"
+                  onClick={() => setSalesChannel(sc.key === salesChannel ? "" : sc.key)}
+                  className={`chip ${salesChannel === sc.key ? "chip-on" : ""}`}
+                >
+                  {sc.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </GlassSection>
+
+        {/* Goals */}
+        <GlassSection title="Metas e produtos">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel label="Meta de receita mensal (R$)" />
+              <input className="field" type="text" value={revenueGoal} onChange={(e) => setRevenueGoal(e.target.value)} placeholder="Ex: 15000" />
+            </div>
+            <div>
+              <FieldLabel label="Meta de margem (%)" />
+              <input className="field" type="text" value={marginGoal} onChange={(e) => setMarginGoal(e.target.value)} placeholder="Ex: 30" />
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel label="Principais produtos / serviços" />
             <textarea
+              className="field resize-none"
+              rows={2}
+              value={mainProducts}
+              onChange={(e) => setMainProducts(e.target.value)}
+              placeholder="Descreva brevemente o que você vende..."
+            />
+          </div>
+
+          <div>
+            <FieldLabel label="Maior desafio do negócio" />
+            <textarea
+              className="field resize-none"
+              rows={2}
               value={biggestChallenge}
               onChange={(e) => setBiggestChallenge(e.target.value)}
-              placeholder="Ex: Controle de estoque, fluxo de caixa..."
-              rows={3}
-              className="w-full px-3 py-2 text-sm bg-background border border-border text-white rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="Ex: controlar o fluxo de caixa, atrair novos clientes..."
             />
-          </Field>
-        </Section>
+          </div>
+        </GlassSection>
 
         {/* Save button */}
         <div className="flex items-center gap-3">
-          <Button
+          <button
             onClick={handleSave}
             disabled={saving}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+            className="btn-primary px-6 py-2.5 rounded-xl text-[13.5px] font-semibold text-white disabled:opacity-50 flex items-center gap-2"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Salvar perfil
-          </Button>
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {saving ? "Salvando…" : "Salvar perfil"}
+          </button>
           {saveMsg === "ok" && (
-            <span className="text-sm text-primary flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" /> Salvo com sucesso
-            </span>
+            <div className="flex items-center gap-1.5 text-[12.5px] text-[var(--income)]">
+              <CheckCircle2 size={14} />
+              Salvo com sucesso!
+            </div>
           )}
           {saveMsg && saveMsg !== "ok" && (
-            <span className="text-sm text-destructive">{saveMsg}</span>
+            <div className="flex items-center gap-1.5 text-[12.5px] text-[var(--expense)]">
+              <AlertCircle size={14} />
+              {saveMsg}
+            </div>
           )}
         </div>
 
-        {/* Account actions */}
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-              Conta
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 p-3 pt-0">
-            <button
-              onClick={() => { setPwdError(""); setChangePwdOpen(true); }}
-              className="flex w-full items-center gap-3 px-3 py-3 text-sm font-medium text-foreground hover:bg-secondary transition-colors rounded-md"
-            >
-              <Lock className="w-4 h-4 text-muted-foreground" />
-              Alterar senha
-            </button>
-            <button
-              onClick={() => { setDeleteConfirm(""); setDeleteOpen(true); }}
-              className="flex w-full items-center gap-3 px-3 py-3 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors rounded-md"
-            >
-              <Trash2 className="w-4 h-4" />
-              Excluir conta
-            </button>
-          </CardContent>
-        </Card>
+        {/* Security */}
+        <GlassSection title="Segurança">
+          <button
+            onClick={() => setChangePwdOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.02)] text-[13px] text-white hover:border-[var(--border-2)] transition-colors"
+          >
+            <Lock size={14} className="text-[var(--muted)]" />
+            Alterar senha
+          </button>
+        </GlassSection>
+
+        {/* Danger zone */}
+        <GlassSection title="Zona de perigo">
+          <p className="text-[12.5px] text-[var(--muted)] leading-relaxed">
+            A exclusão da conta é permanente. Todos os seus dados, transações e histórico serão removidos.
+          </p>
+          <button
+            onClick={() => setDeleteOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[rgba(244,63,94,0.3)] bg-[rgba(244,63,94,0.05)] text-[13px] text-[var(--expense)] hover:bg-[rgba(244,63,94,0.1)] transition-colors"
+          >
+            <Trash2 size={14} />
+            Excluir minha conta
+          </button>
+        </GlassSection>
       </div>
 
       {/* Change password dialog */}
-      <Dialog open={changePwdOpen} onOpenChange={(v) => !v && setChangePwdOpen(false)}>
-        <DialogContent className="bg-card border-border max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-white">Alterar senha</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Field label="Senha atual">
-              <Input
-                type="password"
-                value={currentPwd}
-                onChange={(e) => setCurrentPwd(e.target.value)}
-                placeholder="••••••••"
-                className="bg-background border-border text-white"
-              />
-            </Field>
-            <Field label="Nova senha">
-              <Input
-                type="password"
-                value={newPwd}
-                onChange={(e) => setNewPwd(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                className="bg-background border-border text-white"
-              />
-            </Field>
-            <Field label="Confirmar nova senha">
-              <Input
-                type="password"
-                value={confirmPwd}
-                onChange={(e) => setConfirmPwd(e.target.value)}
-                placeholder="Repita a nova senha"
-                className="bg-background border-border text-white"
-                onKeyDown={(e) => e.key === "Enter" && handleChangePassword()}
-              />
-            </Field>
-            {pwdError && <p className="text-sm text-destructive">{pwdError}</p>}
-            <Button
-              onClick={handleChangePassword}
-              disabled={savingPwd}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
-            >
-              {savingPwd ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Confirmar
-            </Button>
+      <GlassDialog open={changePwdOpen} onClose={() => setChangePwdOpen(false)} title="Alterar senha">
+        <div className="space-y-4">
+          <div>
+            <FieldLabel label="Senha atual" />
+            <input type="password" className="field" value={currentPwd} onChange={(e) => setCurrentPwd(e.target.value)} placeholder="••••••••" />
           </div>
-        </DialogContent>
-      </Dialog>
+          <div>
+            <FieldLabel label="Nova senha" />
+            <input type="password" className="field" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Mín. 6 caracteres" />
+          </div>
+          <div>
+            <FieldLabel label="Confirmar nova senha" />
+            <input type="password" className="field" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} placeholder="Repetir senha" />
+          </div>
+          {pwdError && (
+            <div className="text-[12px] text-[var(--expense)] flex items-center gap-1.5">
+              <AlertCircle size={12} /> {pwdError}
+            </div>
+          )}
+          <button
+            onClick={handleChangePassword}
+            disabled={savingPwd || !currentPwd || !newPwd || !confirmPwd}
+            className="btn-primary w-full py-2.5 rounded-xl text-[13.5px] font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {savingPwd && <Loader2 size={14} className="animate-spin" />}
+            {savingPwd ? "Alterando…" : "Alterar senha"}
+          </button>
+        </div>
+      </GlassDialog>
 
       {/* Delete account dialog */}
-      <Dialog open={deleteOpen} onOpenChange={(v) => !v && setDeleteOpen(false)}>
-        <DialogContent className="bg-card border-border max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-destructive">Excluir conta</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Esta ação é <span className="text-white font-medium">irreversível</span>. Todos os seus dados serão apagados permanentemente.
-            </p>
-            <Field label='Digite "EXCLUIR" para confirmar'>
-              <Input
-                value={deleteConfirm}
-                onChange={(e) => setDeleteConfirm(e.target.value)}
-                placeholder="EXCLUIR"
-                className="bg-background border-border text-white"
-              />
-            </Field>
-            <Button
-              onClick={handleDeleteAccount}
-              disabled={deleteConfirm !== "EXCLUIR" || deleting}
-              variant="destructive"
-              className="w-full font-semibold"
-            >
-              {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Excluir minha conta
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <GlassDialog open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Excluir conta">
+        <div className="space-y-4">
+          <p className="text-[12.5px] text-[var(--muted)] leading-relaxed">
+            Esta ação é irreversível. Para confirmar, digite <strong className="text-white">EXCLUIR</strong> abaixo.
+          </p>
+          <input
+            className="field"
+            value={deleteConfirm}
+            onChange={(e) => setDeleteConfirm(e.target.value)}
+            placeholder="EXCLUIR"
+          />
+          <button
+            onClick={handleDeleteAccount}
+            disabled={deleting || deleteConfirm !== "EXCLUIR"}
+            className="w-full py-2.5 rounded-xl text-[13.5px] font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+            style={{ background: "linear-gradient(180deg, #f43f5e, #be123c)" }}
+          >
+            {deleting && <Loader2 size={14} className="animate-spin" />}
+            {deleting ? "Excluindo…" : "Excluir minha conta"}
+          </button>
+        </div>
+      </GlassDialog>
     </Layout>
   );
 }
