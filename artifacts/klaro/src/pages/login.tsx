@@ -43,8 +43,8 @@ export default function Login() {
       className="min-h-screen flex items-center justify-center p-4"
       style={{
         background: `
-          radial-gradient(1200px 600px at 80% -10%, rgba(124,92,255,0.12), transparent 60%),
-          radial-gradient(800px 500px at -5% 110%, rgba(91,140,255,0.08), transparent 60%),
+          radial-gradient(1200px 600px at 80% -10%, rgba(106,248,47,0.12), transparent 60%),
+          radial-gradient(800px 500px at -5% 110%, rgba(106,248,47,0.08), transparent 60%),
           #09090b
         `,
       }}
@@ -53,10 +53,7 @@ export default function Login() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <KlaroMark size={44} />
-          <div className="mt-3 text-[22px] font-bold tracking-tight text-white">
-            klaro<span style={{ color: "var(--accent)" }}>.</span>
-          </div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)] mt-0.5">finanças claras</div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)] mt-2">finanças claras</div>
         </div>
 
         {/* Card */}
@@ -112,7 +109,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={login.isPending || !email.trim() || !password}
-              className="btn-primary w-full py-2.5 rounded-xl text-[13.5px] font-semibold text-white mt-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="btn-primary w-full py-2.5 rounded-xl text-[13.5px] font-semibold mt-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {login.isPending ? "Entrando…" : "Entrar"}
             </button>

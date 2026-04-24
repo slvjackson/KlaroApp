@@ -37,14 +37,9 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-[232px] shrink-0 h-screen sticky top-0 px-4 py-5 border-r border-[var(--border)] bg-[rgba(12,12,15,0.7)] backdrop-blur-xl">
         {/* Brand */}
-        <Link href="/dashboard" className="flex items-center gap-2.5 px-1.5 mb-7">
-          <KlaroMark size={28} />
-          <div className="leading-tight">
-            <div className="text-[15px] font-bold tracking-tight text-white">
-              klaro<span style={{ color: "var(--accent)" }}>.</span>
-            </div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">finanças claras</div>
-          </div>
+        <Link href="/dashboard" className="flex items-center gap-3 px-1.5 mb-7">
+          <KlaroMark size={22} />
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">finanças claras</div>
         </Link>
 
         {/* Main nav */}
@@ -58,14 +53,14 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
                 href={href}
                 className={`nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                   isActive
-                    ? "text-white bg-[rgba(124,92,255,0.12)] active"
+                    ? "text-white bg-[rgba(106,248,47,0.12)] active"
                     : "text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.03)]"
                 }`}
               >
                 <Icon size={16} className="shrink-0" />
                 <span className="flex-1">{label}</span>
                 {badge && (
-                  <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-br from-[#8a6bff] to-[#5b8cff] text-white">
+                  <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-br from-[#6af82f] to-[#4de020] text-[#09090b]">
                     {badge}
                   </span>
                 )}
@@ -80,7 +75,7 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
             href="/profile"
             className={`nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
               location === "/profile"
-                ? "text-white bg-[rgba(124,92,255,0.12)] active"
+                ? "text-white bg-[rgba(106,248,47,0.12)] active"
                 : "text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.03)]"
             }`}
           >
@@ -98,7 +93,7 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
 
         {/* User chip */}
         <div className="mt-3 flex items-center gap-2.5 px-1 py-1 border-t border-[var(--border)] pt-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7c5cff] to-[#5b8cff] grid place-items-center text-[12px] font-bold text-white shrink-0">
+          <div className="w-8 h-8 rounded-full bg-[#1c2018] border border-[rgba(106,248,47,0.3)] grid place-items-center text-[11px] font-bold text-[#6af82f] shrink-0">
             {initials}
           </div>
           <div className="flex-1 min-w-0 leading-tight">

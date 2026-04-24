@@ -24,8 +24,8 @@ export default function Home() {
   return (
     <div className="min-h-screen text-white" style={{
       background: `
-        radial-gradient(1200px 600px at 80% -10%, rgba(124,92,255,0.12), transparent 60%),
-        radial-gradient(800px 500px at -5% 110%, rgba(91,140,255,0.08), transparent 60%),
+        radial-gradient(1200px 600px at 80% -10%, rgba(106,248,47,0.12), transparent 60%),
+        radial-gradient(800px 500px at -5% 110%, rgba(106,248,47,0.08), transparent 60%),
         radial-gradient(600px 400px at 50% 50%, rgba(16,185,129,0.04), transparent 70%),
         #09090b
       `,
@@ -49,7 +49,7 @@ export default function Home() {
             <Link href="/login" className="text-[13px] text-[var(--muted)] hover:text-white px-3 py-2 transition-colors">
               Entrar
             </Link>
-            <Link href="/signup" className="btn-primary text-[13px] px-4 py-2 rounded-lg font-semibold text-white">
+            <Link href="/signup" className="btn-primary text-[13px] px-4 py-2 rounded-lg font-semibold">
               Criar conta
             </Link>
           </div>
@@ -61,7 +61,7 @@ export default function Home() {
         <div className="grid lg:grid-cols-2 gap-14 items-center">
           {/* Copy */}
           <div className="fadeUp">
-            <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#a18bff] bg-[var(--accent-soft)] border border-[rgba(124,92,255,0.3)] px-3 py-1.5 rounded-full mb-6">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#90f048] bg-[var(--accent-soft)] border border-[rgba(106,248,47,0.3)] px-3 py-1.5 rounded-full mb-6">
               <Zap size={11} /> IA generativa integrada
             </div>
 
@@ -75,7 +75,7 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
-              <Link href="/signup" className="btn-primary flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg text-[14px] font-semibold text-white">
+              <Link href="/signup" className="btn-primary flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg text-[14px] font-semibold">
                 Começar grátis <ArrowRight size={15} />
               </Link>
               <a href="#como-funciona" className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg border border-[var(--border)] text-white hover:border-[var(--border-2)] text-[14px] font-medium transition-colors">
@@ -100,7 +100,7 @@ export default function Home() {
               <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/8">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#f43f5e]/60" />
                 <div className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]/60" />
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(124,92,255,0.7)" }} />
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(106,248,47,0.7)" }} />
                 <span className="ml-3 text-[10px] font-mono text-white/30 tracking-wide">klaro — dashboard</span>
               </div>
 
@@ -134,7 +134,7 @@ export default function Home() {
                         <div
                           style={{
                             height: `${h}%`,
-                            background: i === BARS.length - 1 ? "var(--accent)" : `rgba(124,92,255,${0.12 + i * 0.06})`,
+                            background: i === BARS.length - 1 ? "var(--accent)" : `rgba(106,248,47,${0.12 + i * 0.06})`,
                             borderRadius: "3px 3px 0 0",
                           }}
                         />
@@ -149,8 +149,8 @@ export default function Home() {
                 </div>
 
                 {/* Insight preview */}
-                <div className="flex items-start gap-2.5 p-3 rounded-lg border border-[rgba(124,92,255,0.25)] bg-[var(--accent-soft)]">
-                  <Lightbulb size={13} className="text-[#a18bff] mt-0.5 shrink-0" />
+                <div className="flex items-start gap-2.5 p-3 rounded-lg border border-[rgba(106,248,47,0.25)] bg-[var(--accent-soft)]">
+                  <Lightbulb size={13} className="text-[#90f048] mt-0.5 shrink-0" />
                   <div>
                     <p className="text-[10px] font-semibold text-white mb-0.5">Oportunidade identificada</p>
                     <p className="text-[9px] text-white/45 leading-relaxed">
@@ -167,7 +167,7 @@ export default function Home() {
       {/* Features */}
       <section id="funcionalidades" className="max-w-6xl mx-auto px-6 py-20 border-t border-[var(--border)]">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#a18bff] bg-[var(--accent-soft)] border border-[rgba(124,92,255,0.3)] px-3 py-1.5 rounded-full mb-4">
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#90f048] bg-[var(--accent-soft)] border border-[rgba(106,248,47,0.3)] px-3 py-1.5 rounded-full mb-4">
             Funcionalidades
           </div>
           <h2 className="text-[36px] font-bold tracking-tight">Tudo que você precisa, num só lugar</h2>
@@ -182,8 +182,8 @@ export default function Home() {
               key={title}
               className="glass rounded-2xl p-5 hover:border-[var(--border-2)] transition-colors group"
             >
-              <div className="w-10 h-10 rounded-xl bg-[var(--accent-soft)] grid place-items-center mb-4 group-hover:bg-[rgba(124,92,255,0.22)] transition-colors">
-                <Icon size={18} className="text-[#a18bff]" />
+              <div className="w-10 h-10 rounded-xl bg-[var(--accent-soft)] grid place-items-center mb-4 group-hover:bg-[rgba(106,248,47,0.22)] transition-colors">
+                <Icon size={18} className="text-[#90f048]" />
               </div>
               <h3 className="text-[14px] font-semibold text-white mb-2">{title}</h3>
               <p className="text-[12.5px] text-[var(--muted)] leading-relaxed">{desc}</p>
@@ -195,7 +195,7 @@ export default function Home() {
       {/* Steps */}
       <section id="como-funciona" className="max-w-6xl mx-auto px-6 py-20 border-t border-[var(--border)]">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#a18bff] bg-[var(--accent-soft)] border border-[rgba(124,92,255,0.3)] px-3 py-1.5 rounded-full mb-4">
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#90f048] bg-[var(--accent-soft)] border border-[rgba(106,248,47,0.3)] px-3 py-1.5 rounded-full mb-4">
             Como funciona
           </div>
           <h2 className="text-[36px] font-bold tracking-tight">Simples assim</h2>
@@ -208,8 +208,8 @@ export default function Home() {
           {STEPS.map(({ n, title, desc }) => (
             <div key={n} className="glass rounded-2xl p-6 relative overflow-hidden">
               <div className="absolute top-4 right-4 text-[42px] font-black text-white/5 leading-none select-none">{n}</div>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[rgba(124,92,255,0.3)] to-[rgba(91,140,255,0.15)] border border-[var(--border-2)] grid place-items-center mb-4">
-                <span className="text-[13px] font-bold text-[#a18bff]">{n}</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[rgba(106,248,47,0.3)] to-[rgba(106,248,47,0.15)] border border-[var(--border-2)] grid place-items-center mb-4">
+                <span className="text-[13px] font-bold text-[#90f048]">{n}</span>
               </div>
               <h3 className="text-[15px] font-semibold text-white mb-2">{title}</h3>
               <p className="text-[13px] text-[var(--muted)] leading-relaxed">{desc}</p>
@@ -221,14 +221,14 @@ export default function Home() {
       {/* CTA */}
       <section className="max-w-6xl mx-auto px-6 py-20 border-t border-[var(--border)]">
         <div className="glass-strong rounded-3xl p-12 text-center relative overflow-hidden">
-          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-[rgba(124,92,255,0.22)] blur-3xl pointer-events-none" />
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-[rgba(106,248,47,0.22)] blur-3xl pointer-events-none" />
           <div className="relative">
             <h2 className="text-[36px] font-bold tracking-tight mb-4">Pronto para organizar suas finanças?</h2>
             <p className="text-[16px] text-[var(--muted)] mb-8 max-w-md mx-auto leading-relaxed">
               Crie sua conta grátis e comece a usar o Klaro em menos de 2 minutos.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href="/signup" className="btn-primary flex items-center justify-center gap-2 px-8 py-3.5 rounded-lg text-[14px] font-semibold text-white">
+              <Link href="/signup" className="btn-primary flex items-center justify-center gap-2 px-8 py-3.5 rounded-lg text-[14px] font-semibold">
                 Começar grátis <ArrowRight size={15} />
               </Link>
               <Link href="/login" className="flex items-center justify-center px-8 py-3.5 rounded-lg border border-[var(--border)] text-white hover:border-[var(--border-2)] text-[14px] transition-colors">

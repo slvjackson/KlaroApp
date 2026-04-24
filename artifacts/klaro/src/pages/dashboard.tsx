@@ -20,8 +20,8 @@ import {
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const CAT_COLORS = [
-  "#7c5cff", "#10b981", "#5b8cff", "#f59e0b",
-  "#e879f9", "#fb923c", "#14b8a6", "#f43f5e",
+  "#6af82f", "#10b981", "#f59e0b", "#e879f9",
+  "#fb923c", "#14b8a6", "#60a5fa", "#f43f5e",
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ function SummaryCard({ label, value, tone, icon: Icon, delta, sparkPoints, spark
   const iconCls =
     tone === "income" ? "bg-[var(--income-soft)] text-[var(--income)]" :
     tone === "expense" ? "bg-[var(--expense-soft)] text-[var(--expense)]" :
-    tone === "brand"   ? "bg-[var(--accent-soft)] text-[#a18bff]" :
+    tone === "brand"   ? "bg-[var(--accent-soft)] text-[#90f048]" :
     "bg-white/5 text-white/70";
 
   const valCls =
@@ -378,7 +378,7 @@ export default function Dashboard() {
           <div className="glass rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Lightbulb size={15} className="text-[#a18bff]" />
+                <Lightbulb size={15} className="text-[#90f048]" />
                 <div className="text-[15px] font-semibold text-white">Insights Recentes</div>
               </div>
               <Link href="/insights" className="flex items-center gap-1 text-[11.5px] text-[var(--muted)] hover:text-white">

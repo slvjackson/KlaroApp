@@ -267,7 +267,7 @@ export default function Profile() {
         {/* Avatar + account */}
         <GlassSection title="Dados da conta">
           <div className="flex items-center gap-4 mb-2">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#7c5cff] to-[#5b8cff] grid place-items-center text-[20px] font-bold text-white shrink-0">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#6af82f] to-[#6af82f] grid place-items-center text-[20px] font-bold text-white shrink-0">
               {initials}
             </div>
             <div>
@@ -429,7 +429,7 @@ export default function Profile() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="btn-primary px-6 py-2.5 rounded-xl text-[13.5px] font-semibold text-white disabled:opacity-50 flex items-center gap-2"
+            className="btn-primary px-6 py-2.5 rounded-xl text-[13.5px] font-semibold disabled:opacity-50 flex items-center gap-2"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
             {saving ? "Salvando…" : "Salvar perfil"}
@@ -497,7 +497,7 @@ export default function Profile() {
           <button
             onClick={handleChangePassword}
             disabled={savingPwd || !currentPwd || !newPwd || !confirmPwd}
-            className="btn-primary w-full py-2.5 rounded-xl text-[13.5px] font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+            className="btn-primary w-full py-2.5 rounded-xl text-[13.5px] font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {savingPwd && <Loader2 size={14} className="animate-spin" />}
             {savingPwd ? "Alterando…" : "Alterar senha"}

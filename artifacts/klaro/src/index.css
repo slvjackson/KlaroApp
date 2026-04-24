@@ -11,13 +11,13 @@
   --border-2: #2f2f37;
   --muted: #8a8a95;
   --fg: #f4f4f5;
-  --accent: #7c5cff;
-  --accent-2: #5b8cff;
+  --accent: #6af82f;
+  --accent-2: #6af82f;
   --income: #10b981;
   --expense: #f43f5e;
   --income-soft: rgba(16, 185, 129, 0.12);
   --expense-soft: rgba(244, 63, 94, 0.12);
-  --accent-soft: rgba(124, 92, 255, 0.14);
+  --accent-soft: rgba(106, 248, 47, 0.14);
 }
 
 /* ─── Tailwind color mappings ───────────────────────────────────────────── */
@@ -69,7 +69,7 @@ html, body {
 }
 
 ::selection {
-  background: rgba(124, 92, 255, 0.35);
+  background: rgba(106, 248, 47, 0.35);
   color: #fff;
 }
 
@@ -109,7 +109,7 @@ html, body {
 /* ─── Ambient background ────────────────────────────────────────────────── */
 .bg-ambient {
   background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(124, 92, 255, 0.12), transparent 60%),
+    radial-gradient(1200px 600px at 80% -10%, rgba(106, 248, 47, 0.12), transparent 60%),
     radial-gradient(800px 500px at -5% 110%, rgba(91, 140, 255, 0.08), transparent 60%),
     radial-gradient(600px 400px at 50% 50%, rgba(16, 185, 129, 0.04), transparent 70%),
     var(--bg);
@@ -117,8 +117,9 @@ html, body {
 
 /* ─── Primary button ────────────────────────────────────────────────────── */
 .btn-primary {
-  background: linear-gradient(180deg, #8a6bff, #6a4fe8);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, 0 8px 24px -12px rgba(124, 92, 255, 0.7);
+  background: linear-gradient(180deg, #6af82f, #4de020);
+  color: #09090b;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, 0 8px 24px -12px rgba(106, 248, 47, 0.7);
   transition: filter 0.15s, transform 0.15s;
 }
 .btn-primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
@@ -139,7 +140,7 @@ html, body {
 .field::placeholder { color: var(--muted); }
 .field:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(106, 248, 47, 0.15);
 }
 
 select.field {
@@ -163,7 +164,7 @@ select.field {
   cursor: pointer;
 }
 .chip:hover { color: #fff; border-color: var(--border-2); }
-.chip-on { background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; }
+.chip-on { background: var(--accent) !important; border-color: var(--accent) !important; color: #09090b !important; font-weight: 600; }
 
 /* ─── Nav item (active left bar) ────────────────────────────────────────── */
 .nav-item { position: relative; }
@@ -184,7 +185,7 @@ select.field {
   transform: translateY(-1px);
   border-color: var(--accent);
   color: #fff;
-  box-shadow: 0 6px 20px -10px rgba(124, 92, 255, 0.6);
+  box-shadow: 0 6px 20px -10px rgba(106, 248, 47, 0.6);
 }
 
 /* ─── Chat bubbles ──────────────────────────────────────────────────────── */

@@ -226,7 +226,7 @@ export default function Transactions() {
       {/* FAB */}
       <button
         onClick={() => { setEditing(null); setDialogOpen(true); }}
-        className="btn-primary fixed bottom-8 right-8 w-14 h-14 rounded-2xl grid place-items-center z-50 shadow-[0_12px_32px_-12px_rgba(124,92,255,0.8)]"
+        className="btn-primary fixed bottom-8 right-8 w-14 h-14 rounded-2xl grid place-items-center z-50 shadow-[0_12px_32px_-12px_rgba(106,248,47,0.8)]"
         aria-label="Nova transação"
       >
         <Plus size={22} className="text-white" />

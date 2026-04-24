@@ -65,7 +65,7 @@ export default function Insights() {
         ) : !insights || insights.length === 0 ? (
           <div className="glass rounded-2xl p-12 flex flex-col items-center gap-4 text-center">
             <div className="w-14 h-14 rounded-2xl bg-[var(--accent-soft)] grid place-items-center">
-              <Lightbulb size={22} className="text-[#a18bff]" />
+              <Lightbulb size={22} className="text-[#90f048]" />
             </div>
             <div>
               <div className="text-[15px] font-semibold text-white">Nenhum insight disponível</div>
@@ -76,7 +76,7 @@ export default function Insights() {
             <button
               onClick={handleGenerate}
               disabled={generateInsights.isPending}
-              className="btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-50"
+              className="btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold disabled:opacity-50"
             >
               Gerar análise
             </button>
@@ -88,7 +88,7 @@ export default function Insights() {
               const iconCls =
                 tone === "good" ? "bg-[var(--income-soft)] text-[var(--income)]" :
                 tone === "warn" ? "bg-[rgba(245,158,11,0.12)] text-[#f59e0b]" :
-                "bg-[var(--accent-soft)] text-[#a18bff]";
+                "bg-[var(--accent-soft)] text-[#90f048]";
 
               return (
                 <div

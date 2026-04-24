@@ -74,7 +74,7 @@ function Bubble({ msg }: { msg: ChatMessage }) {
   return (
     <div className={`fadeUp flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#8a6bff] to-[#5b8cff] grid place-items-center shrink-0 mt-0.5">
+        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#5dd620] to-[#6af82f] grid place-items-center shrink-0 mt-0.5">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
             <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
           </svg>
@@ -83,7 +83,7 @@ function Bubble({ msg }: { msg: ChatMessage }) {
       <div
         className={`max-w-[78%] px-3.5 py-2.5 text-[12.5px] leading-relaxed ${
           isUser
-            ? "bg-gradient-to-br from-[#7c5cff] to-[#6a4fe8] text-white bubble-user shadow-[0_8px_24px_-12px_rgba(124,92,255,0.6)]"
+            ? "bg-gradient-to-br from-[#6af82f] to-[#48ba18] text-white bubble-user shadow-[0_8px_24px_-12px_rgba(106,248,47,0.6)]"
             : "bg-[rgba(255,255,255,0.04)] border border-[var(--border)] text-white/90 bubble-bot"
         }`}
       >
@@ -103,7 +103,7 @@ function Bubble({ msg }: { msg: ChatMessage }) {
 function TypingBubble() {
   return (
     <div className="fadeUp flex gap-2.5 justify-start">
-      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#8a6bff] to-[#5b8cff] grid place-items-center shrink-0 mt-0.5">
+      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#5dd620] to-[#6af82f] grid place-items-center shrink-0 mt-0.5">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
         </svg>
@@ -171,12 +171,12 @@ export default function Chat() {
       <div className="max-w-3xl mx-auto h-[calc(100vh-120px)] flex flex-col">
         <div className="glass-strong rounded-2xl flex flex-col overflow-hidden h-full relative">
           {/* Brand glow */}
-          <div className="pointer-events-none absolute -top-24 -right-24 w-60 h-60 rounded-full bg-[rgba(124,92,255,0.22)] blur-3xl" />
+          <div className="pointer-events-none absolute -top-24 -right-24 w-60 h-60 rounded-full bg-[rgba(106,248,47,0.22)] blur-3xl" />
 
           {/* Header */}
           <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)] relative shrink-0">
             <div className="relative">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#8a6bff] to-[#5b8cff] grid place-items-center">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#5dd620] to-[#6af82f] grid place-items-center">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
                 </svg>
@@ -186,7 +186,7 @@ export default function Chat() {
             <div className="leading-tight flex-1 min-w-0">
               <div className="text-[13.5px] font-semibold text-white flex items-center gap-1.5">
                 Assistente Klaro
-                <span className="text-[9px] font-bold tracking-wider px-1.5 py-[1px] rounded bg-[var(--accent-soft)] text-[#a18bff] border border-[rgba(124,92,255,0.3)]">IA</span>
+                <span className="text-[9px] font-bold tracking-wider px-1.5 py-[1px] rounded bg-[var(--accent-soft)] text-[#90f048] border border-[rgba(106,248,47,0.3)]">IA</span>
               </div>
               <div className="text-[11px] text-[var(--muted)]">Conectado às suas transações em tempo real</div>
             </div>
@@ -196,8 +196,8 @@ export default function Chat() {
           <div ref={scrollRef} className="flex-1 overflow-y-auto klaro-scroll px-5 py-5 space-y-3.5 relative">
             {isEmpty ? (
               <div className="h-full flex flex-col items-center justify-center text-center gap-5 pb-6">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[rgba(124,92,255,0.3)] to-[rgba(91,140,255,0.15)] border border-[var(--border-2)] grid place-items-center">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a18bff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[rgba(106,248,47,0.3)] to-[rgba(106,248,47,0.15)] border border-[var(--border-2)] grid place-items-center">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#90f048" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
                   </svg>
                 </div>
@@ -254,7 +254,7 @@ export default function Chat() {
             <form
               onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
               className={`chat-input flex items-end gap-2 px-3 py-2 rounded-2xl border bg-[rgba(255,255,255,0.02)] transition-all ${
-                focused ? "border-[var(--accent)] shadow-[0_0_0_3px_rgba(124,92,255,0.15)]" : "border-[var(--border)]"
+                focused ? "border-[var(--accent)] shadow-[0_0_0_3px_rgba(106,248,47,0.15)]" : "border-[var(--border)]"
               }`}
             >
               <button type="button" className="w-8 h-8 grid place-items-center rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5 shrink-0">
@@ -280,7 +280,7 @@ export default function Chat() {
                 disabled={!input.trim() || loading}
                 className={`w-9 h-9 grid place-items-center rounded-xl transition-all shrink-0 ${
                   input.trim() && !loading
-                    ? "btn-primary text-white"
+                    ? "btn-primary"
                     : "bg-white/5 text-[var(--muted)] cursor-not-allowed"
                 }`}
               >
