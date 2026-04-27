@@ -10,6 +10,7 @@ export interface TransactionData {
   type: "income" | "expense";
   category: string;
   date: string;
+  sourceFileName?: string | null;
 }
 
 interface Props {
@@ -235,8 +236,16 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
-          <div className="text-[15px] font-semibold text-white">
-            {isEdit ? "Editar transação" : "Nova transação"}
+          <div>
+            <div className="text-[15px] font-semibold text-white">
+              {isEdit ? "Editar transação" : "Nova transação"}
+            </div>
+            {isEdit && editing?.sourceFileName && (
+              <div className="text-[11px] text-[var(--muted)] mt-0.5 flex items-center gap-1">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                {editing.sourceFileName}
+              </div>
+            )}
           </div>
           <button
             onClick={onClose}

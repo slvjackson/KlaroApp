@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, transactionsTable, usersTable } from "@workspace/db";
+import { db, transactionsTable, usersTable, rawInputsTable } from "@workspace/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { getSegmentProfile } from "../prompts/segments/index";
@@ -176,15 +176,28 @@ router.get("/transactions", requireAuth, async (req, res): Promise<void> => {
     conditions.push(eq(transactionsTable.category, req.query.category));
   }
 
-  const transactions = await db
-    .select()
+  const rows = await db
+    .select({
+      id: transactionsTable.id,
+      userId: transactionsTable.userId,
+      date: transactionsTable.date,
+      description: transactionsTable.description,
+      amount: transactionsTable.amount,
+      type: transactionsTable.type,
+      category: transactionsTable.category,
+      quantity: transactionsTable.quantity,
+      sourceRawInputId: transactionsTable.sourceRawInputId,
+      createdAt: transactionsTable.createdAt,
+      sourceFileName: rawInputsTable.fileName,
+    })
     .from(transactionsTable)
+    .leftJoin(rawInputsTable, eq(transactionsTable.sourceRawInputId, rawInputsTable.id))
     .where(and(...conditions))
     .orderBy(desc(transactionsTable.date))
     .limit(limit)
     .offset(offset);
 
-  res.json(transactions);
+  res.json(rows);
 });
 
 // DELETE /transactions/bulk-delete — delete multiple transactions

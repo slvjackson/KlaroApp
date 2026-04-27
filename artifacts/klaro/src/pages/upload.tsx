@@ -1,9 +1,10 @@
 import { useCallback, useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
-import { useUploadFile } from "@workspace/api-client-react";
+import { useUploadFile, useListUploads } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
-import { UploadCloud, Loader2, FileImage, FileSpreadsheet, FileText } from "lucide-react";
+import { UploadCloud, Loader2, FileImage, FileSpreadsheet, FileText, AlertTriangle } from "lucide-react";
+import { format } from "date-fns";
 
 const SUPPORTED = [
   { icon: FileText, label: "PDF" },
@@ -15,23 +16,47 @@ export default function Upload() {
   const { isLoading: isAuthLoading } = useRequireAuth();
   const [, setLocation] = useLocation();
   const uploadFile = useUploadFile();
+  const { data: existingUploads } = useListUploads();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFile = (file: File) => {
+  // Duplicate confirmation state
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [duplicateUpload, setDuplicateUpload] = useState<{ fileName: string; createdAt: string } | null>(null);
+
+  function doUpload(file: File) {
     setError(null);
     uploadFile.mutate(
       { data: { file } },
       {
-        onSuccess: (data) => {
-          setLocation(`/review/${data.id}`);
-        },
-        onError: (err: any) => {
-          setError(err.message || "Erro ao fazer upload do arquivo");
-        },
+        onSuccess: (data) => setLocation(`/review/${data.id}`),
+        onError: (err: any) => setError(err.message || "Erro ao fazer upload do arquivo"),
       }
     );
+  }
+
+  const handleFile = (file: File) => {
+    // Check for duplicate filename among existing uploads
+    const existing = (existingUploads ?? []) as { fileName: string; createdAt: string }[];
+    const duplicate = existing.find((u) => u.fileName === file.name);
+    if (duplicate) {
+      setPendingFile(file);
+      setDuplicateUpload(duplicate);
+      return;
+    }
+    doUpload(file);
   };
+
+  function confirmDuplicate() {
+    if (pendingFile) doUpload(pendingFile);
+    setPendingFile(null);
+    setDuplicateUpload(null);
+  }
+
+  function cancelDuplicate() {
+    setPendingFile(null);
+    setDuplicateUpload(null);
+  }
 
   const onDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); }, []);
   const onDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); }, []);
@@ -39,10 +64,11 @@ export default function Upload() {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files?.[0]) handleFile(e.dataTransfer.files[0]);
-  }, []);
+  }, [existingUploads]);
 
   const onFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) handleFile(e.target.files[0]);
+    e.target.value = "";
   };
 
   if (isAuthLoading) return null;
@@ -141,6 +167,39 @@ export default function Upload() {
           </div>
         </div>
       </div>
+
+      {/* Duplicate file confirmation modal */}
+      {duplicateUpload && pendingFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={cancelDuplicate}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="glass-strong rounded-2xl p-6 w-full max-w-sm relative z-10 fadeUp" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-[rgba(251,146,60,0.12)] border border-[rgba(251,146,60,0.25)] grid place-items-center mx-auto mb-3">
+                <AlertTriangle size={20} className="text-[#fb923c]" />
+              </div>
+              <p className="text-[15px] font-semibold text-white mb-2">Arquivo já enviado</p>
+              <p className="text-[13px] text-[var(--muted)] leading-relaxed">
+                O arquivo <span className="text-white font-medium">"{pendingFile.name}"</span> já foi enviado anteriormente
+                {duplicateUpload.createdAt
+                  ? ` em ${format(new Date(duplicateUpload.createdAt), "dd/MM/yyyy")}`
+                  : ""
+                }.
+                Deseja enviar novamente mesmo assim?
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={cancelDuplicate}
+                className="flex-1 h-10 rounded-xl border border-[var(--border)] text-[var(--muted)] text-[13px] font-medium hover:text-white hover:border-white/20 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={confirmDuplicate}
+                className="flex-1 h-10 rounded-xl btn-primary text-[13px] font-semibold">
+                Enviar mesmo assim
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
