@@ -435,7 +435,7 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0 leading-tight">
                       <div className="text-[12.5px] font-medium text-white truncate">{upload.fileName}</div>
                       <div className="text-[11px] text-[var(--muted)]">
-                        {format(new Date(upload.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        {upload.createdAt ? format(new Date(upload.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : "—"}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">

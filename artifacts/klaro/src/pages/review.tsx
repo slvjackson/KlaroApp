@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus, Check } from "lucide-react";
+import { Trash2, Check } from "lucide-react";
 
-function isoToBR(iso: string) {
-  const d = iso.split('T')[0];
+function isoToBR(iso: string | null | undefined) {
+  if (!iso) return "";
+  const d = iso.slice(0, 10);
   const [y, m, day] = d.split('-');
+  if (!y || !m || !day) return "";
   return `${day}/${m}/${y}`;
 }
 

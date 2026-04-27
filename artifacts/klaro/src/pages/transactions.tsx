@@ -196,7 +196,7 @@ export default function Transactions() {
                       <div className="text-[11px] text-[var(--muted)] flex items-center gap-1.5 mt-0.5">
                         <span>{t.category}</span>
                         <span>·</span>
-                        <span>{format(new Date(t.date + "T12:00:00"), "dd/MM/yyyy")}</span>
+                        <span>{format(new Date(t.date.slice(0, 10) + "T12:00:00"), "dd/MM/yyyy")}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
