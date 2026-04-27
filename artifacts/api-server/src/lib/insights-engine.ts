@@ -48,7 +48,8 @@ interface MonthData {
 function groupByMonth(transactions: Transaction[]): Map<string, MonthData> {
   const map = new Map<string, MonthData>();
   for (const t of transactions) {
-    const month = t.date.substring(0, 7);
+    if (!t.date) continue;
+    const month = String(t.date).substring(0, 7);
     const existing = map.get(month) ?? { income: 0, expenses: 0, count: 0 };
     if (t.type === "income") existing.income += t.amount;
     else existing.expenses += t.amount;
@@ -128,7 +129,9 @@ async function generateWithAI(transactions: Transaction[], ctx?: InsightBusiness
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const summary = buildSummary(transactions);
   const months = [...groupByMonth(transactions).keys()].sort();
-  const periodLabel = `${months[0]} a ${months[months.length - 1]}`;
+  const periodLabel = months.length >= 2
+    ? `${months[0]} a ${months[months.length - 1]}`
+    : months[0] ?? new Date().toISOString().substring(0, 7);
 
   const promptText = buildInsightsPrompt(summary, {
     businessName: ctx?.businessName,

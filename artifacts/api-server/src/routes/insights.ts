@@ -134,61 +134,67 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
   const userId = req.session.userId!;
   const { period } = req.body as { period?: Period };
 
-  const [userRow, rawTransactions] = await Promise.all([
-    db
-      .select({ name: usersTable.name, businessProfile: usersTable.businessProfile })
-      .from(usersTable)
-      .where(eq(usersTable.id, userId))
-      .then((r) => r[0]),
-    db
-      .select()
-      .from(transactionsTable)
-      .where(eq(transactionsTable.userId, userId))
-      .orderBy(transactionsTable.date),
-  ]);
+  try {
+    const [userRow, rawTransactions] = await Promise.all([
+      db
+        .select({ name: usersTable.name, businessProfile: usersTable.businessProfile })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .then((r) => r[0]),
+      db
+        .select()
+        .from(transactionsTable)
+        .where(eq(transactionsTable.userId, userId))
+        .orderBy(transactionsTable.date),
+    ]);
 
-  // Default to 12 months when no period is specified to avoid feeding 25+ years of data
-  const effectivePeriod = period ?? "12m";
-  const transactions = rawTransactions.filter((t) => t.date >= getPeriodStartDate(effectivePeriod));
+    // Default to 12 months when no period is specified to avoid feeding 25+ years of data
+    const effectivePeriod = period ?? "12m";
+    const startDate = getPeriodStartDate(effectivePeriod);
+    const transactions = rawTransactions.filter((t) => t.date && t.date >= startDate);
 
-  const bp = userRow?.businessProfile as Record<string, unknown> | null;
+    const bp = userRow?.businessProfile as Record<string, unknown> | null;
 
-  // Archive existing insights (soft delete) before replacing
-  await db
-    .update(insightsTable)
-    .set({ archivedAt: new Date() })
-    .where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt)));
+    // Archive existing insights (soft delete) before replacing
+    await db
+      .update(insightsTable)
+      .set({ archivedAt: new Date() })
+      .where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt)));
 
-  const generated = await generateInsights(transactions, {
-    businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
-    segment: bp?.segment as string | undefined,
-    segmentCustomLabel: bp?.segmentCustomLabel as string | undefined,
-    city: bp?.city as string | undefined,
-    state: bp?.state as string | undefined,
-    mainProducts: bp?.mainProducts as string | undefined,
-    salesChannel: bp?.salesChannel as string | undefined,
-    biggestChallenge: bp?.biggestChallenge as string | undefined,
-  });
+    const generated = await generateInsights(transactions, {
+      businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
+      segment: bp?.segment as string | undefined,
+      segmentCustomLabel: bp?.segmentCustomLabel as string | undefined,
+      city: bp?.city as string | undefined,
+      state: bp?.state as string | undefined,
+      mainProducts: bp?.mainProducts as string | undefined,
+      salesChannel: bp?.salesChannel as string | undefined,
+      biggestChallenge: bp?.biggestChallenge as string | undefined,
+    });
 
-  if (generated.length === 0) {
-    res.json([]);
-    return;
+    if (generated.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    const inserted = await db
+      .insert(insightsTable)
+      .values(
+        generated.map((g) => ({
+          userId,
+          title: g.title,
+          description: g.description,
+          recommendation: g.recommendation,
+          periodLabel: g.periodLabel,
+        })),
+      )
+      .returning();
+
+    res.json(inserted);
+  } catch (err) {
+    console.error("[insights/generate] error:", err);
+    res.status(500).json({ error: "Erro ao gerar insights. Tente novamente." });
   }
-
-  const inserted = await db
-    .insert(insightsTable)
-    .values(
-      generated.map((g) => ({
-        userId,
-        title: g.title,
-        description: g.description,
-        recommendation: g.recommendation,
-        periodLabel: g.periodLabel,
-      })),
-    )
-    .returning();
-
-  res.json(inserted);
 });
 
 // DELETE /insights/:id — soft-archive a single insight
