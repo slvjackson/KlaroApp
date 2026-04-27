@@ -53,7 +53,7 @@ export default function Login() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <KlaroMark size={44} />
-          <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)] mt-2">finanças claras</div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)] mt-2">gestão inteligente</div>
         </div>
 
         {/* Card */}

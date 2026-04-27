@@ -39,7 +39,7 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
         {/* Brand */}
         <Link href="/dashboard" className="flex items-center gap-3 px-1.5 mb-7">
           <KlaroMark size={22} />
-          <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">finanças claras</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">gestão inteligente</div>
         </Link>
 
         {/* Main nav */}

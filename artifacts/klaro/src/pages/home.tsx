@@ -63,12 +63,12 @@ export default function Home() {
             </div>
 
             <h1 className="text-5xl lg:text-[56px] font-bold tracking-tight leading-[1.06] mb-5">
-              Seu negócio,{" "}<span style={{ color: "var(--accent)" }}>organizado</span>.<br className="hidden lg:block" />
-              Seus números,{" "}<span style={{ color: "var(--accent)" }}>claros</span>.
+              Clareza nos números.<br className="hidden lg:block" />
+              <span style={{ color: "var(--accent)" }}>Resultado</span> no bolso.
             </h1>
 
             <p className="text-[17px] text-[var(--muted)] mb-8 leading-relaxed max-w-lg">
-              Envie extratos, planilhas ou fotos do caixa. O Klaro extrai os dados, organiza automaticamente e gera insights com IA — para você tomar melhores decisões.
+              O Klaro organiza seu financeiro e mostra onde você está perdendo dinheiro e como lucrar mais — sem planilhas complicadas.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
@@ -200,7 +200,7 @@ export default function Home() {
           </div>
           <h2 className="text-[36px] font-bold tracking-tight">Tudo que você precisa, num só lugar</h2>
           <p className="text-[16px] text-[var(--muted)] mt-3 max-w-xl mx-auto">
-            Do upload à análise, o Klaro cuida da parte chata para você focar no que importa: crescer.
+            O Klaro organiza seu financeiro e mostra onde você está perdendo dinheiro e como lucrar mais — sem planilhas complicadas.
           </p>
         </div>
 
@@ -251,8 +251,8 @@ export default function Home() {
         <div className="glass-strong rounded-3xl p-12 text-center relative overflow-hidden">
           <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-[rgba(106,248,47,0.22)] blur-3xl pointer-events-none" />
           <div className="relative">
-            <h2 className="text-[36px] font-bold tracking-tight mb-4">Pronto para organizar suas finanças?</h2>
-            <p className="text-[16px] text-[var(--muted)] mb-8 max-w-md mx-auto leading-relaxed">
+            <h2 className="text-[36px] font-bold tracking-tight mb-2">Clareza nos números.<br /><span style={{ color: "var(--accent)" }}>Resultado</span> no bolso.</h2>
+            <p className="text-[16px] text-[var(--muted)] mb-8 max-w-md mx-auto leading-relaxed mt-3">
               Crie sua conta grátis e comece a usar o Klaro em menos de 2 minutos.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
