@@ -3,6 +3,33 @@ import { db, transactionsTable, usersTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { getSegmentProfile } from "../prompts/segments/index";
+import Anthropic from "@anthropic-ai/sdk";
+
+const anthropic = new Anthropic();
+
+async function generateCustomSegmentCategories(segmentLabel: string, existingLower: Set<string>): Promise<string[]> {
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 256,
+      messages: [{
+        role: "user",
+        content: `Liste 8 categorias financeiras típicas para um negócio do segmento "${segmentLabel}" no Brasil.
+Retorne SOMENTE as categorias, uma por linha, sem numeração, sem explicações.
+Misture entradas e saídas comuns desse segmento.
+Exemplos de formato: Sessão fotográfica, Equipamentos, Edição de fotos`,
+      }],
+    });
+    const text = response.content[0]?.type === "text" ? response.content[0].text : "";
+    return text
+      .split("\n")
+      .map((l) => l.trim().replace(/^[-•*]\s*/, ""))
+      .filter((l) => l.length > 0 && !existingLower.has(l.toLowerCase()))
+      .slice(0, 8);
+  } catch {
+    return [];
+  }
+}
 
 const router = Router();
 
@@ -87,9 +114,14 @@ router.get("/transactions/categories", requireAuth, async (req, res): Promise<vo
   );
 
   const existingLower = new Set(existing.map((c) => c.toLowerCase()));
-  const suggestions = profile.categoriasComuns.filter(
-    (c) => !existingLower.has(c.toLowerCase()),
-  );
+
+  let suggestions: string[];
+  const customLabel = bp?.segmentCustomLabel as string | undefined;
+  if (bp?.segment === "outro" && customLabel?.trim()) {
+    suggestions = await generateCustomSegmentCategories(customLabel.trim(), existingLower);
+  } else {
+    suggestions = profile.categoriasComuns.filter((c) => !existingLower.has(c.toLowerCase()));
+  }
 
   res.json({ existing, suggestions });
 });
