@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { db, transactionsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { db, transactionsTable, usersTable } from "@workspace/db";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
+import { getSegmentProfile } from "../prompts/segments/index";
 
 const router = Router();
 
@@ -56,6 +57,41 @@ router.patch("/transactions/:id", requireAuth, async (req, res): Promise<void> =
     .returning();
 
   res.json(updated);
+});
+
+// GET /transactions/categories — existing categories (by frequency) + segment suggestions
+router.get("/transactions/categories", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+
+  // Distinct categories ordered by how often they appear
+  const rows = await db
+    .select({ category: transactionsTable.category, count: sql<number>`count(*)::int` })
+    .from(transactionsTable)
+    .where(eq(transactionsTable.userId, userId))
+    .groupBy(transactionsTable.category)
+    .orderBy(desc(sql`count(*)`));
+
+  const existing = rows.map((r) => r.category);
+
+  // Segment-based suggestions (excluding already-used categories)
+  const userRow = await db
+    .select({ businessProfile: usersTable.businessProfile })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .then((r) => r[0]);
+
+  const bp = userRow?.businessProfile as Record<string, unknown> | null;
+  const profile = getSegmentProfile(
+    bp?.segment as string | undefined,
+    bp?.segmentCustomLabel as string | undefined,
+  );
+
+  const existingLower = new Set(existing.map((c) => c.toLowerCase()));
+  const suggestions = profile.categoriasComuns.filter(
+    (c) => !existingLower.has(c.toLowerCase()),
+  );
+
+  res.json({ existing, suggestions });
 });
 
 // GET /transactions — list confirmed transactions with optional filters

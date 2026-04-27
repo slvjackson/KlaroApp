@@ -1,17 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Loader2, Trash2 } from "lucide-react";
 import { getListTransactionsQueryKey } from "@workspace/api-client-react";
-
-const EXPENSE_CATEGORIES = [
-  "Alimentação", "Moradia", "Transporte", "Saúde",
-  "Lazer", "Educação", "Vestuário", "Serviços", "Outros",
-];
-const INCOME_CATEGORIES = ["Renda", "Freelance", "Investimentos", "Outros"];
+import { Loader2, Trash2, X, Plus, Check } from "lucide-react";
 
 export interface TransactionData {
   id: number;
@@ -28,23 +18,58 @@ interface Props {
   onClose: () => void;
 }
 
-function todayISO() {
-  return new Date().toISOString().split("T")[0];
+function isoToBR(iso: string) {
+  const d = iso.slice(0, 10);
+  const [y, m, day] = d.split("-");
+  if (!y || !m || !day) return "";
+  return `${day}/${m}/${y}`;
+}
+
+function brToISO(br: string) {
+  const [day, month, year] = br.split("/");
+  if (!day || !month || !year || year.length < 4) return null;
+  const d = new Date(`${year}-${month}-${day}T12:00:00.000Z`);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+function todayBR() {
+  return isoToBR(new Date().toISOString());
 }
 
 export function TransactionDialog({ open, editing, onClose }: Props) {
   const queryClient = useQueryClient();
+
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [type, setType] = useState<"income" | "expense">("expense");
   const [category, setCategory] = useState("");
-  const [date, setDate] = useState(todayISO());
+  const [date, setDate] = useState(todayBR());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isEdit = editing !== null;
-  const categories = type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  // Categories
+  const [existingCats, setExistingCats] = useState<string[]>([]);
+  const [suggestedCats, setSuggestedCats] = useState<string[]>([]);
+  const [sessionCats, setSessionCats] = useState<string[]>([]);
+  const [addingCustom, setAddingCustom] = useState(false);
+  const [customInput, setCustomInput] = useState("");
+  const customInputRef = useRef<HTMLInputElement>(null);
 
+  const isEdit = editing !== null;
+
+  // Fetch dynamic categories when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/transactions/categories")
+      .then((r) => r.json())
+      .then((d) => {
+        setExistingCats(d.existing ?? []);
+        setSuggestedCats(d.suggestions ?? []);
+      })
+      .catch(() => {});
+  }, [open]);
+
+  // Reset form
   useEffect(() => {
     if (!open) return;
     if (editing) {
@@ -52,20 +77,51 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
       setAmount(String(editing.amount));
       setType(editing.type);
       setCategory(editing.category);
-      setDate(editing.date);
+      setDate(isoToBR(editing.date));
     } else {
       setDescription("");
       setAmount("");
       setType("expense");
       setCategory("");
-      setDate(todayISO());
+      setDate(todayBR());
     }
+    setSessionCats([]);
+    setAddingCustom(false);
+    setCustomInput("");
     setError("");
   }, [open, editing]);
 
+  // Focus custom input when it appears
   useEffect(() => {
-    if (!categories.includes(category)) setCategory("");
-  }, [type]);
+    if (addingCustom) customInputRef.current?.focus();
+  }, [addingCustom]);
+
+  // All chips: existing → session-added → (editing category if not in list)
+  const allChips = useMemo(() => {
+    const seen = new Set([...existingCats, ...sessionCats].map((c) => c.toLowerCase()));
+    const extra: string[] = [];
+    if (editing?.category && !seen.has(editing.category.toLowerCase())) {
+      extra.push(editing.category);
+    }
+    return [...existingCats, ...sessionCats, ...extra];
+  }, [existingCats, sessionCats, editing]);
+
+  // Suggestions not already in allChips
+  const visibleSuggestions = useMemo(() => {
+    const seen = new Set(allChips.map((c) => c.toLowerCase()));
+    return suggestedCats.filter((c) => !seen.has(c.toLowerCase()));
+  }, [allChips, suggestedCats]);
+
+  function confirmCustom() {
+    const val = customInput.trim();
+    setAddingCustom(false);
+    setCustomInput("");
+    if (!val) return;
+    const lower = val.toLowerCase();
+    const alreadyIn = [...existingCats, ...sessionCats].some((c) => c.toLowerCase() === lower);
+    if (!alreadyIn) setSessionCats((prev) => [...prev, val]);
+    setCategory(val);
+  }
 
   async function handleSave() {
     const trimDesc = description.trim();
@@ -73,16 +129,20 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
     if (!trimDesc) { setError("Informe uma descrição."); return; }
     if (isNaN(parsedAmount) || parsedAmount <= 0) { setError("Valor inválido."); return; }
     if (!category) { setError("Selecione uma categoria."); return; }
-    if (!date) { setError("Informe a data."); return; }
+    const isoDate = brToISO(date);
+    if (!isoDate) { setError("Data inválida. Use dd/mm/aaaa."); return; }
 
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(isEdit ? `/api/transactions/${editing!.id}` : "/api/transactions", {
-        method: isEdit ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: trimDesc, amount: parsedAmount, type, category, date }),
-      });
+      const res = await fetch(
+        isEdit ? `/api/transactions/${editing!.id}` : "/api/transactions",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description: trimDesc, amount: parsedAmount, type, category, date: isoDate }),
+        },
+      );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error ?? "Erro ao salvar.");
@@ -112,120 +172,180 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
     }
   }
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="bg-card border-border max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="glass-strong rounded-2xl p-6 w-full max-w-md relative z-10 fadeUp"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="text-[15px] font-semibold text-white">
             {isEdit ? "Editar transação" : "Nova transação"}
-          </DialogTitle>
-        </DialogHeader>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 grid place-items-center rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5"
+          >
+            <X size={14} />
+          </button>
+        </div>
 
         <div className="space-y-4">
           {/* Type toggle */}
-          <div className="flex gap-1 p-1 bg-secondary" style={{ borderRadius: "8px" }}>
+          <div className="flex gap-1 p-0.5 rounded-xl bg-[rgba(255,255,255,0.04)] border border-[var(--border)]">
             {(["expense", "income"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setType(t)}
-                className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+                className={`flex-1 py-2 text-[13px] font-semibold rounded-[10px] transition-colors ${
                   type === t
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? t === "expense"
+                      ? "bg-[var(--expense-soft)] text-[var(--expense)]"
+                      : "bg-[var(--income-soft)] text-[var(--income)]"
+                    : "text-[var(--muted)] hover:text-white"
                 }`}
-                style={{ borderRadius: "6px" }}
               >
-                {t === "expense" ? "Despesa" : "Receita"}
+                {t === "expense" ? "Saída" : "Entrada"}
               </button>
             ))}
           </div>
 
           {/* Description */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Descrição</Label>
-            <Input
+          <div>
+            <label className="block text-[11px] font-semibold text-[var(--muted)] uppercase tracking-[0.14em] mb-1.5">Descrição</label>
+            <input
+              className="field"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex: Supermercado, Salário..."
-              className="bg-background border-border text-white"
+              placeholder="Ex: Compra de estoque, Pagamento cliente…"
               onKeyDown={(e) => e.key === "Enter" && handleSave()}
             />
           </div>
 
-          {/* Amount */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Valor (R$)</Label>
-            <Input
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0,00"
-              inputMode="decimal"
-              className="bg-background border-border text-white"
-            />
-          </div>
-
-          {/* Date */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Data</Label>
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="bg-background border-border text-white"
-            />
+          {/* Amount + Date */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-[var(--muted)] uppercase tracking-[0.14em] mb-1.5">Valor (R$)</label>
+              <input
+                className="field"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0,00"
+                inputMode="decimal"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-[var(--muted)] uppercase tracking-[0.14em] mb-1.5">Data</label>
+              <input
+                className="field"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                placeholder="dd/mm/aaaa"
+                inputMode="numeric"
+              />
+            </div>
           </div>
 
           {/* Category chips */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Categoria</Label>
-            <div className="flex flex-wrap gap-2">
-              {categories.map((cat) => (
+          <div>
+            <label className="block text-[11px] font-semibold text-[var(--muted)] uppercase tracking-[0.14em] mb-2">Categoria</label>
+
+            {/* Existing + session-added chips */}
+            <div className="flex flex-wrap gap-1.5">
+              {allChips.map((cat) => (
                 <button
                   key={cat}
+                  type="button"
                   onClick={() => setCategory(cat)}
-                  className={`px-3 py-1.5 text-xs font-medium border transition-colors rounded-full ${
-                    category === cat
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-                  }`}
+                  className={`chip ${category === cat ? "chip-on" : ""}`}
                 >
                   {cat}
                 </button>
               ))}
+
+              {/* '+' chip / inline input */}
+              {addingCustom ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    ref={customInputRef}
+                    className="field h-[30px] px-2 py-0 text-[12px] w-36 rounded-full"
+                    placeholder="Nova categoria…"
+                    value={customInput}
+                    onChange={(e) => setCustomInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { e.preventDefault(); confirmCustom(); }
+                      if (e.key === "Escape") { setAddingCustom(false); setCustomInput(""); }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={confirmCustom}
+                    className="w-[30px] h-[30px] grid place-items-center rounded-full bg-[var(--accent)] text-[#09090b] shrink-0"
+                  >
+                    <Check size={12} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddingCustom(true)}
+                  className="chip flex items-center gap-1"
+                  title="Adicionar categoria"
+                >
+                  <Plus size={11} />
+                </button>
+              )}
             </div>
+
+            {/* Segment suggestions */}
+            {visibleSuggestions.length > 0 && (
+              <div className="mt-2.5">
+                <div className="text-[10px] text-[var(--muted)] uppercase tracking-[0.12em] mb-1.5">Sugestões para seu segmento</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {visibleSuggestions.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => { setSessionCats((prev) => [...prev, cat]); setCategory(cat); }}
+                      className={`chip border-dashed ${category === cat ? "chip-on" : ""}`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p className="text-[12px] text-[var(--expense)]">{error}</p>
+          )}
 
           {/* Actions */}
           <div className="flex gap-2 pt-1">
             {isEdit && (
-              <Button
-                variant="outline"
-                size="icon"
+              <button
                 onClick={handleDelete}
                 disabled={loading}
-                className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                className="w-10 h-10 grid place-items-center rounded-xl border border-[rgba(244,63,94,0.3)] text-[var(--expense)] hover:bg-[rgba(244,63,94,0.08)] transition-colors shrink-0 disabled:opacity-50"
               >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+                <Trash2 size={15} />
+              </button>
             )}
-            <Button
+            <button
               onClick={handleSave}
               disabled={loading}
-              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+              className="btn-primary flex-1 h-10 rounded-xl text-[13.5px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : isEdit ? (
-                "Salvar alterações"
-              ) : (
-                "Adicionar"
-              )}
-            </Button>
+              {loading ? <Loader2 size={15} className="animate-spin" /> : isEdit ? "Salvar alterações" : "Adicionar"}
+            </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
