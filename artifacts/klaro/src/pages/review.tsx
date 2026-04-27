@@ -9,8 +9,20 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { Trash2, Plus, Check } from "lucide-react";
+
+function isoToBR(iso: string) {
+  const d = iso.split('T')[0];
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
+function brToISO(br: string) {
+  const [day, month, year] = br.split('/');
+  if (!day || !month || !year || year.length < 4) return null;
+  const d = new Date(`${year}-${month}-${day}T12:00:00.000Z`);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
 
 export default function Review() {
   const { isLoading: isAuthLoading } = useRequireAuth();
@@ -128,11 +140,15 @@ export default function Review() {
                   <TableRow key={record.id} className="border-border hover:bg-muted/50 transition-colors">
                     <TableCell className="p-2">
                       <Input
-                        type="date"
-                        value={(getField(record, 'date') as string).split('T')[0]}
+                        type="text"
+                        placeholder="dd/mm/aaaa"
+                        value={edits[record.id]?.date ?? isoToBR(record.date)}
                         onChange={(e) => setField(record.id, 'date', e.target.value)}
-                        onBlur={(e) => handleUpdate(record.id, 'date', new Date(e.target.value).toISOString())}
-                        className="bg-transparent border-transparent hover:border-input focus:border-ring h-8 px-2"
+                        onBlur={(e) => {
+                          const iso = brToISO(e.target.value);
+                          if (iso) handleUpdate(record.id, 'date', iso);
+                        }}
+                        className="bg-transparent border-transparent hover:border-input focus:border-ring h-8 px-2 w-[104px]"
                       />
                     </TableCell>
                     <TableCell className="p-2">
