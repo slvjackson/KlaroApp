@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, parsedRecordsTable, rawInputsTable, transactionsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { UpdateParsedRecordBody, CreateParsedRecordsBody, ConfirmParsedRecordsBody } from "@workspace/api-zod";
 
@@ -78,6 +78,37 @@ router.delete("/parsed-records/:id", requireAuth, async (req, res): Promise<void
 
   await db.delete(parsedRecordsTable).where(eq(parsedRecordsTable.id, id));
   res.sendStatus(204);
+});
+
+// PATCH /parsed-records/bulk-update — update category/type on multiple records at once
+router.patch("/parsed-records/bulk-update", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const { ids, category, type } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({ error: "ids obrigatório." });
+    return;
+  }
+  if (type !== undefined && type !== "income" && type !== "expense") {
+    res.status(400).json({ error: "type inválido." });
+    return;
+  }
+
+  const patch: Record<string, unknown> = {};
+  if (typeof category === "string" && category.trim()) patch.category = category.trim();
+  if (type) patch.type = type;
+
+  if (Object.keys(patch).length === 0) {
+    res.status(400).json({ error: "Nada para atualizar." });
+    return;
+  }
+
+  await db
+    .update(parsedRecordsTable)
+    .set(patch)
+    .where(and(inArray(parsedRecordsTable.id, ids), eq(parsedRecordsTable.userId, userId)));
+
+  res.json({ updatedCount: ids.length });
 });
 
 // POST /parsed-records/bulk — bulk create parsed records

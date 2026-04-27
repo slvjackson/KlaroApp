@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 import { useListTransactions } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { getListTransactionsQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { Pencil, Plus, Search, X, Inbox, ArrowUp, ArrowDown } from "lucide-react";
+import { Pencil, Plus, Search, X, Inbox, ArrowUp, ArrowDown, CheckSquare, Square, Trash2, Check, Loader2 } from "lucide-react";
 import { TransactionDialog, type TransactionData } from "@/components/TransactionDialog";
 
 type FilterType = "all" | "income" | "expense";
@@ -45,12 +47,21 @@ function catIcon(cat: string) {
 export default function Transactions() {
   const { isLoading: isAuthLoading } = useRequireAuth();
   const { data: rawTransactions, isLoading } = useListTransactions({ limit: 500 });
+  const queryClient = useQueryClient();
 
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TransactionData | null>(null);
+
+  // Bulk selection
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [bulkType, setBulkType] = useState<"" | "income" | "expense">("");
+  const [bulkApplying, setBulkApplying] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   if (isAuthLoading) return null;
 
@@ -67,6 +78,9 @@ export default function Transactions() {
     });
   }, [transactions, filter, search, month]);
 
+  const filteredIds = useMemo(() => filtered.map((t) => t.id), [filtered]);
+  const allSelected = filteredIds.length > 0 && filteredIds.every((id) => selected.has(id));
+
   const summary = useMemo(() =>
     filtered.reduce((acc, t) => {
       if (t.type === "income") acc.income += t.amount;
@@ -74,6 +88,68 @@ export default function Transactions() {
       return acc;
     }, { income: 0, expense: 0 }),
   [filtered]);
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+    setBulkCategory("");
+    setBulkType("");
+  }
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filteredIds));
+    }
+  }
+
+  function toggleRow(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkApply() {
+    if (selected.size === 0 || (!bulkCategory.trim() && !bulkType)) return;
+    setBulkApplying(true);
+    try {
+      await fetch("/api/transactions/bulk-update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: [...selected],
+          ...(bulkCategory.trim() && { category: bulkCategory.trim() }),
+          ...(bulkType && { type: bulkType }),
+        }),
+      });
+      queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["getDashboardSummary"] });
+      exitSelectMode();
+    } finally {
+      setBulkApplying(false);
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selected.size === 0) return;
+    if (!confirm(`Excluir ${selected.size} transaç${selected.size > 1 ? "ões" : "ão"}? Esta ação não pode ser desfeita.`)) return;
+    setBulkDeleting(true);
+    try {
+      await fetch("/api/transactions/bulk-delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [...selected] }),
+      });
+      queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["getDashboardSummary"] });
+      exitSelectMode();
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   const FILTERS: { key: FilterType; label: string }[] = [
     { key: "all", label: "Todas" },
@@ -135,6 +211,23 @@ export default function Transactions() {
               </button>
             )}
           </div>
+
+          {/* Select mode toggle */}
+          {!selectMode ? (
+            <button
+              onClick={() => setSelectMode(true)}
+              className="chip text-[11px]"
+            >
+              Selecionar
+            </button>
+          ) : (
+            <button
+              onClick={exitSelectMode}
+              className="chip chip-on text-[11px]"
+            >
+              Cancelar
+            </button>
+          )}
         </div>
 
         {/* Summary bar */}
@@ -153,6 +246,20 @@ export default function Transactions() {
 
         {/* Transaction list */}
         <div className="glass rounded-2xl overflow-hidden">
+          {/* Select all bar — only in select mode */}
+          {selectMode && filtered.length > 0 && (
+            <div className="flex items-center gap-3 px-5 py-2.5 border-b border-[var(--border)] bg-white/[0.02]">
+              <button onClick={toggleAll} className="text-[var(--muted)] hover:text-white transition-colors">
+                {allSelected
+                  ? <CheckSquare size={15} className="text-[var(--accent)]" />
+                  : <Square size={15} />}
+              </button>
+              <span className="text-[12px] text-[var(--muted)]">
+                {selected.size > 0 ? `${selected.size} selecionada${selected.size > 1 ? "s" : ""}` : "Selecionar todas"}
+              </span>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="p-5 space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -180,12 +287,29 @@ export default function Transactions() {
             <div className="divide-y divide-[var(--border)]">
               {filtered.map((t) => {
                 const isIn = t.type === "income";
+                const isChecked = selected.has(t.id);
                 return (
                   <div
                     key={t.id}
-                    onClick={() => { setEditing(t); setDialogOpen(true); }}
-                    className="group flex items-center gap-3 px-5 py-3 hover:bg-white/[0.025] transition-colors cursor-pointer"
+                    onClick={() => {
+                      if (selectMode) {
+                        toggleRow(t.id);
+                      } else {
+                        setEditing(t);
+                        setDialogOpen(true);
+                      }
+                    }}
+                    className={`group flex items-center gap-3 px-5 py-3 transition-colors cursor-pointer ${
+                      isChecked ? "bg-[var(--accent-soft)]/20" : "hover:bg-white/[0.025]"
+                    }`}
                   >
+                    {selectMode && (
+                      <div className="shrink-0 text-[var(--muted)]">
+                        {isChecked
+                          ? <CheckSquare size={15} className="text-[var(--accent)]" />
+                          : <Square size={15} />}
+                      </div>
+                    )}
                     <div className={`w-9 h-9 rounded-lg grid place-items-center text-base shrink-0 ${
                       isIn ? "bg-[var(--income-soft)]" : "bg-white/5"
                     }`}>
@@ -208,12 +332,14 @@ export default function Transactions() {
                       }`}>
                         {isIn ? <ArrowDown size={11} /> : <ArrowUp size={11} />}
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEditing(t); setDialogOpen(true); }}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5 transition-all"
-                      >
-                        <Pencil size={13} />
-                      </button>
+                      {!selectMode && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditing(t); setDialogOpen(true); }}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5 transition-all"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -223,14 +349,61 @@ export default function Transactions() {
         </div>
       </div>
 
-      {/* FAB */}
-      <button
-        onClick={() => { setEditing(null); setDialogOpen(true); }}
-        className="btn-primary fixed bottom-8 right-8 w-14 h-14 rounded-2xl grid place-items-center z-50 shadow-[0_12px_32px_-12px_rgba(106,248,47,0.8)]"
-        aria-label="Nova transação"
-      >
-        <Plus size={22} className="text-white" />
-      </button>
+      {/* Bulk action bar — sticky at bottom when items selected */}
+      {selectMode && selected.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-6 pointer-events-none">
+          <div className="glass-strong rounded-2xl px-5 py-3.5 flex items-center gap-3 flex-wrap pointer-events-auto shadow-[0_8px_32px_-8px_rgba(0,0,0,0.6)] max-w-xl w-full mx-4">
+            <span className="text-[12px] font-semibold text-white shrink-0">
+              {selected.size} selecionada{selected.size > 1 ? "s" : ""}
+            </span>
+            <div className="flex-1 flex items-center gap-2 flex-wrap">
+              <input
+                className="field h-8 px-3 py-0 text-[12px] rounded-lg flex-1 min-w-[140px]"
+                placeholder="Nova categoria…"
+                value={bulkCategory}
+                onChange={(e) => setBulkCategory(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleBulkApply()}
+              />
+              <select
+                className="field h-8 px-2 py-0 text-[12px] rounded-lg"
+                value={bulkType}
+                onChange={(e) => setBulkType(e.target.value as any)}
+              >
+                <option value="">Tipo (manter)</option>
+                <option value="income">Entrada</option>
+                <option value="expense">Saída</option>
+              </select>
+              <button
+                onClick={handleBulkApply}
+                disabled={bulkApplying || (!bulkCategory.trim() && !bulkType)}
+                className="btn-primary h-8 px-4 rounded-lg text-[12px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {bulkApplying ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                Aplicar
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="h-8 px-3 rounded-lg text-[12px] font-semibold flex items-center gap-1.5 border border-[rgba(244,63,94,0.4)] text-[var(--expense)] hover:bg-[rgba(244,63,94,0.08)] transition-colors disabled:opacity-50"
+              >
+                {bulkDeleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FAB — hidden in select mode */}
+      {!selectMode && (
+        <button
+          onClick={() => { setEditing(null); setDialogOpen(true); }}
+          className="btn-primary fixed bottom-8 right-8 w-14 h-14 rounded-2xl grid place-items-center z-50 shadow-[0_12px_32px_-12px_rgba(106,248,47,0.8)]"
+          aria-label="Nova transação"
+        >
+          <Plus size={22} className="text-white" />
+        </button>
+      )}
 
       <TransactionDialog
         open={dialogOpen}

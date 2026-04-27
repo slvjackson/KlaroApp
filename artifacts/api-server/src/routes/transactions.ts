@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, transactionsTable, usersTable } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { getSegmentProfile } from "../prompts/segments/index";
 import Anthropic from "@anthropic-ai/sdk";
@@ -153,6 +153,54 @@ router.get("/transactions", requireAuth, async (req, res): Promise<void> => {
     .offset(offset);
 
   res.json(transactions);
+});
+
+// PATCH /transactions/bulk-update — update category/type on multiple transactions
+router.patch("/transactions/bulk-update", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const { ids, category, type } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({ error: "ids obrigatório." });
+    return;
+  }
+  if (type !== undefined && type !== "income" && type !== "expense") {
+    res.status(400).json({ error: "type inválido." });
+    return;
+  }
+
+  const patch: Record<string, unknown> = {};
+  if (typeof category === "string" && category.trim()) patch.category = category.trim();
+  if (type) patch.type = type;
+
+  if (Object.keys(patch).length === 0) {
+    res.status(400).json({ error: "Nada para atualizar." });
+    return;
+  }
+
+  await db
+    .update(transactionsTable)
+    .set(patch)
+    .where(and(inArray(transactionsTable.id, ids), eq(transactionsTable.userId, userId)));
+
+  res.json({ updatedCount: ids.length });
+});
+
+// DELETE /transactions/bulk-delete — delete multiple transactions
+router.delete("/transactions/bulk-delete", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({ error: "ids obrigatório." });
+    return;
+  }
+
+  await db
+    .delete(transactionsTable)
+    .where(and(inArray(transactionsTable.id, ids), eq(transactionsTable.userId, userId)));
+
+  res.sendStatus(204);
 });
 
 // DELETE /transactions/:id
