@@ -11,7 +11,8 @@
       "Bash(node -e \"console.log\\(require\\('/Users/jackson.alberto/Documents/KlaroApp/node_modules/zod/package.json'\\).version\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['version']\\)\")",
       "Bash(pnpm --filter klaro build)",
-      "Bash(pnpm --filter api-server build)"
+      "Bash(pnpm --filter api-server build)",
+      "Bash(psql 'postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require' -c ' *)"
     ]
   }
 }
