@@ -198,10 +198,15 @@ function normalizeDate(raw: unknown): string {
     return today;
   }
 
-  // JS Date object
+  // JS Date object — if the year looks wrong (XLSX coercion artifact), fall back to inferYear
   if (raw instanceof Date && !isNaN(raw.getTime())) {
     const d = raw;
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const yr = d.getFullYear();
+    if (yr < 2010) {
+      const y = inferYear(d.getDate(), d.getMonth() + 1);
+      return `${y}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+    return `${yr}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
   const s = String(raw).trim();
@@ -216,9 +221,22 @@ function normalizeDate(raw: unknown): string {
   const partsWithYear = noTime.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
   if (partsWithYear) {
     const [, p1, p2, yr] = partsWithYear;
-    const year = yr.length === 2 ? `20${yr}` : yr;
+    const yearNum = parseInt(yr.length === 2 ? `20${yr}` : yr, 10);
     const n1 = parseInt(p1, 10);
     const n2 = parseInt(p2, 10);
+
+    // Reject implausible years that result from XLSX coercing "DD/MM" strings into dates
+    // with a default year (e.g. "05/01" → "5/1/01" → year 2001). Use inferYear instead.
+    if (yearNum < 2010) {
+      let day: number, month: number;
+      if (n1 > 12) { day = n1; month = n2; }
+      else if (n2 > 12) { day = n2; month = n1; }
+      else { day = n1; month = n2; }
+      const y = inferYear(day, month);
+      return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+
+    const year = String(yearNum);
     if (n1 > 12) return `${year}-${p2.padStart(2, "0")}-${p1.padStart(2, "0")}`;
     if (n2 > 12) return `${year}-${p1.padStart(2, "0")}-${p2.padStart(2, "0")}`;
     // Ambiguous: assume DD/MM (Brazilian standard)
@@ -411,7 +429,20 @@ function rowsToRecords(rows: Record<string, unknown>[], context: string): Extrac
   let amountKey = findColumn(keys, [
     "valor", "value", "amount", "montante", "quantia", "valor transacao",
   ]);
-  const typeKey = findColumn(keys, ["tipo", "type", "natureza", "dc", "d/c", "operacao"]);
+  const typeKeyCandidate = findColumn(keys, ["tipo", "type", "natureza", "dc", "d/c", "operacao"]);
+  // Only use the type column if its values actually look like income/expense indicators.
+  // A column named "tipo" might contain service names (e.g. "Ensaio", "Evento") rather than
+  // financial direction, in which case the AI classifier will handle type assignment instead.
+  const TYPE_FINANCIAL_VALUES = new Set(["c", "d", "credito", "debito", "cred", "deb", "entrada", "saida", "income", "expense", "receita", "despesa", "credit", "debit"]);
+  const typeKey: string | null = (() => {
+    if (!typeKeyCandidate) return null;
+    const sample = rows.slice(0, Math.min(rows.length, 10));
+    const hasFinancialValues = sample.some((r) => {
+      const v = norm(String(r[typeKeyCandidate!] ?? ""));
+      return TYPE_FINANCIAL_VALUES.has(v) || v.startsWith("cred") || v.startsWith("deb");
+    });
+    return hasFinancialValues ? typeKeyCandidate : null;
+  })();
   const creditKey = findColumn(keys, ["credito", "credit", "entrada", "recebimento"]);
   const debitKey = findColumn(keys, ["debito", "debit", "saida", "despesa"]);
 
@@ -513,13 +544,15 @@ function rowsToRecords(rows: Record<string, unknown>[], context: string): Extrac
 
 /** Re-parse a sheet starting at a detected header row */
 function parseFromHeaderRow(aoa: unknown[][], headerIdx: number): Record<string, unknown>[] {
+  // Use raw: true to prevent XLSX from re-formatting date-like strings (e.g. "05/01" → "5/1/01")
+  // which would cause our normalizeDate to misparse the 2-digit year as 2001.
   if (headerIdx === 0) {
     const sheet = XLSX.utils.aoa_to_sheet(aoa);
-    return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
+    return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: true });
   }
   const sub = aoa.slice(headerIdx);
   const subSheet = XLSX.utils.aoa_to_sheet(sub);
-  return XLSX.utils.sheet_to_json<Record<string, unknown>>(subSheet, { defval: "", raw: false });
+  return XLSX.utils.sheet_to_json<Record<string, unknown>>(subSheet, { defval: "", raw: true });
 }
 
 export async function parseCSV(content: string, ctx?: ParseBusinessContext): Promise<ExtractedRecord[]> {
@@ -527,7 +560,10 @@ export async function parseCSV(content: string, ctx?: ParseBusinessContext): Pro
   for (const delimiter of [",", ";"]) {
     try {
       const normalized = delimiter === ";" ? content.replace(/;/g, ",") : content;
-      const wb = XLSX.read(normalized, { type: "string", raw: false, cellDates: true });
+      // raw: true keeps all cells as their underlying values (strings stay strings).
+      // Without this, XLSX converts "05/01" to a Date and reformats it as "5/1/01",
+      // which our parser then reads as year 2001.
+      const wb = XLSX.read(normalized, { type: "string", raw: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const aoa: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
       const headerIdx = findHeaderRow(aoa);
