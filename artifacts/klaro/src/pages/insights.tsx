@@ -1,19 +1,26 @@
+import { useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 import { useListInsights, useGenerateInsights, getListInsightsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Lightbulb, RefreshCw, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
+import { Lightbulb, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Upload } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Insights() {
   const { isLoading: isAuthLoading } = useRequireAuth();
   const queryClient = useQueryClient();
   const { data: insights, isLoading } = useListInsights();
   const generateInsights = useGenerateInsights();
+  const [attempted, setAttempted] = useState(false);
 
   const handleGenerate = () => {
     generateInsights.mutate(undefined, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
+        setAttempted(true);
+      },
+      onError: () => {
+        setAttempted(true);
       },
     });
   };
@@ -64,22 +71,54 @@ export default function Insights() {
           </div>
         ) : !insights || insights.length === 0 ? (
           <div className="glass rounded-2xl p-12 flex flex-col items-center gap-4 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--accent-soft)] grid place-items-center">
-              <Lightbulb size={22} className="text-[#90f048]" />
-            </div>
-            <div>
-              <div className="text-[15px] font-semibold text-white">Nenhum insight disponível</div>
-              <p className="text-[12.5px] text-[var(--muted)] max-w-xs mt-1 leading-relaxed">
-                Adicione mais transações para que nossa IA possa analisar seu negócio.
-              </p>
-            </div>
-            <button
-              onClick={handleGenerate}
-              disabled={generateInsights.isPending}
-              className="btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold disabled:opacity-50"
-            >
-              Gerar análise
-            </button>
+            {attempted ? (
+              <>
+                <div className="w-14 h-14 rounded-2xl bg-[rgba(245,158,11,0.12)] grid place-items-center">
+                  <Upload size={22} className="text-[#f59e0b]" />
+                </div>
+                <div>
+                  <div className="text-[15px] font-semibold text-white">Dados insuficientes</div>
+                  <p className="text-[12.5px] text-[var(--muted)] max-w-sm mt-1 leading-relaxed">
+                    Você precisa fazer upload de mais dados para podermos gerar um insight valioso para o seu negócio.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/upload"
+                    className="btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold inline-flex items-center gap-1.5"
+                  >
+                    <Upload size={13} />
+                    Fazer upload
+                  </Link>
+                  <button
+                    onClick={handleGenerate}
+                    disabled={generateInsights.isPending}
+                    className="px-5 py-2 rounded-xl text-[13px] font-medium border border-[var(--border)] text-[var(--muted)] hover:text-white hover:border-[var(--border-2)] transition-colors disabled:opacity-50"
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-14 h-14 rounded-2xl bg-[var(--accent-soft)] grid place-items-center">
+                  <Lightbulb size={22} className="text-[#90f048]" />
+                </div>
+                <div>
+                  <div className="text-[15px] font-semibold text-white">Nenhum insight ainda</div>
+                  <p className="text-[12.5px] text-[var(--muted)] max-w-xs mt-1 leading-relaxed">
+                    Gere uma análise automática com base nas suas transações.
+                  </p>
+                </div>
+                <button
+                  onClick={handleGenerate}
+                  disabled={generateInsights.isPending}
+                  className="btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold disabled:opacity-50"
+                >
+                  Gerar análise
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
