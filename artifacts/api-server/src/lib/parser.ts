@@ -67,6 +67,74 @@ function classifyCategory(description: string): string {
   return "Outros";
 }
 
+// ─── Segment-aware LLM classification ────────────────────────────────────────
+
+/**
+ * Re-classifies type and category for all records using a fast Claude Haiku call
+ * with the user's segment profile as context. This is the main fix for cases where
+ * the rule-based parser can't determine type from amount sign alone (e.g. a photography
+ * business tracking all receipts as positive values in a plain CSV).
+ */
+async function classifyWithSegment(
+  records: ExtractedRecord[],
+  ctx: ParseBusinessContext,
+): Promise<ExtractedRecord[]> {
+  const client = getAnthropicClient();
+  if (!client || records.length === 0) return records;
+
+  const profile = getSegmentProfile(ctx.segment, ctx.segmentCustomLabel);
+  const items = records
+    .map((r, i) => `${i + 1}. "${r.description}" (R$ ${r.amount.toFixed(2)})`)
+    .join("\n");
+
+  const prompt = `Você é um classificador financeiro para o segmento: ${profile.label}.
+${ctx.businessName ? `Negócio: ${ctx.businessName}\n` : ""}
+Definições para este segmento:
+- ENTRADA (income) = ${profile.terminologia.receita}: dinheiro RECEBIDO — serviços prestados, vendas, contratos, sessões realizadas
+- SAÍDA (expense) = ${profile.terminologia.despesa}: dinheiro PAGO — custos, compras, despesas operacionais
+
+Use seu conhecimento sobre ${profile.label} para classificar cada transação.
+Categorias típicas deste segmento: ${profile.categoriasComuns.join(", ")}
+
+Responda SOMENTE com um JSON array na mesma ordem, sem texto adicional:
+[{"type":"income","category":"Categoria curta"},{"type":"expense","category":"Categoria curta"}]
+
+Transações:
+${items}`;
+
+  try {
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      logger.warn("classifyWithSegment: no JSON array in response");
+      return records;
+    }
+
+    const classifications = JSON.parse(jsonMatch[0]) as { type: string; category: string }[];
+    logger.info({ segment: profile.label, count: records.length }, "Parser: segment classification applied");
+
+    return records.map((r, i) => {
+      const c = classifications[i];
+      if (!c) return r;
+      return {
+        ...r,
+        type: (c.type === "income" || c.type === "expense") ? c.type : r.type,
+        category: typeof c.category === "string" && c.category.trim() ? c.category.trim() : r.category,
+        confidence: 0.92,
+      };
+    });
+  } catch (err) {
+    logger.warn({ err }, "Parser: segment classification failed, keeping rule-based results");
+    return records;
+  }
+}
+
 // ─── Type classification ──────────────────────────────────────────────────────
 
 function classifyType(amount: number, description: string): "income" | "expense" {
@@ -439,7 +507,7 @@ function parseFromHeaderRow(aoa: unknown[][], headerIdx: number): Record<string,
   return XLSX.utils.sheet_to_json<Record<string, unknown>>(subSheet, { defval: "", raw: false });
 }
 
-export async function parseCSV(content: string): Promise<ExtractedRecord[]> {
+export async function parseCSV(content: string, ctx?: ParseBusinessContext): Promise<ExtractedRecord[]> {
   // Try comma-delimited first, then semicolon (Brazilian bank export)
   for (const delimiter of [",", ";"]) {
     try {
@@ -450,8 +518,13 @@ export async function parseCSV(content: string): Promise<ExtractedRecord[]> {
       const headerIdx = findHeaderRow(aoa);
       const rows = parseFromHeaderRow(aoa, headerIdx);
 
-      const records = rowsToRecords(rows, `CSV(${delimiter})`);
-      if (records.length > 0) return records;
+      let records = rowsToRecords(rows, `CSV(${delimiter})`);
+      if (records.length > 0) {
+        if (ctx?.segment || ctx?.segmentCustomLabel) {
+          records = await classifyWithSegment(records, ctx);
+        }
+        return records;
+      }
     } catch (err) {
       logger.warn({ err, delimiter }, "Parser: CSV delimiter attempt failed");
     }
@@ -459,7 +532,7 @@ export async function parseCSV(content: string): Promise<ExtractedRecord[]> {
   return [];
 }
 
-export async function parseXLSX(filePath: string): Promise<ExtractedRecord[]> {
+export async function parseXLSX(filePath: string, ctx?: ParseBusinessContext): Promise<ExtractedRecord[]> {
   const absPath = path.resolve(process.cwd(), filePath);
 
   if (!fs.existsSync(absPath)) {
@@ -490,9 +563,13 @@ export async function parseXLSX(filePath: string): Promise<ExtractedRecord[]> {
         logger.info({ sheetName, headerIdx, headerRow: aoa[headerIdx] }, "Parser: detected header row");
 
         const rows = parseFromHeaderRow(aoa, headerIdx);
-        const records = rowsToRecords(rows, `XLSX:${sheetName}`);
-
-        if (records.length > 0) return records;
+        let records = rowsToRecords(rows, `XLSX:${sheetName}`);
+        if (records.length > 0) {
+          if (ctx?.segment || ctx?.segmentCustomLabel) {
+            records = await classifyWithSegment(records, ctx);
+          }
+          return records;
+        }
       }
     } catch (err) {
       logger.warn({ err, opts }, "Parser: XLSX parse attempt failed, trying next option");
@@ -504,7 +581,7 @@ export async function parseXLSX(filePath: string): Promise<ExtractedRecord[]> {
     const wb = XLSX.readFile(absPath);
     for (const sheetName of wb.SheetNames) {
       const csv = XLSX.utils.sheet_to_csv(wb.Sheets[sheetName]);
-      const records = await parseCSV(csv);
+      const records = await parseCSV(csv, ctx);
       if (records.length > 0) {
         logger.info({ sheetName }, "Parser: used CSV fallback for XLSX sheet");
         return records;
@@ -589,9 +666,20 @@ export async function extractImageText(filePath: string, ctx?: ParseBusinessCont
   }
 }
 
-async function structureTextWithAI(text: string): Promise<string> {
+async function structureTextWithAI(text: string, ctx?: ParseBusinessContext): Promise<string> {
   const client = getAnthropicClient();
   if (!client) return "";
+
+  const profile = (ctx?.segment || ctx?.segmentCustomLabel)
+    ? getSegmentProfile(ctx!.segment, ctx!.segmentCustomLabel)
+    : null;
+
+  const segmentHint = profile
+    ? `\nContexto do negócio: segmento ${profile.label}.
+- ENTRADA (tipo=entrada): ${profile.terminologia.receita} — dinheiro recebido por serviços ou vendas
+- SAÍDA (tipo=saida): ${profile.terminologia.despesa} — custos, compras, despesas
+Use seu conhecimento sobre ${profile.label} para classificar o tipo de cada transação.\n`
+    : "\n- tipo=entrada para receitas/recebimentos, tipo=saida para despesas/pagamentos\n";
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -600,12 +688,13 @@ async function structureTextWithAI(text: string): Promise<string> {
       {
         role: "user",
         content: `Você é um assistente especializado em extração de dados financeiros.
-Analise o texto abaixo (pode ser extrato bancário, relatório financeiro, etc.) e extraia todas as transações.
-Retorne SOMENTE um CSV com as colunas: data,descricao,valor
-
+Analise o texto abaixo e extraia todas as transações financeiras.
+Retorne SOMENTE um CSV com as colunas: data,descricao,valor,tipo
+${segmentHint}
 Regras:
 - Datas no formato DD/MM/YYYY. Se não houver data, use a data de hoje.
-- Valores: positivos para receitas/entradas, negativos para despesas/saídas.
+- Valores sempre positivos (use a coluna "tipo" para indicar entrada/saída).
+- tipo: "entrada" para receitas, "saida" para despesas/pagamentos.
 - Use vírgula como separador de colunas. Use ponto como separador decimal.
 - Não inclua cabeçalho, não inclua explicações.
 - Se não houver dados financeiros, retorne somente: SEM_DADOS
@@ -620,19 +709,19 @@ ${text}`,
   return result === "SEM_DADOS" ? "" : result;
 }
 
-export async function rawTextToRecords(text: string): Promise<ExtractedRecord[]> {
+export async function rawTextToRecords(text: string, ctx?: ParseBusinessContext): Promise<ExtractedRecord[]> {
   if (!text.trim()) return generateMockRecords(3, "Texto extraído");
 
   // Try structured CSV parsing first (works for bank statement exports)
-  const records = await parseCSV(text);
+  const records = await parseCSV(text, ctx);
   if (records.length > 0) return records;
 
-  // Fallback: ask Claude to structure the raw text into CSV
+  // Fallback: ask Claude to structure the raw text into CSV with segment context
   logger.info("CSV parsing failed — attempting AI structuring");
   try {
-    const structured = await structureTextWithAI(text);
+    const structured = await structureTextWithAI(text, ctx);
     if (structured) {
-      const aiRecords = await parseCSV(structured);
+      const aiRecords = await parseCSV(structured, ctx);
       if (aiRecords.length > 0) {
         logger.info({ count: aiRecords.length }, "AI structuring succeeded");
         return aiRecords;

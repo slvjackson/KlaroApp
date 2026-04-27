@@ -99,16 +99,16 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
     const content = buffer.toString("utf-8");
 
     if (fileType === "csv") {
-      records = await parseCSV(content);
+      records = await parseCSV(content, parseCtx);
     } else if (fileType === "xlsx") {
-      records = await parseXLSX(stored.storedPath);
+      records = await parseXLSX(stored.storedPath, parseCtx);
     } else if (fileType === "pdf") {
       const text = await extractPDFText(stored.storedPath);
       await db
         .update(rawInputsTable)
         .set({ originalText: text })
         .where(eq(rawInputsTable.id, rawInput.id));
-      records = await rawTextToRecords(text);
+      records = await rawTextToRecords(text, parseCtx);
     } else {
       // Image: OCR with segment context for better categorisation
       const text = await extractImageText(stored.storedPath, parseCtx);
@@ -117,7 +117,7 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
           .update(rawInputsTable)
           .set({ originalText: text })
           .where(eq(rawInputsTable.id, rawInput.id));
-        records = await rawTextToRecords(text);
+        records = await rawTextToRecords(text, parseCtx);
       } else {
         records = generateMockRecords(3, "Imagem");
       }
