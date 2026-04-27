@@ -427,7 +427,7 @@ export default function Dashboard() {
 
             {uploads && uploads.length > 0 ? (
               <div className="space-y-2">
-                {uploads.slice(0, 5).map((upload) => (
+                {[...uploads].reverse().slice(0, 5).map((upload) => (
                   <div key={upload.id} className="flex items-center gap-3 p-2.5 rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.015)]">
                     <div className="w-8 h-8 bg-white/5 rounded-lg grid place-items-center shrink-0">
                       <FileText size={15} className="text-[var(--muted)]" />
