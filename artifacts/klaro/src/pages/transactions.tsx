@@ -265,7 +265,8 @@ export default function Transactions() {
           <div className="relative flex-1 min-w-[180px]">
             <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Filtrar por descrição ou categoria…"
-              className="field pl-9 pr-9 py-2 text-[12.5px]" />
+              className="field py-2 text-[12.5px]"
+              style={{ paddingLeft: "2.25rem", paddingRight: "2.25rem" }} />
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
             {search && (
               <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white">

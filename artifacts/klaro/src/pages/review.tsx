@@ -229,7 +229,8 @@ export default function Review() {
                 value={rowFilter}
                 onChange={(e) => setRowFilter(e.target.value)}
                 placeholder="Filtrar por descrição ou categoria…"
-                className="field pl-9 pr-8 py-2 text-[12px] w-full"
+                className="field py-2 text-[12px] w-full"
+                style={{ paddingLeft: "2.25rem", paddingRight: "2rem" }}
               />
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
               {rowFilter && (
