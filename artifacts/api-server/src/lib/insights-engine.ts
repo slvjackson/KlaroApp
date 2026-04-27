@@ -247,7 +247,9 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
 export async function generateInsights(transactions: Transaction[], ctx?: InsightBusinessContext): Promise<GeneratedInsight[]> {
   if (process.env.ANTHROPIC_API_KEY && transactions.length > 0) {
     try {
-      return await generateWithAI(transactions, ctx);
+      const aiResult = await generateWithAI(transactions, ctx);
+      if (aiResult.length > 0) return aiResult;
+      logger.warn("AI returned empty insights array, falling back to rule-based");
     } catch (err) {
       logger.error({ err }, "AI insight generation failed, falling back to rule-based");
     }

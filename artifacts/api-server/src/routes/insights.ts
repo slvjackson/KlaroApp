@@ -147,10 +147,9 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
       .orderBy(transactionsTable.date),
   ]);
 
-  const transactions =
-    period
-      ? rawTransactions.filter((t) => t.date >= getPeriodStartDate(period))
-      : rawTransactions;
+  // Default to 12 months when no period is specified to avoid feeding 25+ years of data
+  const effectivePeriod = period ?? "12m";
+  const transactions = rawTransactions.filter((t) => t.date >= getPeriodStartDate(effectivePeriod));
 
   const bp = userRow?.businessProfile as Record<string, unknown> | null;
 
