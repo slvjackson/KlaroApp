@@ -236,7 +236,10 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
     .then((r) => r[0]);
 
   const bp = userRow?.businessProfile as Record<string, unknown> | null;
-  const segmentProfile = getSegmentProfile(bp?.segment as string | undefined);
+  const segmentProfile = getSegmentProfile(
+    bp?.segment as string | undefined,
+    bp?.segmentCustomLabel as string | undefined,
+  );
   const today = getTodayBrasilia();
 
   const systemPrompt = `Você é o Klaro, um consultor financeiro de IA para pequenos e médios negócios brasileiros.
@@ -246,7 +249,7 @@ Data de hoje: ${today}
 
 PERFIL DO NEGÓCIO:
   Nome: ${userRow?.name ?? "Usuário"}
-  Segmento: ${segmentProfile.label}
+  Segmento: ${segmentProfile.label}${bp?.segment === "outro" ? " (segmento não listado — use conhecimento geral de mercado para este setor)" : ""}
   Terminologia: receita = "${segmentProfile.terminologia.receita}", despesa = "${segmentProfile.terminologia.despesa}", cliente = "${segmentProfile.terminologia.cliente}"
   Foco de análise: ${segmentProfile.focoInsights}
 

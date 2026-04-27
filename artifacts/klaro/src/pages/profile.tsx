@@ -138,6 +138,7 @@ export default function Profile() {
   const [businessName, setBusinessName] = useState(String(bp?.businessName ?? ""));
   const [name, setName] = useState(user?.name ?? "");
   const [segment, setSegment] = useState(String(bp?.segment ?? ""));
+  const [segmentCustomLabel, setSegmentCustomLabel] = useState(String(bp?.segmentCustomLabel ?? ""));
   const [state, setState] = useState(String(bp?.state ?? ""));
   const [city, setCity] = useState(String(bp?.city ?? ""));
   const [employeeCount, setEmployeeCount] = useState(bp?.employeeCount ? String(bp.employeeCount) : "");
@@ -181,7 +182,9 @@ export default function Profile() {
         body: JSON.stringify({
           name: name.trim() || undefined,
           businessProfile: {
-            businessName: businessName.trim() || undefined, segment: segment || undefined,
+            businessName: businessName.trim() || undefined,
+            segment: segment || undefined,
+            segmentCustomLabel: segment === "outro" ? (segmentCustomLabel.trim() || undefined) : undefined,
             state: state || undefined, city: city.trim() || undefined,
             employeeCount: employeeCount ? Number(employeeCount) : undefined,
             openDays: openDays.length > 0 ? openDays : undefined,
@@ -307,6 +310,20 @@ export default function Profile() {
                 </button>
               ))}
             </div>
+            {segment === "outro" && (
+              <div className="mt-3">
+                <input
+                  className="field"
+                  placeholder="Descreva seu segmento (ex: Panificadora, Pet Shop, Gráfica…)"
+                  value={segmentCustomLabel}
+                  onChange={(e) => setSegmentCustomLabel(e.target.value)}
+                  maxLength={80}
+                />
+                <p className="text-[11px] text-[var(--muted)] mt-1">
+                  A IA usará esse contexto para personalizar análises e insights.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -100,6 +100,7 @@ router.post("/insights/check-milestones", requireAuth, async (req, res): Promise
   const generated = await generateInsights(transactions, {
     businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
     segment: bp?.segment as string | undefined,
+    segmentCustomLabel: bp?.segmentCustomLabel as string | undefined,
     city: bp?.city as string | undefined,
     state: bp?.state as string | undefined,
     mainProducts: bp?.mainProducts as string | undefined,
@@ -162,6 +163,7 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
   const generated = await generateInsights(transactions, {
     businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
     segment: bp?.segment as string | undefined,
+    segmentCustomLabel: bp?.segmentCustomLabel as string | undefined,
     city: bp?.city as string | undefined,
     state: bp?.state as string | undefined,
     mainProducts: bp?.mainProducts as string | undefined,

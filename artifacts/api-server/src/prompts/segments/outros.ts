@@ -12,8 +12,8 @@ export const outro: SegmentProfile = {
     "Receitas diversas", "Despesas operacionais", "Folha de Pagamento",
     "Impostos", "Marketing", "Equipamentos", "Aluguel", "Outros",
   ],
-  focoInsights: "equilíbrio entre receitas e despesas, margem de lucro, fluxo de caixa e sazonalidade",
-  tom: "direto e prático, como um consultor financeiro generalista — fale sobre fluxo de caixa, margem e planejamento",
+  focoInsights: "equilíbrio entre receitas e despesas, margem de lucro, fluxo de caixa e sazonalidade. Use seu conhecimento geral sobre o segmento informado pelo usuário para contextualizar as análises e sugerir benchmarks típicos daquele mercado",
+  tom: "direto e prático, como um consultor financeiro generalista. Use conhecimento geral do mercado para o segmento específico do usuário — mencione práticas, benchmarks e desafios típicos daquele setor quando relevante",
   exemplosDocumentos: [
     "nota fiscal", "recibo", "boleto bancário", "extrato bancário",
     "comprovante de pagamento", "planilha de controle",

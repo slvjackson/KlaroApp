@@ -8,6 +8,7 @@ import { buildOcrPrompt, getSegmentProfile } from "../prompts/builder";
 export interface ParseBusinessContext {
   businessName?: string;
   segment?: string;
+  segmentCustomLabel?: string;
   mainProducts?: string;
   salesChannel?: string;
 }
@@ -552,7 +553,7 @@ export async function extractImageText(filePath: string, ctx?: ParseBusinessCont
 
   const promptText = buildOcrPrompt({
     businessName: ctx?.businessName,
-    segment: getSegmentProfile(ctx?.segment),
+    segment: getSegmentProfile(ctx?.segment, ctx?.segmentCustomLabel),
     mainProducts: ctx?.mainProducts,
     salesChannel: ctx?.salesChannel,
   });

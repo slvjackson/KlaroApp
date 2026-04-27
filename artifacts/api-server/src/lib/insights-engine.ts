@@ -18,6 +18,7 @@ export interface GeneratedInsight {
 export interface InsightBusinessContext {
   businessName?: string;
   segment?: string;
+  segmentCustomLabel?: string;
   city?: string;
   state?: string;
   employeeCount?: number;
@@ -131,7 +132,7 @@ async function generateWithAI(transactions: Transaction[], ctx?: InsightBusiness
 
   const promptText = buildInsightsPrompt(summary, {
     businessName: ctx?.businessName,
-    segment: getSegmentProfile(ctx?.segment),
+    segment: getSegmentProfile(ctx?.segment, ctx?.segmentCustomLabel),
     city: ctx?.city,
     state: ctx?.state,
     employeeCount: ctx?.employeeCount,

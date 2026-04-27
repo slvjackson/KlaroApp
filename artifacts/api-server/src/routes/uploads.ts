@@ -88,6 +88,7 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
   const parseCtx = {
     businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
     segment: bp?.segment as string | undefined,
+    segmentCustomLabel: bp?.segmentCustomLabel as string | undefined,
     mainProducts: bp?.mainProducts as string | undefined,
     salesChannel: bp?.salesChannel as string | undefined,
   };
