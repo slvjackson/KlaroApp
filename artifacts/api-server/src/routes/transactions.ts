@@ -55,6 +55,38 @@ router.post("/transactions", requireAuth, async (req, res): Promise<void> => {
   res.status(201).json(created);
 });
 
+// PATCH /transactions/bulk-update — update category/type on multiple transactions
+// Must be defined BEFORE /transactions/:id to avoid "bulk-update" matching as :id
+router.patch("/transactions/bulk-update", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const { ids, category, type } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({ error: "ids obrigatório." });
+    return;
+  }
+  if (type !== undefined && type !== "income" && type !== "expense") {
+    res.status(400).json({ error: "type inválido." });
+    return;
+  }
+
+  const patch: Record<string, unknown> = {};
+  if (typeof category === "string" && category.trim()) patch.category = category.trim();
+  if (type) patch.type = type;
+
+  if (Object.keys(patch).length === 0) {
+    res.status(400).json({ error: "Nada para atualizar." });
+    return;
+  }
+
+  await db
+    .update(transactionsTable)
+    .set(patch)
+    .where(and(inArray(transactionsTable.id, ids), eq(transactionsTable.userId, userId)));
+
+  res.json({ updatedCount: ids.length });
+});
+
 // PATCH /transactions/:id — edit a transaction
 router.patch("/transactions/:id", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
@@ -153,37 +185,6 @@ router.get("/transactions", requireAuth, async (req, res): Promise<void> => {
     .offset(offset);
 
   res.json(transactions);
-});
-
-// PATCH /transactions/bulk-update — update category/type on multiple transactions
-router.patch("/transactions/bulk-update", requireAuth, async (req, res): Promise<void> => {
-  const userId = req.session.userId!;
-  const { ids, category, type } = req.body;
-
-  if (!Array.isArray(ids) || ids.length === 0) {
-    res.status(400).json({ error: "ids obrigatório." });
-    return;
-  }
-  if (type !== undefined && type !== "income" && type !== "expense") {
-    res.status(400).json({ error: "type inválido." });
-    return;
-  }
-
-  const patch: Record<string, unknown> = {};
-  if (typeof category === "string" && category.trim()) patch.category = category.trim();
-  if (type) patch.type = type;
-
-  if (Object.keys(patch).length === 0) {
-    res.status(400).json({ error: "Nada para atualizar." });
-    return;
-  }
-
-  await db
-    .update(transactionsTable)
-    .set(patch)
-    .where(and(inArray(transactionsTable.id, ids), eq(transactionsTable.userId, userId)));
-
-  res.json({ updatedCount: ids.length });
 });
 
 // DELETE /transactions/bulk-delete — delete multiple transactions
