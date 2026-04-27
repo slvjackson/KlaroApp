@@ -164,27 +164,21 @@ function classifyType(amount: number, description: string): "income" | "expense"
 
 // ─── Date normalization ───────────────────────────────────────────────────────
 
-/**
- * Resolve a day+month (no year) to a full date using temporal inference:
- * - If day/month is today or in the past this month → current year
- * - If day/month would be in the future → previous year
- */
-function inferYear(day: number, month: number): number {
-  const now = new Date();
-  const candidate = new Date(now.getFullYear(), month - 1, day);
-  // If the candidate date is strictly in the future, step back one year
-  if (candidate > now) return now.getFullYear() - 1;
-  return now.getFullYear();
+/** Always resolve partial dates to the current year. */
+function currentYear(): number {
+  return new Date().getFullYear();
 }
 
 /**
  * Convert any date value to "YYYY-MM-DD".
  * Handles: Excel serial ints, JS Date, DD/MM/YYYY, DD/MM/YY, DD/MM (no year),
- * day-only, ISO, with/without time. Applies temporal inference for incomplete dates.
+ * day-only, ISO, with/without time. Always uses the current year for partial dates.
+ * Prefers Brazilian format DD/MM/YYYY; falls back to US MM/DD/YYYY only when p2 > 12.
  */
 function normalizeDate(raw: unknown): string {
   const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const year = now.getFullYear();
+  const today = `${year}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   if (raw === null || raw === undefined || raw === "") return today;
 
   // Excel serial date number
@@ -198,14 +192,10 @@ function normalizeDate(raw: unknown): string {
     return today;
   }
 
-  // JS Date object — if the year looks wrong (XLSX coercion artifact), fall back to inferYear
+  // JS Date object — if year looks wrong (XLSX coercion artifact), use current year
   if (raw instanceof Date && !isNaN(raw.getTime())) {
     const d = raw;
-    const yr = d.getFullYear();
-    if (yr < 2010) {
-      const y = inferYear(d.getDate(), d.getMonth() + 1);
-      return `${y}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    }
+    const yr = d.getFullYear() < 2010 ? year : d.getFullYear();
     return `${yr}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
@@ -221,48 +211,36 @@ function normalizeDate(raw: unknown): string {
   const partsWithYear = noTime.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
   if (partsWithYear) {
     const [, p1, p2, yr] = partsWithYear;
-    const yearNum = parseInt(yr.length === 2 ? `20${yr}` : yr, 10);
     const n1 = parseInt(p1, 10);
     const n2 = parseInt(p2, 10);
-
-    // Reject implausible years that result from XLSX coercing "DD/MM" strings into dates
-    // with a default year (e.g. "05/01" → "5/1/01" → year 2001). Use inferYear instead.
-    if (yearNum < 2010) {
-      let day: number, month: number;
-      if (n1 > 12) { day = n1; month = n2; }
-      else if (n2 > 12) { day = n2; month = n1; }
-      else { day = n1; month = n2; }
-      const y = inferYear(day, month);
-      return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    }
-
-    const year = String(yearNum);
-    if (n1 > 12) return `${year}-${p2.padStart(2, "0")}-${p1.padStart(2, "0")}`;
-    if (n2 > 12) return `${year}-${p1.padStart(2, "0")}-${p2.padStart(2, "0")}`;
-    // Ambiguous: assume DD/MM (Brazilian standard)
-    return `${year}-${p2.padStart(2, "0")}-${p1.padStart(2, "0")}`;
+    // If the parsed year is implausible (XLSX artifact), replace with current year
+    const parsedYear = parseInt(yr.length === 2 ? `20${yr}` : yr, 10);
+    const resolvedYear = parsedYear < 2010 ? year : parsedYear;
+    const yearStr = String(resolvedYear);
+    // Prefer BR (DD/MM) — only read as US (MM/DD) when n2 > 12 forces it
+    if (n1 > 12) return `${yearStr}-${p2.padStart(2, "0")}-${p1.padStart(2, "0")}`;  // n1=day, n2=month (DD/MM)
+    if (n2 > 12) return `${yearStr}-${p1.padStart(2, "0")}-${p2.padStart(2, "0")}`;  // n2=day, n1=month (MM/DD)
+    return `${yearStr}-${p2.padStart(2, "0")}-${p1.padStart(2, "0")}`;               // assume DD/MM: p1=day, p2=month
   }
 
-  // DD/MM or DD-MM without year → infer year
+  // DD/MM or DD-MM without year → current year, BR format (DD/MM)
   const partsNoYear = noTime.match(/^(\d{1,2})[\/\-\.](\d{1,2})$/);
   if (partsNoYear) {
     const [, p1, p2] = partsNoYear;
     const n1 = parseInt(p1, 10);
     const n2 = parseInt(p2, 10);
     let day: number, month: number;
-    if (n1 > 12) { day = n1; month = n2; }
-    else if (n2 > 12) { day = n2; month = n1; }
-    else { day = n1; month = n2; } // assume DD/MM Brazilian
-    const year = inferYear(day, month);
+    if (n1 > 12) { day = n1; month = n2; }      // n1=day, n2=month (DD/MM)
+    else if (n2 > 12) { day = n2; month = n1; } // n2=day, n1=month (MM/DD US)
+    else { day = n1; month = n2; }              // assume DD/MM Brazilian: p1=day, p2=month
     return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
 
-  // Day only (e.g. "16") → current month/year, or previous month if future
+  // Day only (e.g. "16") → current month, current year
   if (/^\d{1,2}$/.test(noTime)) {
     const day = parseInt(noTime, 10);
     if (day >= 1 && day <= 31) {
       const month = now.getMonth() + 1;
-      const year = inferYear(day, month);
       return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     }
   }
@@ -742,13 +720,19 @@ Use seu conhecimento sobre ${profile.label} para classificar o tipo de cada tran
 Analise o texto abaixo e extraia todas as transações financeiras.
 Retorne SOMENTE um CSV com as colunas: data,descricao,valor,tipo
 ${segmentHint}
-Regras:
-- Datas no formato DD/MM/YYYY. Se não houver data, use a data de hoje.
+Regras gerais:
 - Valores sempre positivos (use a coluna "tipo" para indicar entrada/saída).
 - tipo: "entrada" para receitas, "saida" para despesas/pagamentos.
 - Use vírgula como separador de colunas. Use ponto como separador decimal.
 - Não inclua cabeçalho, não inclua explicações.
 - Se não houver dados financeiros, retorne somente: SEM_DADOS
+
+Regras de data (IMPORTANTE):
+- Formato de saída sempre DD/MM/YYYY com o ano completo (ex: 05/01/${new Date().getFullYear()}).
+- Prefira sempre o padrão brasileiro DD/MM/YYYY. Só use MM/DD/YYYY se o dia for > 12 e estiver na segunda posição.
+- Se houver apenas o dia (ex: "10") → dia 10, mês atual (${new Date().getMonth() + 1}), ano atual (${new Date().getFullYear()}).
+- Se houver apenas dia/mês (ex: "10/01") → dia 10, mês 01, ano atual (${new Date().getFullYear()}).
+- Nunca invente datas; se não houver nenhuma informação de data, use a data de hoje (${new Date().toLocaleDateString("pt-BR")}).
 
 Texto:
 ${text}`,
