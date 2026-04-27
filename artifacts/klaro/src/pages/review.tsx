@@ -225,7 +225,7 @@ export default function Review() {
         {!isLoading && (upload?.parsedRecords?.length ?? 0) > 0 && (
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-xs">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none z-10" />
               <input
                 value={rowFilter}
                 onChange={(e) => setRowFilter(e.target.value)}

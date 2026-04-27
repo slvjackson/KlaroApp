@@ -59,10 +59,17 @@ export default function Transactions() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState<string | null>(null);
+
+  // Single-item action sheet
+  const [actionItem, setActionItem] = useState<TransactionData | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Edit dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TransactionData | null>(null);
 
-  // Categories
+  // Categories for bulk panel
   const [existingCats, setExistingCats] = useState<string[]>([]);
   const [suggestedCats, setSuggestedCats] = useState<string[]>([]);
   const [sessionCats, setSessionCats] = useState<string[]>([]);
@@ -127,8 +134,7 @@ export default function Transactions() {
     setAddingCustomCat(false);
     setCustomCatInput("");
     if (!val) return;
-    const lower = val.toLowerCase();
-    if (![...existingCats, ...sessionCats].some((c) => c.toLowerCase() === lower)) {
+    if (![...existingCats, ...sessionCats].some((c) => c.toLowerCase() === val.toLowerCase())) {
       setSessionCats((prev) => [...prev, val]);
     }
     setBulkCategory(val);
@@ -145,6 +151,20 @@ export default function Transactions() {
   function toggleRow(id: number, e: React.MouseEvent) {
     e.stopPropagation();
     setSelected((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  }
+
+  async function handleDeleteSingle() {
+    if (!actionItem) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/transactions/${actionItem.id}`, { method: "DELETE" });
+      queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["getDashboardSummary"] });
+      setActionItem(null);
+      setConfirmDelete(false);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleBulkApply() {
@@ -229,12 +249,12 @@ export default function Transactions() {
           </select>
 
           <div className="relative flex-1 min-w-[180px]">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none z-10" />
             <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Filtrar por descrição ou categoria…"
               className="field pl-9 pr-9 py-2 text-[12.5px]" />
             {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white">
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white z-10">
                 <X size={13} />
               </button>
             )}
@@ -267,7 +287,6 @@ export default function Transactions() {
               </button>
             </div>
 
-            {/* Category chips */}
             <div className="space-y-2">
               <p className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-[0.12em]">Categoria</p>
               <div className="flex flex-wrap gap-1.5">
@@ -314,7 +333,6 @@ export default function Transactions() {
               )}
             </div>
 
-            {/* Type + Date + Apply + Delete */}
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex gap-0.5 p-0.5 rounded-lg bg-[rgba(255,255,255,0.04)] border border-[var(--border)]">
                 {([["", "Manter"], ["income", "Entrada"], ["expense", "Saída"]] as const).map(([val, label]) => (
@@ -352,7 +370,6 @@ export default function Transactions() {
 
         {/* Transaction list */}
         <div className="glass rounded-2xl overflow-hidden">
-          {/* Select all row */}
           {!isLoading && filtered.length > 0 && (
             <div className="flex items-center gap-3 px-5 py-2 border-b border-[var(--border)] bg-white/[0.015]">
               <button onClick={toggleAll} className="text-[var(--muted)] hover:text-white transition-colors">
@@ -397,22 +414,17 @@ export default function Transactions() {
                 const isChecked = selected.has(t.id);
                 return (
                   <div key={t.id}
-                    onClick={() => { setEditing(t); setDialogOpen(true); }}
+                    onClick={() => { setActionItem(t); setConfirmDelete(false); }}
                     className={`group flex items-center gap-3 px-5 py-3 transition-colors cursor-pointer ${
                       isChecked ? "bg-[var(--accent-soft)]/20" : "hover:bg-white/[0.025]"
                     }`}>
-                    {/* Checkbox — stops propagation so it doesn't open dialog */}
-                    <button
-                      onClick={(e) => toggleRow(t.id, e)}
+                    <button onClick={(e) => toggleRow(t.id, e)}
                       className="shrink-0 text-[var(--muted)] hover:text-white transition-colors">
                       {isChecked
                         ? <CheckSquare size={14} className="text-[var(--accent)]" />
                         : <Square size={14} />}
                     </button>
-
-                    <div className={`w-9 h-9 rounded-lg grid place-items-center text-base shrink-0 ${
-                      isIn ? "bg-[var(--income-soft)]" : "bg-white/5"
-                    }`}>
+                    <div className={`w-9 h-9 rounded-lg grid place-items-center text-base shrink-0 ${isIn ? "bg-[var(--income-soft)]" : "bg-white/5"}`}>
                       {catIcon(t.category)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -427,16 +439,12 @@ export default function Transactions() {
                       <div className={`text-[13.5px] font-semibold tnum ${isIn ? "text-[var(--income)]" : "text-white"}`}>
                         {isIn ? "+ " : "− "}{brl(Math.abs(t.amount))}
                       </div>
-                      <div className={`w-5 h-5 rounded-full grid place-items-center ${
-                        isIn ? "bg-[var(--income-soft)] text-[var(--income)]" : "bg-[var(--expense-soft)] text-[var(--expense)]"
-                      }`}>
+                      <div className={`w-5 h-5 rounded-full grid place-items-center ${isIn ? "bg-[var(--income-soft)] text-[var(--income)]" : "bg-[var(--expense-soft)] text-[var(--expense)]"}`}>
                         {isIn ? <ArrowDown size={11} /> : <ArrowUp size={11} />}
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEditing(t); setDialogOpen(true); }}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5 transition-all">
+                      <div className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--muted)] transition-all">
                         <Pencil size={13} />
-                      </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -452,6 +460,87 @@ export default function Transactions() {
         aria-label="Nova transação">
         <Plus size={22} className="text-white" />
       </button>
+
+      {/* Action sheet — edit or delete a single transaction */}
+      {actionItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setActionItem(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="glass-strong rounded-2xl p-5 w-full max-w-sm relative z-10 fadeUp"
+            onClick={(e) => e.stopPropagation()}>
+
+            {!confirmDelete ? (
+              <>
+                {/* Transaction summary */}
+                <div className="mb-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={`w-10 h-10 rounded-xl grid place-items-center text-lg ${
+                      actionItem.type === "income" ? "bg-[var(--income-soft)]" : "bg-white/5"
+                    }`}>
+                      {catIcon(actionItem.category)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-semibold text-white truncate">{actionItem.description}</div>
+                      <div className="text-[11px] text-[var(--muted)]">{actionItem.category}</div>
+                    </div>
+                    <button onClick={() => setActionItem(null)}
+                      className="w-7 h-7 grid place-items-center rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="flex items-baseline justify-between px-1">
+                    <span className={`text-[22px] font-bold ${actionItem.type === "income" ? "text-[var(--income)]" : "text-white"}`}>
+                      {actionItem.type === "income" ? "+" : "−"} {brl(Math.abs(actionItem.amount))}
+                    </span>
+                    <span className="text-[12px] text-[var(--muted)]">
+                      {format(new Date(actionItem.date.slice(0, 10) + "T12:00:00"), "dd/MM/yyyy")}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setActionItem(null); setEditing(actionItem); setDialogOpen(true); }}
+                    className="btn-primary flex-1 h-10 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2">
+                    <Pencil size={13} />
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="h-10 px-4 rounded-xl border border-[rgba(244,63,94,0.35)] text-[var(--expense)] text-[13px] font-semibold hover:bg-[rgba(244,63,94,0.08)] transition-colors flex items-center gap-2">
+                    <Trash2 size={13} />
+                    Excluir
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Delete confirmation */}
+                <div className="mb-5 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-[rgba(244,63,94,0.12)] border border-[rgba(244,63,94,0.25)] grid place-items-center mx-auto mb-3">
+                    <Trash2 size={20} className="text-[var(--expense)]" />
+                  </div>
+                  <p className="text-[15px] font-semibold text-white mb-1">Excluir transação?</p>
+                  <p className="text-[12.5px] text-[var(--muted)] leading-relaxed">
+                    <span className="text-white font-medium">"{actionItem.description}"</span> será removida permanentemente.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirmDelete(false)}
+                    className="flex-1 h-10 rounded-xl border border-[var(--border)] text-[var(--muted)] text-[13px] font-medium hover:text-white hover:border-white/20 transition-colors">
+                    Cancelar
+                  </button>
+                  <button onClick={handleDeleteSingle} disabled={deleting}
+                    className="flex-1 h-10 rounded-xl bg-[rgba(244,63,94,0.12)] border border-[rgba(244,63,94,0.4)] text-[var(--expense)] text-[13px] font-semibold hover:bg-[rgba(244,63,94,0.2)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                    {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                    Confirmar exclusão
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <TransactionDialog open={dialogOpen} editing={editing} onClose={() => setDialogOpen(false)} />
     </Layout>
