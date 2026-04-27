@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
-import { db, rawInputsTable, parsedRecordsTable, usersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, rawInputsTable, parsedRecordsTable, usersTable, transactionsTable } from "@workspace/db";
+import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { saveFile, deleteFile } from "../lib/storage";
 import { parseCSV, parseXLSX, extractPDFText, extractImageText, rawTextToRecords, generateMockRecords } from "../lib/parser";
@@ -85,12 +85,33 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
     .where(eq(usersTable.id, userId))
     .then((r) => r[0]);
   const bp = userRow?.businessProfile as Record<string, unknown> | null;
+
+  // Fetch the user's most recent confirmed transactions as few-shot examples for the classifier
+  const recentTransactions = await db
+    .select({ description: transactionsTable.description, type: transactionsTable.type, category: transactionsTable.category })
+    .from(transactionsTable)
+    .where(eq(transactionsTable.userId, userId))
+    .orderBy(desc(transactionsTable.createdAt))
+    .limit(40);
+
+  // Deduplicate by category: keep the first (most recent) example per category to stay concise
+  const seenCategories = new Set<string>();
+  const userExamples = recentTransactions
+    .filter((t) => {
+      const key = t.category.toLowerCase();
+      if (seenCategories.has(key)) return false;
+      seenCategories.add(key);
+      return true;
+    })
+    .map((t) => ({ description: t.description, type: t.type as "income" | "expense", category: t.category }));
+
   const parseCtx = {
     businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
     segment: bp?.segment as string | undefined,
     segmentCustomLabel: bp?.segmentCustomLabel as string | undefined,
     mainProducts: bp?.mainProducts as string | undefined,
     salesChannel: bp?.salesChannel as string | undefined,
+    userExamples: userExamples.length > 0 ? userExamples : undefined,
   };
 
   // Parse the file synchronously so records are ready when the review page loads

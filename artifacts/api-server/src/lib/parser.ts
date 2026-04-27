@@ -5,12 +5,19 @@ import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "./logger";
 import { buildOcrPrompt, getSegmentProfile } from "../prompts/builder";
 
+export interface UserCategoryExample {
+  description: string;
+  type: "income" | "expense";
+  category: string;
+}
+
 export interface ParseBusinessContext {
   businessName?: string;
   segment?: string;
   segmentCustomLabel?: string;
   mainProducts?: string;
   salesChannel?: string;
+  userExamples?: UserCategoryExample[];
 }
 
 function getAnthropicClient(): Anthropic | null {
@@ -87,6 +94,14 @@ async function classifyWithSegment(
     .map((r, i) => `${i + 1}. "${r.description}" (R$ ${r.amount.toFixed(2)})`)
     .join("\n");
 
+  const examplesSection = ctx.userExamples && ctx.userExamples.length > 0
+    ? `\nExemplos de como ESTE usuário já categorizou transações similares (priorize estes padrões):\n${
+        ctx.userExamples
+          .map((e) => `- "${e.description}" → type=${e.type}, category="${e.category}"`)
+          .join("\n")
+      }\n`
+    : "";
+
   const prompt = `Você é um classificador financeiro para o segmento: ${profile.label}.
 ${ctx.businessName ? `Negócio: ${ctx.businessName}\n` : ""}
 Definições para este segmento:
@@ -95,7 +110,7 @@ Definições para este segmento:
 
 Use seu conhecimento sobre ${profile.label} para classificar cada transação.
 Categorias típicas deste segmento: ${profile.categoriasComuns.join(", ")}
-
+${examplesSection}
 Responda SOMENTE com um JSON array na mesma ordem, sem texto adicional:
 [{"type":"income","category":"Categoria curta"},{"type":"expense","category":"Categoria curta"}]
 
