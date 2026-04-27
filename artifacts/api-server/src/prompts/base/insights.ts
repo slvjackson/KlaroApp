@@ -46,7 +46,7 @@ export function buildInsightsPrompt(financialSummary: string, ctx: InsightsPromp
     : "";
 
   return `Você é um consultor financeiro especialista em pequenos e médios negócios brasileiros.
-Analise os dados financeiros abaixo e gere exatamente 5 insights práticos e acionáveis para o dono do negócio.
+Analise os dados financeiros abaixo e gere entre 3 e 5 insights práticos e acionáveis para o dono do negócio.
 ${profileSection}${segmentGuidelines}
 ${financialSummary}
 
@@ -61,6 +61,8 @@ Retorne SOMENTE um JSON válido com este formato (sem markdown, sem explicaçõe
 ]
 
 Diretrizes gerais:
+- SEMPRE gere ao menos 3 insights, independente do volume de dados — com poucos dados, foque no que está disponível e aponte o que falta para análises mais completas
+- Nunca retorne um array vazio; se os dados forem limitados, comente isso dentro do insight
 - Use linguagem simples e direta, como conversa entre amigos
 - Cite números reais do resumo (R$, %, meses)
 - Cada insight deve abordar um ângulo diferente: tendência, produto/serviço, despesa, oportunidade, alerta

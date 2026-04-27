@@ -77,9 +77,9 @@ export default function Insights() {
                   <Upload size={22} className="text-[#f59e0b]" />
                 </div>
                 <div>
-                  <div className="text-[15px] font-semibold text-white">Dados insuficientes</div>
+                  <div className="text-[15px] font-semibold text-white">Não foi possível gerar insights</div>
                   <p className="text-[12.5px] text-[var(--muted)] max-w-sm mt-1 leading-relaxed">
-                    Você precisa fazer upload de mais dados para podermos gerar um insight valioso para o seu negócio.
+                    Verifique se suas transações foram <strong className="text-white">confirmadas</strong> após o upload (tela de revisão → "Confirmar Registros"). Se já confirmou, tente gerar novamente.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
