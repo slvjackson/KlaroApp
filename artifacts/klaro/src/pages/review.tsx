@@ -225,13 +225,13 @@ export default function Review() {
         {!isLoading && (upload?.parsedRecords?.length ?? 0) > 0 && (
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-xs">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none z-10" />
               <input
                 value={rowFilter}
                 onChange={(e) => setRowFilter(e.target.value)}
                 placeholder="Filtrar por descrição ou categoria…"
                 className="field pl-9 pr-8 py-2 text-[12px] w-full"
               />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
               {rowFilter && (
                 <button onClick={() => setRowFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white">
                   <X size={12} />

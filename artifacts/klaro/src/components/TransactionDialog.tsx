@@ -123,7 +123,9 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
     setCategory(val);
   }
 
-  async function handleSave() {
+  const [pendingAction, setPendingAction] = useState<"save" | "delete" | null>(null);
+
+  function requestSave() {
     const trimDesc = description.trim();
     const parsedAmount = parseFloat(amount.replace(",", "."));
     if (!trimDesc) { setError("Informe uma descrição."); return; }
@@ -131,8 +133,20 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
     if (!category) { setError("Selecione uma categoria."); return; }
     const isoDate = brToISO(date);
     if (!isoDate) { setError("Data inválida. Use dd/mm/aaaa."); return; }
-
     setError("");
+    setPendingAction("save");
+  }
+
+  function requestDelete() {
+    if (!editing) return;
+    setPendingAction("delete");
+  }
+
+  async function handleSave() {
+    const trimDesc = description.trim();
+    const parsedAmount = parseFloat(amount.replace(",", "."));
+    const isoDate = brToISO(date)!;
+    setPendingAction(null);
     setLoading(true);
     try {
       const res = await fetch(
@@ -140,7 +154,7 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
         {
           method: isEdit ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ description: trimDesc, amount: parsedAmount, type, category, date: isoDate }),
+          body: JSON.stringify({ description: trimDesc.trim(), amount: parsedAmount, type, category, date: isoDate }),
         },
       );
       if (!res.ok) {
@@ -159,7 +173,8 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
   }
 
   async function handleDelete() {
-    if (!editing || !confirm("Excluir esta transação?")) return;
+    if (!editing) return;
+    setPendingAction(null);
     setLoading(true);
     try {
       await fetch(`/api/transactions/${editing.id}`, { method: "DELETE" });
@@ -173,6 +188,43 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
   }
 
   if (!open) return null;
+
+  if (pendingAction) {
+    const isDelete = pendingAction === "delete";
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setPendingAction(null)}>
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <div className="glass-strong rounded-2xl p-6 w-full max-w-sm relative z-10 fadeUp" onClick={(e) => e.stopPropagation()}>
+          <div className="text-center mb-5">
+            <p className="text-[15px] font-semibold text-white mb-2">
+              {isDelete ? "Excluir transação?" : "Salvar alterações?"}
+            </p>
+            <p className="text-[13px] text-[var(--muted)] leading-relaxed">
+              {isDelete
+                ? `Você está excluindo 1 transação. Tem certeza que deseja continuar? Esta ação é irreversível.`
+                : `Você está editando 1 transação. Tem certeza que deseja continuar?`}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setPendingAction(null)}
+              className="flex-1 h-10 rounded-xl border border-[var(--border)] text-[var(--muted)] text-[13px] font-medium hover:text-white hover:border-white/20 transition-colors">
+              Cancelar
+            </button>
+            <button
+              onClick={isDelete ? handleDelete : handleSave}
+              disabled={loading}
+              className={`flex-1 h-10 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50 transition-colors ${
+                isDelete
+                  ? "bg-[rgba(244,63,94,0.12)] border border-[rgba(244,63,94,0.4)] text-[var(--expense)] hover:bg-[rgba(244,63,94,0.2)]"
+                  : "btn-primary"
+              }`}>
+              {loading ? <Loader2 size={13} className="animate-spin" /> : isDelete ? "Sim, excluir" : "Sim, salvar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -222,7 +274,7 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Ex: Compra de estoque, Pagamento cliente…"
-              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              onKeyDown={(e) => e.key === "Enter" && requestSave()}
             />
           </div>
 
@@ -329,7 +381,7 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
           <div className="flex gap-2 pt-1">
             {isEdit && (
               <button
-                onClick={handleDelete}
+                onClick={requestDelete}
                 disabled={loading}
                 className="w-10 h-10 grid place-items-center rounded-xl border border-[rgba(244,63,94,0.3)] text-[var(--expense)] hover:bg-[rgba(244,63,94,0.08)] transition-colors shrink-0 disabled:opacity-50"
               >
@@ -337,7 +389,7 @@ export function TransactionDialog({ open, editing, onClose }: Props) {
               </button>
             )}
             <button
-              onClick={handleSave}
+              onClick={requestSave}
               disabled={loading}
               className="btn-primary flex-1 h-10 rounded-xl text-[13.5px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
             >

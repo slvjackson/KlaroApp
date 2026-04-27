@@ -65,6 +65,10 @@ export default function Transactions() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Bulk confirmation modal
+  type BulkPending = { action: "apply" | "delete"; ids: number[] } | null;
+  const [bulkPending, setBulkPending] = useState<BulkPending>(null);
+
   // Edit dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TransactionData | null>(null);
@@ -167,17 +171,27 @@ export default function Transactions() {
     }
   }
 
-  async function handleBulkApply() {
+  function requestBulkApply() {
+    if (selected.size === 0 || (!bulkCategory && !bulkType && !bulkDate.trim())) return;
+    setBulkPending({ action: "apply", ids: [...selected] });
+  }
+
+  function requestBulkDelete() {
     if (selected.size === 0) return;
-    if (!bulkCategory && !bulkType && !bulkDate.trim()) return;
+    setBulkPending({ action: "delete", ids: [...selected] });
+  }
+
+  async function handleBulkApply() {
+    if (!bulkPending) return;
     const isoDate = bulkDate.trim() ? brToISO(bulkDate.trim()) : null;
+    setBulkPending(null);
     setBulkApplying(true);
     try {
       await fetch("/api/transactions/bulk-update", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ids: [...selected],
+          ids: bulkPending.ids,
           ...(bulkCategory && { category: bulkCategory }),
           ...(bulkType && { type: bulkType }),
           ...(isoDate && { date: isoDate }),
@@ -195,14 +209,14 @@ export default function Transactions() {
   }
 
   async function handleBulkDelete() {
-    if (selected.size === 0) return;
-    if (!confirm(`Excluir ${selected.size} transaç${selected.size > 1 ? "ões" : "ão"}? Esta ação não pode ser desfeita.`)) return;
+    if (!bulkPending) return;
+    setBulkPending(null);
     setBulkDeleting(true);
     try {
       await fetch("/api/transactions/bulk-delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: [...selected] }),
+        body: JSON.stringify({ ids: bulkPending.ids }),
       });
       queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
       queryClient.invalidateQueries({ queryKey: ["getDashboardSummary"] });
@@ -249,12 +263,12 @@ export default function Transactions() {
           </select>
 
           <div className="relative flex-1 min-w-[180px]">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none z-10" />
             <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Filtrar por descrição ou categoria…"
               className="field pl-9 pr-9 py-2 text-[12.5px]" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
             {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white z-10">
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white">
                 <X size={13} />
               </button>
             )}
@@ -353,13 +367,13 @@ export default function Transactions() {
                 placeholder="dd/mm/aaaa" value={bulkDate}
                 onChange={(e) => setBulkDate(e.target.value)} inputMode="numeric" />
 
-              <button onClick={handleBulkApply} disabled={bulkApplying || !canApply}
+              <button onClick={requestBulkApply} disabled={bulkApplying || !canApply}
                 className="btn-primary h-9 px-5 rounded-xl text-[12.5px] font-semibold flex items-center gap-2 disabled:opacity-50">
                 {bulkApplying ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                 Aplicar em {selected.size}
               </button>
 
-              <button onClick={handleBulkDelete} disabled={bulkDeleting}
+              <button onClick={requestBulkDelete} disabled={bulkDeleting}
                 className="h-9 px-4 rounded-xl text-[12px] font-semibold flex items-center gap-2 border border-[rgba(244,63,94,0.4)] text-[var(--expense)] hover:bg-[rgba(244,63,94,0.08)] transition-colors disabled:opacity-50 ml-auto">
                 {bulkDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 Excluir {selected.size}
@@ -461,86 +475,98 @@ export default function Transactions() {
         <Plus size={22} className="text-white" />
       </button>
 
-      {/* Action sheet — edit or delete a single transaction */}
-      {actionItem && (
+      {/* Action sheet — shows transaction details with Edit / Delete options */}
+      {actionItem && !confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setActionItem(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="glass-strong rounded-2xl p-5 w-full max-w-sm relative z-10 fadeUp"
             onClick={(e) => e.stopPropagation()}>
-
-            {!confirmDelete ? (
-              <>
-                {/* Transaction summary */}
-                <div className="mb-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className={`w-10 h-10 rounded-xl grid place-items-center text-lg ${
-                      actionItem.type === "income" ? "bg-[var(--income-soft)]" : "bg-white/5"
-                    }`}>
-                      {catIcon(actionItem.category)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-semibold text-white truncate">{actionItem.description}</div>
-                      <div className="text-[11px] text-[var(--muted)]">{actionItem.category}</div>
-                    </div>
-                    <button onClick={() => setActionItem(null)}
-                      className="w-7 h-7 grid place-items-center rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5">
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <div className="flex items-baseline justify-between px-1">
-                    <span className={`text-[22px] font-bold ${actionItem.type === "income" ? "text-[var(--income)]" : "text-white"}`}>
-                      {actionItem.type === "income" ? "+" : "−"} {brl(Math.abs(actionItem.amount))}
-                    </span>
-                    <span className="text-[12px] text-[var(--muted)]">
-                      {format(new Date(actionItem.date.slice(0, 10) + "T12:00:00"), "dd/MM/yyyy")}
-                    </span>
-                  </div>
+            <div className="mb-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className={`w-10 h-10 rounded-xl grid place-items-center text-lg ${
+                  actionItem.type === "income" ? "bg-[var(--income-soft)]" : "bg-white/5"
+                }`}>
+                  {catIcon(actionItem.category)}
                 </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { setActionItem(null); setEditing(actionItem); setDialogOpen(true); }}
-                    className="btn-primary flex-1 h-10 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2">
-                    <Pencil size={13} />
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(true)}
-                    className="h-10 px-4 rounded-xl border border-[rgba(244,63,94,0.35)] text-[var(--expense)] text-[13px] font-semibold hover:bg-[rgba(244,63,94,0.08)] transition-colors flex items-center gap-2">
-                    <Trash2 size={13} />
-                    Excluir
-                  </button>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold text-white truncate">{actionItem.description}</div>
+                  <div className="text-[11px] text-[var(--muted)]">{actionItem.category}</div>
                 </div>
-              </>
-            ) : (
-              <>
-                {/* Delete confirmation */}
-                <div className="mb-5 text-center">
-                  <div className="w-12 h-12 rounded-2xl bg-[rgba(244,63,94,0.12)] border border-[rgba(244,63,94,0.25)] grid place-items-center mx-auto mb-3">
-                    <Trash2 size={20} className="text-[var(--expense)]" />
-                  </div>
-                  <p className="text-[15px] font-semibold text-white mb-1">Excluir transação?</p>
-                  <p className="text-[12.5px] text-[var(--muted)] leading-relaxed">
-                    <span className="text-white font-medium">"{actionItem.description}"</span> será removida permanentemente.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setConfirmDelete(false)}
-                    className="flex-1 h-10 rounded-xl border border-[var(--border)] text-[var(--muted)] text-[13px] font-medium hover:text-white hover:border-white/20 transition-colors">
-                    Cancelar
-                  </button>
-                  <button onClick={handleDeleteSingle} disabled={deleting}
-                    className="flex-1 h-10 rounded-xl bg-[rgba(244,63,94,0.12)] border border-[rgba(244,63,94,0.4)] text-[var(--expense)] text-[13px] font-semibold hover:bg-[rgba(244,63,94,0.2)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                    {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                    Confirmar exclusão
-                  </button>
-                </div>
-              </>
-            )}
+                <button onClick={() => setActionItem(null)}
+                  className="w-7 h-7 grid place-items-center rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5">
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="flex items-baseline justify-between px-1">
+                <span className={`text-[22px] font-bold ${actionItem.type === "income" ? "text-[var(--income)]" : "text-white"}`}>
+                  {actionItem.type === "income" ? "+" : "−"} {brl(Math.abs(actionItem.amount))}
+                </span>
+                <span className="text-[12px] text-[var(--muted)]">
+                  {format(new Date(actionItem.date.slice(0, 10) + "T12:00:00"), "dd/MM/yyyy")}
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setActionItem(null); setEditing(actionItem); setDialogOpen(true); }}
+                className="btn-primary flex-1 h-10 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2">
+                <Pencil size={13} />
+                Editar
+              </button>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="h-10 px-4 rounded-xl border border-[rgba(244,63,94,0.35)] text-[var(--expense)] text-[13px] font-semibold hover:bg-[rgba(244,63,94,0.08)] transition-colors flex items-center gap-2">
+                <Trash2 size={13} />
+                Excluir
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Confirmation modal — individual delete or bulk apply/delete */}
+      {(confirmDelete || bulkPending) && (() => {
+        const isDelete = confirmDelete || bulkPending?.action === "delete";
+        const count = bulkPending ? bulkPending.ids.length : 1;
+        const noun = count === 1 ? "1 transação" : `${count} transações`;
+        const onConfirm = bulkPending
+          ? bulkPending.action === "delete" ? handleBulkDelete : handleBulkApply
+          : handleDeleteSingle;
+        const onCancel = () => { setConfirmDelete(false); setBulkPending(null); };
+        const busy = deleting || bulkApplying || bulkDeleting;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onCancel}>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div className="glass-strong rounded-2xl p-6 w-full max-w-sm relative z-10 fadeUp" onClick={(e) => e.stopPropagation()}>
+              <div className="text-center mb-5">
+                <p className="text-[15px] font-semibold text-white mb-2">
+                  {isDelete ? "Excluir transações?" : "Aplicar alterações?"}
+                </p>
+                <p className="text-[13px] text-[var(--muted)] leading-relaxed">
+                  {isDelete
+                    ? `Você está excluindo ${noun}. Tem certeza que deseja continuar? Esta ação é irreversível.`
+                    : `Você está editando ${noun}. Tem certeza que deseja continuar?`}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={onCancel}
+                  className="flex-1 h-10 rounded-xl border border-[var(--border)] text-[var(--muted)] text-[13px] font-medium hover:text-white hover:border-white/20 transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={onConfirm} disabled={busy}
+                  className={`flex-1 h-10 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50 transition-colors ${
+                    isDelete
+                      ? "bg-[rgba(244,63,94,0.12)] border border-[rgba(244,63,94,0.4)] text-[var(--expense)] hover:bg-[rgba(244,63,94,0.2)]"
+                      : "btn-primary"
+                  }`}>
+                  {busy ? <Loader2 size={13} className="animate-spin" /> : null}
+                  {isDelete ? "Sim, excluir" : "Sim, aplicar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <TransactionDialog open={dialogOpen} editing={editing} onClose={() => setDialogOpen(false)} />
     </Layout>
