@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 import { useGetUpload, getGetUploadQueryKey, useUpdateParsedRecord, useDeleteParsedRecord, useConfirmParsedRecords, ParsedRecord } from "@workspace/api-client-react";
@@ -26,6 +26,16 @@ export default function Review() {
   const updateRecord = useUpdateParsedRecord();
   const deleteRecord = useDeleteParsedRecord();
   const confirmRecords = useConfirmParsedRecords();
+
+  // Local editable overrides — updated on every keystroke, sent to server only on blur
+  const [edits, setEdits] = useState<Record<number, Record<string, any>>>({});
+
+  const setField = useCallback((recordId: number, field: string, value: any) => {
+    setEdits(prev => ({ ...prev, [recordId]: { ...prev[recordId], [field]: value } }));
+  }, []);
+
+  const getField = (record: ParsedRecord, field: keyof ParsedRecord) =>
+    edits[record.id]?.[field] !== undefined ? edits[record.id][field] : record[field];
 
   const handleUpdate = (recordId: number, field: string, value: any) => {
     updateRecord.mutate(
@@ -117,26 +127,29 @@ export default function Review() {
                 {upload?.parsedRecords?.map((record) => (
                   <TableRow key={record.id} className="border-border hover:bg-muted/50 transition-colors">
                     <TableCell className="p-2">
-                      <Input 
-                        type="date" 
-                        value={record.date.split('T')[0]} 
-                        onChange={(e) => handleUpdate(record.id, 'date', new Date(e.target.value).toISOString())}
+                      <Input
+                        type="date"
+                        value={(getField(record, 'date') as string).split('T')[0]}
+                        onChange={(e) => setField(record.id, 'date', e.target.value)}
+                        onBlur={(e) => handleUpdate(record.id, 'date', new Date(e.target.value).toISOString())}
                         className="bg-transparent border-transparent hover:border-input focus:border-ring h-8 px-2"
                       />
                     </TableCell>
                     <TableCell className="p-2">
-                      <Input 
-                        value={record.description} 
-                        onChange={(e) => handleUpdate(record.id, 'description', e.target.value)}
+                      <Input
+                        value={getField(record, 'description') as string}
+                        onChange={(e) => setField(record.id, 'description', e.target.value)}
+                        onBlur={(e) => handleUpdate(record.id, 'description', e.target.value)}
                         className="bg-transparent border-transparent hover:border-input focus:border-ring h-8 px-2"
                       />
                     </TableCell>
                     <TableCell className="p-2">
-                      <Input 
-                        type="number" 
+                      <Input
+                        type="number"
                         step="0.01"
-                        value={record.amount} 
-                        onChange={(e) => handleUpdate(record.id, 'amount', parseFloat(e.target.value))}
+                        value={getField(record, 'amount') as number}
+                        onChange={(e) => setField(record.id, 'amount', e.target.value)}
+                        onBlur={(e) => handleUpdate(record.id, 'amount', parseFloat(e.target.value))}
                         className="bg-transparent border-transparent hover:border-input focus:border-ring h-8 px-2"
                       />
                     </TableCell>
@@ -155,9 +168,10 @@ export default function Review() {
                       </Select>
                     </TableCell>
                     <TableCell className="p-2">
-                      <Input 
-                        value={record.category} 
-                        onChange={(e) => handleUpdate(record.id, 'category', e.target.value)}
+                      <Input
+                        value={getField(record, 'category') as string}
+                        onChange={(e) => setField(record.id, 'category', e.target.value)}
+                        onBlur={(e) => handleUpdate(record.id, 'category', e.target.value)}
                         className="bg-transparent border-transparent hover:border-input focus:border-ring h-8 px-2"
                       />
                     </TableCell>
