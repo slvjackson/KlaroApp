@@ -132,7 +132,7 @@ router.post("/insights/check-milestones", requireAuth, async (req, res): Promise
 // POST /insights/generate — generate fresh insights from transaction data
 router.post("/insights/generate", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
-  const { period } = req.body as { period?: Period };
+  const { period } = (req.body ?? {}) as { period?: Period };
 
   try {
     const [userRow, rawTransactions] = await Promise.all([
