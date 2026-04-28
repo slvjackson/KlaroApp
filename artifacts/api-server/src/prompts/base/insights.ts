@@ -62,15 +62,15 @@ Retorne SOMENTE um JSON válido com este formato (sem markdown, sem explicaçõe
     "description": "Análise em 2-3 frases, com números concretos do resumo acima. Tom direto como um consultor falando com o dono.",
     "recommendation": "1 ação concreta e específica que o dono pode fazer agora. Máx 2 frases.",
     "periodLabel": "${ctx.periodLabel}",
-    "tone": "positive | warning | critical | neutral"
+    "tone": "positive"
   }
 ]
 
-Classificação do campo "tone":
-- "positive": oportunidade, crescimento, resultado acima do esperado, ponto forte — algo bom para celebrar ou ampliar
-- "warning": atenção necessária, tendência preocupante, dado que merece acompanhamento — não é urgente mas requer cuidado
-- "critical": problema grave, risco real ao negócio, ação urgente necessária — perdas, desequilíbrio severo, dados faltando que impedem análise
-- "neutral": informativo, sem urgência nem destaque positivo — contextualiza o panorama sem conotação positiva ou negativa
+O campo "tone" deve conter EXATAMENTE um destes quatro valores (string literal, sem variações):
+- "positive" → oportunidade, crescimento, resultado acima do esperado, ponto forte
+- "warning"  → atenção necessária, tendência preocupante, dado que merece acompanhamento
+- "critical" → problema grave, risco real, ação urgente — perdas, desequilíbrio severo
+- "neutral"  → informativo, sem urgência nem destaque positivo
 
 Diretrizes gerais:
 - SEMPRE gere ao menos 3 insights, independente do volume de dados — com poucos dados, foque no que está disponível e aponte o que falta para análises mais completas
