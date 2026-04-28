@@ -161,10 +161,15 @@ async function generateWithAI(transactions: Transaction[], ctx?: InsightBusiness
 
   // Strip markdown fences if present
   const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
-  const VALID_TONES = new Set<string>(["positive", "warning", "critical", "neutral"]);
-  const parsed = (JSON.parse(json) as GeneratedInsight[]).map((g) => ({
-    ...g,
-    tone: VALID_TONES.has(g.tone) ? g.tone : "neutral" as InsightTone,
+  const VALID_TONES: string[] = ["positive", "warning", "critical", "neutral"];
+  const rawParsed = JSON.parse(json) as Array<Record<string, unknown>>;
+  logger.info({ rawTones: rawParsed.map((g) => g["tone"]) }, "AI insights raw tones");
+  const parsed: GeneratedInsight[] = rawParsed.map((g) => ({
+    title: String(g["title"] ?? ""),
+    description: String(g["description"] ?? ""),
+    recommendation: String(g["recommendation"] ?? ""),
+    periodLabel: String(g["periodLabel"] ?? periodLabel),
+    tone: VALID_TONES.includes(String(g["tone"])) ? (g["tone"] as InsightTone) : "neutral",
   }));
   logger.info({ count: parsed.length, tones: parsed.map((g) => g.tone) }, "AI insights generated");
   return parsed;

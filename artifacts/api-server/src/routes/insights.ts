@@ -122,7 +122,7 @@ router.post("/insights/check-milestones", requireAuth, async (req, res): Promise
         description: g.description,
         recommendation: g.recommendation,
         periodLabel: g.periodLabel,
-        tone: g.tone ?? null,
+        tone: g.tone || "neutral",
       })),
     )
     .returning();
