@@ -3,6 +3,7 @@ import type { SegmentProfile } from "../types";
 export interface InsightsPromptContext {
   businessName?: string;
   segment?: SegmentProfile;
+  segmentCustomLabel?: string;
   city?: string;
   state?: string;
   employeeCount?: number;
@@ -36,6 +37,10 @@ export function buildInsightsPrompt(financialSummary: string, ctx: InsightsPromp
     ? `\nPERFIL DO NEGÓCIO:\n${profileLines.map((l) => `  ${l}`).join("\n")}\n`
     : "";
 
+  const customLabelNote = ctx.segmentCustomLabel
+    ? `\nATENÇÃO: O usuário declarou que seu segmento é "${ctx.segmentCustomLabel}". Todos os insights devem ser gerados com o conhecimento e a perspectiva de um especialista em negócios de ${ctx.segmentCustomLabel}. Não aplique exemplos, terminologia ou desafios de outros segmentos.\n`
+    : "";
+
   const segmentGuidelines = seg
     ? `\nDIRETRIZES PARA ${seg.label.toUpperCase()}:
 - Foco de análise: ${seg.focoInsights}
@@ -47,7 +52,7 @@ export function buildInsightsPrompt(financialSummary: string, ctx: InsightsPromp
 
   return `Você é um consultor financeiro especialista em pequenos e médios negócios brasileiros.
 Analise os dados financeiros abaixo e gere entre 3 e 5 insights práticos e acionáveis para o dono do negócio.
-${profileSection}${segmentGuidelines}
+${profileSection}${segmentGuidelines}${customLabelNote}
 ${financialSummary}
 
 Retorne SOMENTE um JSON válido com este formato (sem markdown, sem explicações):

@@ -136,6 +136,7 @@ async function generateWithAI(transactions: Transaction[], ctx?: InsightBusiness
   const promptText = buildInsightsPrompt(summary, {
     businessName: ctx?.businessName,
     segment: getSegmentProfile(ctx?.segment, ctx?.segmentCustomLabel),
+    segmentCustomLabel: ctx?.segmentCustomLabel,
     city: ctx?.city,
     state: ctx?.state,
     employeeCount: ctx?.employeeCount,

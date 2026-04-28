@@ -34,7 +34,19 @@ export function getSegmentProfile(segment?: string | null, customLabel?: string 
   if (!segment) return outro;
   const profile = SEGMENT_REGISTRY[segment.toLowerCase()] ?? outro;
   if (segment === "outro" && customLabel?.trim()) {
-    return { ...profile, label: customLabel.trim() };
+    const label = customLabel.trim();
+    return {
+      ...profile,
+      label,
+      focoInsights: `análise específica para negócios de ${label}: receitas por serviço/produto, sazonalidade típica do setor, custos característicos, ticket médio e oportunidades de crescimento. Aplique benchmarks e práticas reais do mercado de ${label}.`,
+      tom: `especialista em ${label}, com domínio das práticas, benchmarks e desafios típicos deste mercado. Não aplique conhecimento de outros segmentos — foque exclusivamente em ${label}.`,
+      desafiosComuns: [
+        `gestão de fluxo de caixa em negócios de ${label}`,
+        `precificação adequada para o mercado de ${label}`,
+        `controle de custos específicos de ${label}`,
+        `crescimento e fidelização de clientes em ${label}`,
+      ],
+    };
   }
   return profile;
 }
