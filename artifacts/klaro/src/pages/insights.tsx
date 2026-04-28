@@ -11,6 +11,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Lightbulb, RefreshCw, AlertTriangle, AlertOctagon, TrendingUp, Upload, X, Share2, Check } from "lucide-react";
 import { Link } from "wouter";
+import { RichContent } from "@/components/rich-content";
 
 export default function Insights() {
   const { isLoading: isAuthLoading } = useRequireAuth();
@@ -22,7 +23,7 @@ export default function Insights() {
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const handleGenerate = () => {
-    generateInsights.mutate(undefined, {
+    generateInsights.mutate({}, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
         setAttempted(true);
@@ -191,7 +192,9 @@ export default function Insights() {
                     </div>
                   </div>
 
-                  <p className="text-[12.5px] text-[var(--muted)] leading-relaxed">{insight.description}</p>
+                  <div className="text-[var(--muted)]">
+                    <RichContent text={insight.description} compact />
+                  </div>
 
                   {insight.recommendation && (
                     <div className="mt-3 pt-3 border-t border-[var(--border)]">

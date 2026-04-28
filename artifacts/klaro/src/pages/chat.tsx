@@ -4,6 +4,7 @@ import { Layout } from "@/components/layout";
 import { Paperclip, Mic, Send, Loader, ShieldCheck, CornerDownRight, Bookmark, Check } from "lucide-react";
 import { useSaveInsight, getListInsightsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { RichContent } from "@/components/rich-content";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -18,56 +19,6 @@ const SUGGESTIONS = [
   "Quais categorias gastei mais?",
   "Compare entradas e saídas do último mês",
 ];
-
-// ─── Markdown-lite renderer ───────────────────────────────────────────────────
-
-function renderRich(text: string) {
-  const lines = text.split("\n");
-  return lines.map((ln, i) => {
-    if (!ln.trim()) return <div key={i} className="h-1.5" />;
-
-    const parse = (s: string): (string | JSX.Element)[] => {
-      const out: (string | JSX.Element)[] = [];
-      let j = 0;
-      let buf = "";
-      const push = (el: JSX.Element) => { if (buf) { out.push(buf); buf = ""; } out.push(el); };
-      while (j < s.length) {
-        if (s[j] === "*" && s[j + 1] === "*") {
-          const end = s.indexOf("**", j + 2);
-          if (end > -1) { push(<strong key={j} className="text-white font-semibold">{s.slice(j + 2, end)}</strong>); j = end + 2; continue; }
-        }
-        if (s[j] === "_") {
-          const end = s.indexOf("_", j + 1);
-          if (end > -1) { push(<em key={j} className="text-white/90 italic">{s.slice(j + 1, end)}</em>); j = end + 1; continue; }
-        }
-        buf += s[j]; j++;
-      }
-      if (buf) out.push(buf);
-      return out;
-    };
-
-    if (/^[•\-]\s/.test(ln)) {
-      return (
-        <div key={i} className="flex gap-2 pl-1">
-          <span className="text-[var(--accent)] mt-[2px]">•</span>
-          <span>{parse(ln.replace(/^[•\-]\s/, ""))}</span>
-        </div>
-      );
-    }
-    if (/^\d+\.\s/.test(ln)) {
-      const m = ln.match(/^(\d+)\.\s(.*)$/);
-      if (m) {
-        return (
-          <div key={i} className="flex gap-2 pl-1">
-            <span className="text-[var(--muted)] w-4 tnum">{m[1]}.</span>
-            <span>{parse(m[2])}</span>
-          </div>
-        );
-      }
-    }
-    return <div key={i}>{parse(ln)}</div>;
-  });
-}
 
 function extractTitle(text: string): string {
   const first = text.replace(/^[#*\-•>\s]+/, "").split(/[.\n]/)[0] ?? "";
@@ -89,13 +40,15 @@ function Bubble({ msg, onSave }: { msg: ChatMessage; onSave?: () => void }) {
       )}
       <div className="flex flex-col gap-1 max-w-[78%]">
         <div
-          className={`px-3.5 py-2.5 text-[12.5px] leading-relaxed ${
+          className={`px-3.5 py-2.5 leading-relaxed ${
             isUser
-              ? "bg-gradient-to-br from-[#6af82f] to-[#48ba18] text-white bubble-user shadow-[0_8px_24px_-12px_rgba(106,248,47,0.6)]"
-              : "bg-[rgba(255,255,255,0.04)] border border-[var(--border)] text-white/90 bubble-bot"
+              ? "text-[12.5px] bg-gradient-to-br from-[#6af82f] to-[#48ba18] text-white bubble-user shadow-[0_8px_24px_-12px_rgba(106,248,47,0.6)]"
+              : "text-white/90 bubble-bot bg-[rgba(255,255,255,0.04)] border border-[var(--border)]"
           }`}
         >
-          <div className="space-y-0.5">{renderRich(msg.content)}</div>
+          {isUser
+            ? <div className="text-[12.5px]">{msg.content}</div>
+            : <RichContent text={msg.content} />}
         </div>
         {!isUser && onSave && (
           <div className="flex justify-end">
