@@ -231,9 +231,9 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
     periodLabel,
   });
 
-  const peakMonth = months.reduce((best, m) =>
-    (monthlyData.get(m)!.income > monthlyData.get(best)!.income ? m : best), months[0]);
-  if (peakMonth) {
+  if (months.length > 0) {
+    const peakMonth = months.reduce((best, m) =>
+      (monthlyData.get(m)!.income > (monthlyData.get(best)?.income ?? 0) ? m : best), months[0]);
     insights.push({
       title: `Melhor mês: ${peakMonth}`,
       description: `Pico de receita em ${peakMonth}: R$${monthlyData.get(peakMonth)!.income.toFixed(2)}.`,
@@ -257,5 +257,15 @@ export async function generateInsights(transactions: Transaction[], ctx?: Insigh
       logger.error({ err }, "AI insight generation failed, falling back to rule-based");
     }
   }
-  return generateRuleBased(transactions);
+  try {
+    return generateRuleBased(transactions);
+  } catch (err) {
+    logger.error({ err }, "Rule-based insight generation also failed");
+    return [{
+      title: "Análise temporariamente indisponível",
+      description: "Não foi possível processar seus dados agora. Tente novamente em instantes.",
+      recommendation: "Se o problema persistir, verifique se suas transações foram confirmadas após o upload.",
+      periodLabel: new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+    }];
+  }
 }
