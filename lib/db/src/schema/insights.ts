@@ -9,6 +9,7 @@ export const insightsTable = pgTable("insights", {
   description: text("description").notNull(),
   recommendation: text("recommendation").notNull(),
   periodLabel: text("period_label").notNull(),
+  tone: text("tone"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
 });

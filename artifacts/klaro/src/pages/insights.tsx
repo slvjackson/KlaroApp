@@ -3,7 +3,7 @@ import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 import { useListInsights, useGenerateInsights, getListInsightsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Lightbulb, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Upload } from "lucide-react";
+import { Lightbulb, RefreshCw, AlertTriangle, AlertOctagon, TrendingUp, Upload } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Insights() {
@@ -27,23 +27,28 @@ export default function Insights() {
 
   if (isAuthLoading) return null;
 
-  function getIcon(title: string) {
-    const t = title.toLowerCase();
-    if (t.includes("aumento") || t.includes("crescimento") || t.includes("positivo"))
-      return <TrendingUp size={13} />;
-    if (t.includes("queda") || t.includes("redução") || t.includes("negativo"))
-      return <TrendingDown size={13} />;
-    if (t.includes("alerta") || t.includes("atenção"))
-      return <AlertCircle size={13} />;
-    return <Lightbulb size={13} />;
-  }
-
-  function getTone(title: string) {
-    const t = title.toLowerCase();
-    if (t.includes("aumento") || t.includes("crescimento") || t.includes("positivo")) return "good";
-    if (t.includes("alerta") || t.includes("atenção")) return "warn";
-    return "neutral";
-  }
+  const TONE_CONFIG = {
+    positive: {
+      icon: <TrendingUp size={13} />,
+      badge: "bg-[rgba(16,185,129,0.12)] text-[#10b981]",
+      border: "border-[rgba(16,185,129,0.2)]",
+    },
+    warning: {
+      icon: <AlertTriangle size={13} />,
+      badge: "bg-[rgba(245,158,11,0.12)] text-[#f59e0b]",
+      border: "border-[rgba(245,158,11,0.2)]",
+    },
+    critical: {
+      icon: <AlertOctagon size={13} />,
+      badge: "bg-[rgba(239,68,68,0.12)] text-[#ef4444]",
+      border: "border-[rgba(239,68,68,0.2)]",
+    },
+    neutral: {
+      icon: <Lightbulb size={13} />,
+      badge: "bg-[var(--accent-soft)] text-[#90f048]",
+      border: "",
+    },
+  } as const;
 
   return (
     <Layout title="Insights">
@@ -123,20 +128,16 @@ export default function Insights() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {insights.map((insight) => {
-              const tone = getTone(insight.title);
-              const iconCls =
-                tone === "good" ? "bg-[var(--income-soft)] text-[var(--income)]" :
-                tone === "warn" ? "bg-[rgba(245,158,11,0.12)] text-[#f59e0b]" :
-                "bg-[var(--accent-soft)] text-[#90f048]";
+              const cfg = TONE_CONFIG[insight.tone ?? "neutral"] ?? TONE_CONFIG.neutral;
 
               return (
                 <div
                   key={insight.id}
-                  className="glass rounded-2xl p-5 hover:border-[var(--border-2)] transition-colors"
+                  className={`glass rounded-2xl p-5 hover:border-[var(--border-2)] transition-colors ${cfg.border}`}
                 >
                   <div className="flex items-start gap-3 mb-3">
-                    <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${iconCls}`}>
-                      {getIcon(insight.title)}
+                    <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${cfg.badge}`}>
+                      {cfg.icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[13.5px] font-semibold text-white leading-snug">{insight.title}</div>

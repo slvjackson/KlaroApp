@@ -179,6 +179,8 @@ export interface Insight {
   description: string;
   recommendation: string;
   periodLabel: string;
+  /** @nullable */
+  tone?: "positive" | "warning" | "critical" | "neutral" | null;
   createdAt: string;
   /** @nullable */
   archivedAt?: string | null;

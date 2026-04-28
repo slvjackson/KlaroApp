@@ -8,11 +8,14 @@ import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "./logger";
 import { buildInsightsPrompt, getSegmentProfile } from "../prompts/builder";
 
+export type InsightTone = "positive" | "warning" | "critical" | "neutral";
+
 export interface GeneratedInsight {
   title: string;
   description: string;
   recommendation: string;
   periodLabel: string;
+  tone: InsightTone;
 }
 
 export interface InsightBusinessContext {
@@ -173,6 +176,7 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
       description: "Você ainda não tem transações confirmadas para analisar.",
       recommendation: "Faça upload de um extrato ou planilha para começar.",
       periodLabel: "Geral",
+      tone: "warning",
     }];
   }
 
@@ -193,6 +197,7 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
       ? "Continue monitorando mensalmente e reinvista o lucro no crescimento."
       : "Revise as maiores despesas e busque reduzir custos não essenciais.",
     periodLabel,
+    tone: netBalance >= 0 ? "positive" : "critical",
   });
 
   if (months.length >= 2) {
@@ -207,6 +212,7 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
           ? "Garanta que estoque e operação acompanhem o crescimento."
           : "Investigue quais produtos ou clientes geraram menos receita.",
         periodLabel: `${months[months.length - 2]} → ${months[months.length - 1]}`,
+        tone: change >= 0 ? "positive" : "warning",
       });
     }
   }
@@ -219,6 +225,7 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
       description: `${topExpCat.label} representa ${pct}% das suas despesas (R$${topExpCat.total.toFixed(2)}).`,
       recommendation: "Avalie se é possível renegociar ou encontrar alternativas para esse custo.",
       periodLabel,
+      tone: "warning",
     });
   }
 
@@ -230,6 +237,7 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
       ? "Considere combos ou upsell para aumentar o valor médio por venda."
       : "Bom ticket médio. Foque em aumentar o volume de vendas.",
     periodLabel,
+    tone: "neutral",
   });
 
   if (months.length > 0) {
@@ -240,6 +248,7 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
       description: `Pico de receita em ${peakMonth}: R$${monthlyData.get(peakMonth)!.income.toFixed(2)}.`,
       recommendation: "Analise o que impulsionou esse mês e repita as ações bem-sucedidas.",
       periodLabel: peakMonth,
+      tone: "positive",
     });
   }
 
@@ -267,6 +276,7 @@ export async function generateInsights(transactions: Transaction[], ctx?: Insigh
       description: "Não foi possível processar seus dados agora. Tente novamente em instantes.",
       recommendation: "Se o problema persistir, verifique se suas transações foram confirmadas após o upload.",
       periodLabel: new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+      tone: "warning" as InsightTone,
     }];
   }
 }
