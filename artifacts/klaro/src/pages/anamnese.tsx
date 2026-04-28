@@ -27,6 +27,8 @@ interface AnamneseData {
   maiorDificuldade: string;
   querMelhorar: string;
   comMaisClareza: string;
+  // Seção 5
+  observacoesAdicionais: string;
 }
 
 const EMPTY: AnamneseData = {
@@ -34,6 +36,7 @@ const EMPTY: AnamneseData = {
   controleFinanceiro: "", sabeLucro: "", separaFinancas: "", conheceCustos: "",
   comoDecide: "", deixouInvestir: "", surpresaCaixa: "",
   maiorDificuldade: "", querMelhorar: "", comMaisClareza: "",
+  observacoesAdicionais: "",
 };
 
 // ─── Chip option ──────────────────────────────────────────────────────────────
@@ -101,6 +104,18 @@ const SECTIONS = [
   { title: "Controle Financeiro", subtitle: "Como está sua relação atual com os números do negócio?" },
   { title: "Operação e Decisão", subtitle: "Entender como você toma decisões nos ajuda a gerar alertas mais certeiros." },
   { title: "Dores e Desejos", subtitle: "Isso é ouro. Suas respostas moldam diretamente os insights que vamos gerar." },
+  { title: "Contexto Adicional", subtitle: "Informações extras que ajudam a IA a entender o seu negócio com mais profundidade. 100% opcional." },
+];
+
+const OBS_SUGGESTIONS = [
+  { label: "Região / mercado local", snippet: "Minha região tem características específicas: " },
+  { label: "Sazonalidade", snippet: "Períodos de alta/baixa no meu negócio: " },
+  { label: "Perfil dos clientes", snippet: "Meus clientes são principalmente: " },
+  { label: "Concorrência", snippet: "Sobre a concorrência local: " },
+  { label: "Empresa familiar", snippet: "É uma empresa familiar. " },
+  { label: "Expansão / crescimento", snippet: "Meu plano de crescimento é: " },
+  { label: "Fornecedores", snippet: "Dependência de fornecedores: " },
+  { label: "Algo que a IA deve saber", snippet: "Informação importante sobre meu negócio: " },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -132,6 +147,7 @@ export default function Anamnese() {
     maiorDificuldade: String(bp?.maiorDificuldade ?? ""),
     querMelhorar: String(bp?.querMelhorar ?? ""),
     comMaisClareza: String(bp?.comMaisClareza ?? ""),
+    observacoesAdicionais: String(bp?.observacoesAdicionais ?? ""),
   });
 
   if (isAuthLoading) return null;
@@ -351,6 +367,42 @@ export default function Anamnese() {
                 value={data.comMaisClareza}
                 onChange={(v) => set("comMaisClareza", v)}
               />
+            </div>
+          )}
+
+          {/* Section 5 */}
+          {step === 4 && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-[13.5px] font-semibold text-white">
+                  Contexto livre para a IA
+                </label>
+                <p className="text-[11.5px] text-[var(--muted)] leading-relaxed">
+                  Escreva qualquer informação que ajude a IA a entender melhor o seu negócio — mercado local, sazonalidade, perfil dos clientes, concorrência, planos de crescimento, peculiaridades da operação. Quanto mais contexto, melhores os insights.
+                </p>
+                <textarea
+                  value={data.observacoesAdicionais}
+                  onChange={(e) => set("observacoesAdicionais", e.target.value)}
+                  rows={6}
+                  placeholder={`Ex: "Minha cidade tem forte sazonalidade no verão por turismo — julho é quase o dobro de qualquer outro mês. Atendo principalmente mulheres entre 30–50 anos de classe média. Tenho 2 sócios ativos. A concorrência local é intensa em datas comemorativas mas fraca no restante do ano. Quero abrir uma segunda unidade em 2026."`}
+                  className="field w-full rounded-xl px-3 py-2.5 text-[13px] resize-none leading-relaxed"
+                />
+              </div>
+              <div>
+                <div className="text-[11px] text-[var(--muted)] mb-2 font-medium">Sugestões de tópicos — clique para adicionar:</div>
+                <div className="flex flex-wrap gap-2">
+                  {OBS_SUGGESTIONS.map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => set("observacoesAdicionais", (data.observacoesAdicionais ? data.observacoesAdicionais.trimEnd() + "\n" : "") + s.snippet)}
+                      className="px-3 py-1.5 rounded-lg text-[11.5px] border border-[var(--border)] text-[var(--muted)] hover:text-white hover:border-[var(--border-2)] bg-[rgba(255,255,255,0.02)] transition-colors"
+                    >
+                      + {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>

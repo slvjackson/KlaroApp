@@ -260,6 +260,9 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   const anamneseSection = anamneseLines.length > 0
     ? `\nDIAGNÓSTICO DO NEGÓCIO (respondido pelo dono):\n${anamneseLines.map((l) => `  ${l}`).join("\n")}\n`
     : "";
+  const obsSection = bp?.observacoesAdicionais
+    ? `\nCONTEXTO ADICIONAL (escrito pelo dono — leia com atenção, reflete conhecimento direto sobre o mercado e a operação):\n  "${bp.observacoesAdicionais}"\n`
+    : "";
 
   const systemPrompt = `Você é o Klaro, um consultor financeiro de IA para pequenos e médios negócios brasileiros.
 Você conversa diretamente com o dono do negócio, de forma simples, amigável e acionável.
@@ -271,7 +274,7 @@ PERFIL DO NEGÓCIO:
   Segmento: ${segmentProfile.label}${bp?.segment === "outro" ? " (segmento não listado — use conhecimento geral de mercado para este setor)" : ""}
   Terminologia: receita = "${segmentProfile.terminologia.receita}", despesa = "${segmentProfile.terminologia.despesa}", cliente = "${segmentProfile.terminologia.cliente}"
   Foco de análise: ${segmentProfile.focoInsights}
-${anamneseSection}
+${anamneseSection}${obsSection}
 
 INFERÊNCIA DE DATAS (aplique sempre antes de chamar qualquer ferramenta):
 - Apenas o dia (ex: "dia 5"): assuma mês e ano atuais

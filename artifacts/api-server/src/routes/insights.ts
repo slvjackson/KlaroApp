@@ -120,6 +120,7 @@ router.post("/insights/check-milestones", requireAuth, async (req, res): Promise
     maiorDificuldade: bp?.maiorDificuldade as string | undefined,
     querMelhorar: bp?.querMelhorar as string | undefined,
     comMaisClareza: bp?.comMaisClareza as string | undefined,
+    observacoesAdicionais: bp?.observacoesAdicionais as string | undefined,
   });
 
   if (generated.length === 0) {

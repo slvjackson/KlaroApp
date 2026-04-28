@@ -28,6 +28,7 @@ export interface InsightsPromptContext {
   maiorDificuldade?: string;
   querMelhorar?: string;
   comMaisClareza?: string;
+  observacoesAdicionais?: string;
 }
 
 /**
@@ -68,6 +69,10 @@ export function buildInsightsPrompt(financialSummary: string, ctx: InsightsPromp
     ? `\nDIAGNÓSTICO DO NEGÓCIO (respondido pelo dono):\n${anamneseLines.map((l) => `  ${l}`).join("\n")}\n`
     : "";
 
+  const obsSection = ctx.observacoesAdicionais
+    ? `\nCONTEXTO ADICIONAL (escrito pelo dono do negócio — leia com atenção, pois reflete conhecimento direto sobre o mercado e a operação):\n  "${ctx.observacoesAdicionais}"\n`
+    : "";
+
   const profileSection = profileLines.length > 0
     ? `\nPERFIL DO NEGÓCIO:\n${profileLines.map((l) => `  ${l}`).join("\n")}\n`
     : "";
@@ -87,7 +92,7 @@ export function buildInsightsPrompt(financialSummary: string, ctx: InsightsPromp
 
   return `Você é um consultor financeiro especialista em pequenos e médios negócios brasileiros.
 Analise os dados financeiros abaixo e gere entre 3 e 5 insights práticos e acionáveis para o dono do negócio.
-${profileSection}${anamneseSection}${segmentGuidelines}${customLabelNote}
+${profileSection}${anamneseSection}${obsSection}${segmentGuidelines}${customLabelNote}
 ${financialSummary}
 
 Retorne SOMENTE um JSON válido com este formato (sem markdown, sem explicações):

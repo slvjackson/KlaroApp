@@ -15,10 +15,10 @@ export function AnamneseCta({ completed }: Props) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[12.5px] font-semibold text-white leading-snug">
-            Quer insights que realmente fazem sentido pro seu negócio?
+            Quer insights ainda mais personalizados e precisos pro seu negócio?
           </div>
           <div className="text-[11px] text-[var(--muted)] mt-0.5">
-            Responda 4 perguntas rápidas e a Klaro IA vai te entregar análises muito mais precisas e personalizadas.
+            Responda perguntas rápidas e a Klaro IA vai te entregar análises muito mais precisas e personalizadas.
           </div>
         </div>
         <div className="text-[11px] font-semibold text-[#90f048] shrink-0 group-hover:translate-x-0.5 transition-transform">

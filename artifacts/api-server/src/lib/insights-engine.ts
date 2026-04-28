@@ -45,6 +45,7 @@ export interface InsightBusinessContext {
   maiorDificuldade?: string;
   querMelhorar?: string;
   comMaisClareza?: string;
+  observacoesAdicionais?: string;
 }
 
 interface Transaction {
@@ -178,6 +179,7 @@ async function generateWithAI(transactions: Transaction[], ctx?: InsightBusiness
     maiorDificuldade: ctx?.maiorDificuldade,
     querMelhorar: ctx?.querMelhorar,
     comMaisClareza: ctx?.comMaisClareza,
+    observacoesAdicionais: ctx?.observacoesAdicionais,
   });
 
   const response = await client.messages.create({

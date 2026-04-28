@@ -3,7 +3,8 @@ import { useRequireAuth } from "@/hooks/use-auth";
 import { useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
-import { Loader2, CheckCircle2, AlertCircle, Lock, Trash2, X } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Lock, Trash2, X, Sparkles, Pencil } from "lucide-react";
+import { Link } from "wouter";
 import { AnamneseCta } from "@/components/anamnese-cta";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
@@ -244,7 +245,38 @@ export default function Profile() {
           <p className="text-[12.5px] text-[var(--muted)] mt-1">Essas informações melhoram a leitura dos arquivos e os insights gerados.</p>
         </div>
 
-        <AnamneseCta completed={!!bp?.anamneseCompleted} />
+        {bp?.anamneseCompleted ? (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[rgba(16,185,129,0.06)] border border-[rgba(16,185,129,0.18)]">
+            <div className="w-8 h-8 rounded-xl bg-[rgba(16,185,129,0.12)] grid place-items-center shrink-0">
+              <CheckCircle2 size={15} className="text-[#10b981]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-white leading-snug">Diagnóstico do negócio concluído</div>
+              <div className="text-[11px] text-[var(--muted)] mt-0.5">A IA usa essas respostas para personalizar insights e análises.</div>
+            </div>
+            <Link href="/anamnese">
+              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:text-white hover:border-[var(--border-2)] transition-colors shrink-0">
+                <Pencil size={12} />
+                Editar
+              </button>
+            </Link>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-[rgba(106,248,47,0.08)] to-[rgba(106,248,47,0.03)] border border-[rgba(106,248,47,0.18)] hover:border-[rgba(106,248,47,0.35)] transition-colors">
+            <div className="w-8 h-8 rounded-xl bg-[var(--accent-soft)] grid place-items-center shrink-0">
+              <Sparkles size={14} className="text-[#90f048]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[12.5px] font-semibold text-white leading-snug">Faça o diagnóstico do negócio</div>
+              <div className="text-[11px] text-[var(--muted)] mt-0.5">4 perguntas rápidas para a IA gerar análises muito mais precisas.</div>
+            </div>
+            <Link href="/anamnese">
+              <button className="text-[12px] font-semibold text-[#90f048] shrink-0 hover:underline transition-colors">
+                Fazer diagnóstico →
+              </button>
+            </Link>
+          </div>
+        )}
 
         {/* Completion */}
         <div className="glass rounded-2xl p-4">
