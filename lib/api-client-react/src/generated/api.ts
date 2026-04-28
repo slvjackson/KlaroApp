@@ -1940,3 +1940,81 @@ export function useGetTransactionsByCategory<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+// ─── Save Insight (from chat or manual) ──────────────────────────────────────
+
+export interface SaveInsightBody {
+  title: string;
+  description: string;
+  recommendation?: string;
+  periodLabel?: string;
+}
+
+export const getSaveInsightUrl = () => `/api/insights`;
+
+export const saveInsight = async (
+  body: SaveInsightBody,
+  options?: RequestInit,
+): Promise<Insight> => {
+  return customFetch<Insight>(getSaveInsightUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(body),
+  });
+};
+
+export const getSaveInsightMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveInsight>>,
+    TError,
+    SaveInsightBody,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveInsight>>,
+  TError,
+  SaveInsightBody,
+  TContext
+> => {
+  const mutationKey = ["saveInsight"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveInsight>>,
+    SaveInsightBody
+  > = (body) => saveInsight(body, requestOptions);
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveInsightMutationResult = NonNullable<Awaited<ReturnType<typeof saveInsight>>>;
+export type SaveInsightMutationError = ErrorType<unknown>;
+
+export const useSaveInsight = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveInsight>>,
+    TError,
+    SaveInsightBody,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveInsight>>,
+  TError,
+  SaveInsightBody,
+  TContext
+> => {
+  return useMutation(getSaveInsightMutationOptions(options));
+};

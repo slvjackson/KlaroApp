@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
-import { Paperclip, Mic, Send, Loader, ShieldCheck, CornerDownRight } from "lucide-react";
+import { Paperclip, Mic, Send, Loader, ShieldCheck, CornerDownRight, Bookmark, Check } from "lucide-react";
+import { useSaveInsight, getListInsightsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -67,9 +69,14 @@ function renderRich(text: string) {
   });
 }
 
+function extractTitle(text: string): string {
+  const first = text.replace(/^[#*\-•>\s]+/, "").split(/[.\n]/)[0] ?? "";
+  return first.trim().slice(0, 72) || "Insight do chat";
+}
+
 // ─── Bubble ───────────────────────────────────────────────────────────────────
 
-function Bubble({ msg }: { msg: ChatMessage }) {
+function Bubble({ msg, onSave }: { msg: ChatMessage; onSave?: () => void }) {
   const isUser = msg.role === "user";
   return (
     <div className={`fadeUp flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
@@ -80,14 +87,27 @@ function Bubble({ msg }: { msg: ChatMessage }) {
           </svg>
         </div>
       )}
-      <div
-        className={`max-w-[78%] px-3.5 py-2.5 text-[12.5px] leading-relaxed ${
-          isUser
-            ? "bg-gradient-to-br from-[#6af82f] to-[#48ba18] text-white bubble-user shadow-[0_8px_24px_-12px_rgba(106,248,47,0.6)]"
-            : "bg-[rgba(255,255,255,0.04)] border border-[var(--border)] text-white/90 bubble-bot"
-        }`}
-      >
-        <div className="space-y-0.5">{renderRich(msg.content)}</div>
+      <div className="flex flex-col gap-1 max-w-[78%]">
+        <div
+          className={`px-3.5 py-2.5 text-[12.5px] leading-relaxed ${
+            isUser
+              ? "bg-gradient-to-br from-[#6af82f] to-[#48ba18] text-white bubble-user shadow-[0_8px_24px_-12px_rgba(106,248,47,0.6)]"
+              : "bg-[rgba(255,255,255,0.04)] border border-[var(--border)] text-white/90 bubble-bot"
+          }`}
+        >
+          <div className="space-y-0.5">{renderRich(msg.content)}</div>
+        </div>
+        {!isUser && onSave && (
+          <div className="flex justify-end">
+            <button
+              onClick={onSave}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10.5px] text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-colors"
+            >
+              <Bookmark size={11} />
+              Salvar como insight
+            </button>
+          </div>
+        )}
       </div>
       {isUser && (
         <div className="w-7 h-7 rounded-full bg-white/5 border border-[var(--border)] grid place-items-center shrink-0 mt-0.5 text-[var(--muted)]">
@@ -115,11 +135,26 @@ function TypingBubble() {
   );
 }
 
+// ─── Save toast ───────────────────────────────────────────────────────────────
+
+function SaveToast({ visible }: { visible: boolean }) {
+  return (
+    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#15151a] border border-[rgba(16,185,129,0.3)] text-[12.5px] text-white shadow-xl transition-all duration-300 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"}`}>
+      <Check size={13} className="text-[#10b981]" />
+      Insight salvo com sucesso
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Chat() {
   const { isLoading: isAuthLoading } = useRequireAuth();
+  const queryClient = useQueryClient();
+  const saveInsight = useSaveInsight();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
+  const [showToast, setShowToast] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -132,6 +167,25 @@ export default function Chat() {
   }, [messages, loading]);
 
   if (isAuthLoading) return null;
+
+  const handleSaveInsight = (idx: number, content: string) => {
+    if (savedIndices.has(idx)) return;
+    saveInsight.mutate(
+      {
+        title: extractTitle(content),
+        description: content.slice(0, 800),
+        periodLabel: new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+      },
+      {
+        onSuccess: () => {
+          setSavedIndices((prev) => new Set([...prev, idx]));
+          queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+        },
+      }
+    );
+  };
 
   async function sendMessage(text?: string) {
     const msg = (text ?? input).trim();
@@ -168,6 +222,7 @@ export default function Chat() {
 
   return (
     <Layout title="Chat Klaro">
+      <SaveToast visible={showToast} />
       <div className="max-w-3xl mx-auto h-[calc(100vh-120px)] flex flex-col">
         <div className="glass-strong rounded-2xl flex flex-col overflow-hidden h-full relative">
           {/* Brand glow */}
@@ -224,7 +279,15 @@ export default function Chat() {
             ) : (
               <>
                 {messages.map((m, i) => (
-                  <Bubble key={i} msg={m} />
+                  <Bubble
+                    key={i}
+                    msg={m}
+                    onSave={
+                      m.role === "assistant" && !savedIndices.has(i)
+                        ? () => handleSaveInsight(i, m.content)
+                        : undefined
+                    }
+                  />
                 ))}
                 {loading && <TypingBubble />}
                 {error && (

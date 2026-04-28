@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
-import { useListInsights, useGenerateInsights, getListInsightsQueryKey } from "@workspace/api-client-react";
+import {
+  useListInsights,
+  useGenerateInsights,
+  useArchiveInsight,
+  getListInsightsQueryKey,
+  type Insight,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Lightbulb, RefreshCw, AlertTriangle, AlertOctagon, TrendingUp, Upload } from "lucide-react";
+import { Lightbulb, RefreshCw, AlertTriangle, AlertOctagon, TrendingUp, Upload, X, Share2, Check } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Insights() {
@@ -11,7 +17,9 @@ export default function Insights() {
   const queryClient = useQueryClient();
   const { data: insights, isLoading } = useListInsights();
   const generateInsights = useGenerateInsights();
+  const archiveInsight = useArchiveInsight();
   const [attempted, setAttempted] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const handleGenerate = () => {
     generateInsights.mutate(undefined, {
@@ -19,10 +27,30 @@ export default function Insights() {
         queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
         setAttempted(true);
       },
-      onError: () => {
-        setAttempted(true);
-      },
+      onError: () => setAttempted(true),
     });
+  };
+
+  const handleArchive = (id: number) => {
+    queryClient.setQueryData(getListInsightsQueryKey(), (old: Insight[] | undefined) =>
+      old ? old.filter((i) => i.id !== id) : old
+    );
+    archiveInsight.mutate(id, {
+      onError: () => queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() }),
+    });
+  };
+
+  const handleShare = async (insight: Insight) => {
+    const text = `${insight.title}\n\n${insight.description}${insight.recommendation ? `\n\nRecomendação: ${insight.recommendation}` : ""}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: insight.title, text });
+        return;
+      } catch {}
+    }
+    await navigator.clipboard.writeText(text);
+    setCopiedId(insight.id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   if (isAuthLoading) return null;
@@ -88,10 +116,7 @@ export default function Insights() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Link
-                    href="/upload"
-                    className="btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold inline-flex items-center gap-1.5"
-                  >
+                  <Link href="/upload" className="btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold inline-flex items-center gap-1.5">
                     <Upload size={13} />
                     Fazer upload
                   </Link>
@@ -129,12 +154,14 @@ export default function Insights() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {insights.map((insight) => {
               const cfg = TONE_CONFIG[insight.tone ?? "neutral"] ?? TONE_CONFIG.neutral;
+              const copied = copiedId === insight.id;
 
               return (
                 <div
                   key={insight.id}
-                  className={`glass rounded-2xl p-5 hover:border-[var(--border-2)] transition-colors ${cfg.border}`}
+                  className={`glass rounded-2xl p-5 transition-colors border ${cfg.border || "border-[var(--border)]"} hover:border-[var(--border-2)]`}
                 >
+                  {/* Header row */}
                   <div className="flex items-start gap-3 mb-3">
                     <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${cfg.badge}`}>
                       {cfg.icon}
@@ -144,6 +171,23 @@ export default function Insights() {
                       {insight.periodLabel && (
                         <div className="text-[11px] text-[var(--muted)] mt-0.5">{insight.periodLabel}</div>
                       )}
+                    </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleShare(insight)}
+                        title={copied ? "Copiado!" : "Compartilhar"}
+                        className="w-7 h-7 grid place-items-center rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5 transition-colors"
+                      >
+                        {copied ? <Check size={13} className="text-[#10b981]" /> : <Share2 size={13} />}
+                      </button>
+                      <button
+                        onClick={() => handleArchive(insight.id)}
+                        title="Arquivar"
+                        className="w-7 h-7 grid place-items-center rounded-lg text-[var(--muted)] hover:text-[#ef4444] hover:bg-[rgba(239,68,68,0.08)] transition-colors"
+                      >
+                        <X size={13} />
+                      </button>
                     </div>
                   </div>
 
