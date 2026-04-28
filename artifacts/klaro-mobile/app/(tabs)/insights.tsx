@@ -7,6 +7,7 @@ import {
 } from "@workspace/api-client-react";
 import type { GenerateInsightsBodyPeriod } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -29,7 +30,19 @@ import Animated, {
   Extrapolation,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+
+// ─── Tone config ──────────────────────────────────────────────────────────────
+
+type Tone = "positive" | "warning" | "critical" | "neutral";
+
+const TONE_CONFIG: Record<Tone, { iconSet: "Feather" | "MCI"; iconName: string; color: string }> = {
+  positive: { iconSet: "Feather", iconName: "trending-up", color: "#10b981" },
+  warning:  { iconSet: "Feather", iconName: "alert-triangle", color: "#f59e0b" },
+  critical: { iconSet: "MCI", iconName: "alert-octagon", color: "#ef4444" },
+  neutral:  { iconSet: "MCI", iconName: "lightbulb-outline", color: "" }, // uses colors.primary
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,6 +107,7 @@ interface InsightCardProps {
   recommendation: string;
   periodLabel: string;
   createdAt: string;
+  tone?: string | null;
   onArchive: (id: number) => void;
 }
 
@@ -104,11 +118,19 @@ function InsightCard({
   recommendation,
   periodLabel,
   createdAt,
+  tone,
   onArchive,
 }: InsightCardProps) {
   const colors = useColors();
   const swipeRef = useRef<SwipeableMethods>(null);
   const fresh = isNewInsight(createdAt);
+
+  const validTone = (tone && tone in TONE_CONFIG ? tone : "neutral") as Tone;
+  const tc = TONE_CONFIG[validTone];
+  const toneColor = tc.color || colors.primary;
+  const borderColor = validTone !== "neutral"
+    ? `${toneColor}33`
+    : colors.border;
 
   function handleArchive() {
     swipeRef.current?.close();
@@ -140,81 +162,42 @@ function InsightCard({
             backgroundColor: colors.card,
             borderRadius: colors.radius,
             borderWidth: 1,
-            borderColor: colors.border,
+            borderColor,
           },
         ]}
       >
         {/* Header row: icon + period label + share button */}
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderLeft}>
-            <View
-              style={[
-                styles.iconBox,
-                { backgroundColor: `${colors.primary}22`, borderRadius: 10 },
-              ]}
-            >
-              <MaterialCommunityIcons name="lightbulb-outline" size={18} color={colors.primary} />
+            <View style={[styles.iconBox, { backgroundColor: `${toneColor}1a`, borderRadius: 10 }]}>
+              {tc.iconSet === "MCI"
+                ? <MaterialCommunityIcons name={tc.iconName as any} size={18} color={toneColor} />
+                : <Feather name={tc.iconName as any} size={16} color={toneColor} />}
             </View>
-            <Text
-              style={[styles.periodLabel, { color: colors.mutedForeground }]}
-            >
+            <Text style={[styles.periodLabel, { color: colors.mutedForeground }]}>
               {periodLabel}
             </Text>
           </View>
 
           <View style={styles.cardHeaderRight}>
             {fresh && (
-              <View
-                style={[
-                  styles.newBadge,
-                  { backgroundColor: colors.primary },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.newBadgeText,
-                    { color: colors.primaryForeground },
-                  ]}
-                >
-                  Novo
-                </Text>
+              <View style={[styles.newBadge, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.newBadgeText, { color: colors.primaryForeground }]}>Novo</Text>
               </View>
             )}
-            <Pressable
-              onPress={handleShare}
-              hitSlop={8}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-            >
-              <Feather
-                name="share-2"
-                size={16}
-                color={colors.mutedForeground}
-              />
+            <Pressable onPress={handleShare} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+              <Feather name="share-2" size={16} color={colors.mutedForeground} />
             </Pressable>
           </View>
         </View>
 
         <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
-        <Text style={[styles.description, { color: colors.mutedForeground }]}>
-          {description}
-        </Text>
-        <View
-          style={[
-            styles.recommendationBox,
-            {
-              backgroundColor: `${colors.primary}11`,
-              borderRadius: 8,
-              borderLeftWidth: 3,
-              borderLeftColor: colors.primary,
-            },
-          ]}
-        >
-          <Text
-            style={[styles.recommendationText, { color: colors.foreground }]}
-          >
-            {recommendation}
-          </Text>
-        </View>
+        <Text style={[styles.description, { color: colors.mutedForeground }]}>{description}</Text>
+        {recommendation ? (
+          <View style={[styles.recommendationBox, { backgroundColor: `${toneColor}0d`, borderRadius: 8, borderLeftWidth: 3, borderLeftColor: toneColor }]}>
+            <Text style={[styles.recommendationText, { color: colors.foreground }]}>{recommendation}</Text>
+          </View>
+        ) : null}
       </View>
     </ReanimatedSwipeable>
   );
@@ -263,6 +246,8 @@ function PeriodChip({
 export default function InsightsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const anamneseCompleted = !!user?.businessProfile?.anamneseCompleted;
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
 
   const { data: insights, isLoading, refetch } = useListInsights();
@@ -341,21 +326,31 @@ export default function InsightsScreen() {
       </View>
 
       {/* Period selector */}
-      <View
-        style={[
-          styles.periodRow,
-          { borderBottomWidth: 1, borderBottomColor: colors.border },
-        ]}
-      >
+      <View style={[styles.periodRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
         {PERIODS.map((p) => (
-          <PeriodChip
-            key={p.key}
-            label={p.label}
-            selected={selectedPeriod === p.key}
-            onPress={() => setSelectedPeriod(p.key)}
-          />
+          <PeriodChip key={p.key} label={p.label} selected={selectedPeriod === p.key} onPress={() => setSelectedPeriod(p.key)} />
         ))}
       </View>
+
+      {/* Anamnese CTA */}
+      {!anamneseCompleted && (
+        <Pressable
+          onPress={() => router.push("/anamnese")}
+          style={({ pressed }) => [
+            styles.anamneseBanner,
+            { backgroundColor: `${colors.primary}0d`, borderColor: `${colors.primary}30`, opacity: pressed ? 0.8 : 1 },
+          ]}
+        >
+          <View style={[styles.anamneseIcon, { backgroundColor: `${colors.primary}1a` }]}>
+            <MaterialCommunityIcons name="lightbulb-on-outline" size={18} color={colors.primary} />
+          </View>
+          <View style={styles.anamneseText}>
+            <Text style={[styles.anamneseTitle, { color: colors.foreground }]}>Quer insights mais precisos?</Text>
+            <Text style={[styles.anamneseSub, { color: colors.mutedForeground }]}>Responda 4 perguntas rápidas sobre seu negócio.</Text>
+          </View>
+          <Text style={[styles.anamneseCta, { color: colors.primary }]}>Fazer →</Text>
+        </Pressable>
+      )}
 
       {isLoading ? (
         <View style={styles.loadingBox}>
@@ -373,6 +368,7 @@ export default function InsightsScreen() {
               recommendation={item.recommendation}
               periodLabel={item.periodLabel}
               createdAt={item.createdAt}
+              tone={(item as any).tone}
               onArchive={handleArchive}
             />
           )}
@@ -543,6 +539,22 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     color: "#fff",
   },
+  // anamnese banner
+  anamneseBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginHorizontal: 20,
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  anamneseIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  anamneseText: { flex: 1, gap: 2 },
+  anamneseTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  anamneseSub: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  anamneseCta: { fontSize: 13, fontFamily: "Inter_700Bold" },
   // empty
   emptyBox: {
     paddingTop: 60,

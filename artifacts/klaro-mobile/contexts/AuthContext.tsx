@@ -15,6 +15,7 @@ const USER_KEY = "klaro_auth_user";
 export interface BusinessProfile {
   businessName?: string;
   segment?: string;
+  segmentCustomLabel?: string;
   city?: string;
   state?: string;
   employeeCount?: number;
@@ -25,6 +26,23 @@ export interface BusinessProfile {
   mainProducts?: string;
   salesChannel?: string;
   biggestChallenge?: string;
+  // Anamnesis
+  anamneseCompleted?: boolean;
+  tempoMercado?: string;
+  tipoNegocio?: string;
+  ticketMedio?: string;
+  faixaFaturamento?: string;
+  controleFinanceiro?: string;
+  sabeLucro?: string;
+  separaFinancas?: string;
+  conheceCustos?: string;
+  comoDecide?: string;
+  deixouInvestir?: string;
+  surpresaCaixa?: string;
+  maiorDificuldade?: string;
+  querMelhorar?: string;
+  comMaisClareza?: string;
+  observacoesAdicionais?: string;
 }
 
 export interface AuthUser {

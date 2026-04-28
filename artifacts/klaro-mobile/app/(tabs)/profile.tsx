@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
@@ -186,6 +186,7 @@ export default function ProfileScreen() {
 
   const [businessName, setBusinessName] = useState(bp?.businessName ?? "");
   const [segment, setSegment] = useState(bp?.segment ?? "");
+  const [segmentCustomLabel, setSegmentCustomLabel] = useState(bp?.segmentCustomLabel ?? "");
   const [city, setCity] = useState(bp?.city ?? "");
   const [state, setState] = useState(bp?.state ?? "");
   const [employeeCount, setEmployeeCount] = useState(bp?.employeeCount ? String(bp.employeeCount) : "");
@@ -216,14 +217,14 @@ export default function ProfileScreen() {
 
   // Ref to track the current state for autosave
   const stateRef = useRef({
-    businessName, segment, city, state, employeeCount, openDays,
+    businessName, segment, segmentCustomLabel, city, state, employeeCount, openDays,
     openStart, openEnd, revenueGoal, marginGoal, mainProducts,
     salesChannel, biggestChallenge,
   });
 
   // Keep ref in sync
   stateRef.current = {
-    businessName, segment, city, state, employeeCount, openDays,
+    businessName, segment, segmentCustomLabel, city, state, employeeCount, openDays,
     openStart, openEnd, revenueGoal, marginGoal, mainProducts,
     salesChannel, biggestChallenge,
   };
@@ -265,6 +266,7 @@ export default function ProfileScreen() {
       const profile: BusinessProfile = {
         businessName: s.businessName.trim() || undefined,
         segment: s.segment || undefined,
+        segmentCustomLabel: s.segment === "outro" ? (s.segmentCustomLabel.trim() || undefined) : undefined,
         city: s.city.trim() || undefined,
         state: s.state.trim() || undefined,
         employeeCount: s.employeeCount ? Number(s.employeeCount) : undefined,
@@ -434,6 +436,43 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Anamnese status */}
+      {bp?.anamneseCompleted ? (
+        <Pressable
+          onPress={() => router.push("/anamnese")}
+          style={({ pressed }) => [
+            styles.anamneseBanner,
+            { backgroundColor: `${colors.income}0d`, borderColor: `${colors.income}33`, opacity: pressed ? 0.8 : 1 },
+          ]}
+        >
+          <View style={[styles.anamneseIcon, { backgroundColor: `${colors.income}1a` }]}>
+            <Feather name="check-circle" size={16} color={colors.income} />
+          </View>
+          <View style={styles.anamneseTextWrap}>
+            <Text style={[styles.anamneseTitle, { color: colors.foreground }]}>Diagnóstico concluído</Text>
+            <Text style={[styles.anamneseSub, { color: colors.mutedForeground }]}>A IA usa suas respostas para personalizar os insights.</Text>
+          </View>
+          <Text style={[styles.anamneseCta, { color: colors.mutedForeground }]}>Editar</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          onPress={() => router.push("/anamnese")}
+          style={({ pressed }) => [
+            styles.anamneseBanner,
+            { backgroundColor: `${colors.primary}0d`, borderColor: `${colors.primary}30`, opacity: pressed ? 0.8 : 1 },
+          ]}
+        >
+          <View style={[styles.anamneseIcon, { backgroundColor: `${colors.primary}1a` }]}>
+            <MaterialCommunityIcons name="lightbulb-on-outline" size={18} color={colors.primary} />
+          </View>
+          <View style={styles.anamneseTextWrap}>
+            <Text style={[styles.anamneseTitle, { color: colors.foreground }]}>Faça o diagnóstico do negócio</Text>
+            <Text style={[styles.anamneseSub, { color: colors.mutedForeground }]}>4 perguntas rápidas para insights muito mais precisos.</Text>
+          </View>
+          <Text style={[styles.anamneseCta, { color: colors.primary }]}>Fazer →</Text>
+        </Pressable>
+      )}
+
       {/* Account card */}
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.cardRow}>
@@ -486,6 +525,20 @@ export default function ProfileScreen() {
             })}
           </View>
         </Field>
+
+        {segment === "outro" && (
+          <Field label="Qual é o seu segmento? (a IA vai usar esse contexto)">
+            <TextInput
+              style={inputStyle}
+              value={segmentCustomLabel}
+              onChangeText={setSegmentCustomLabel}
+              onBlur={() => autoSave()}
+              placeholder="Ex: Fotografia, Pet shop, Barbearia..."
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="words"
+            />
+          </Field>
+        )}
 
         <Field label="Estado">
           <PickerTrigger
@@ -956,6 +1009,12 @@ const styles = StyleSheet.create({
   pickerTrigger: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   pickerTriggerText: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
 
+  anamneseBanner: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1 },
+  anamneseIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  anamneseTextWrap: { flex: 1, gap: 2 },
+  anamneseTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  anamneseSub: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  anamneseCta: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   accountSection: { gap: 10, marginTop: 8 },
   accountTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8, marginLeft: 4 },
   accountCard: { borderWidth: 1, overflow: "hidden" },
