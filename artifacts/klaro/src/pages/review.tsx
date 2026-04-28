@@ -175,7 +175,10 @@ export default function Review() {
             if (!old) return old;
             return { ...old, parsedRecords: old.parsedRecords.map((r: ParsedRecord) => r.id === recordId ? { ...r, ...updated } : r) };
           });
-        }
+        },
+        onError: (err) => {
+          console.error("[review] PATCH failed for record", recordId, field, err);
+        },
       }
     );
   };
@@ -192,7 +195,43 @@ export default function Review() {
     });
   };
 
-  const handleConfirm = () => {
+  const [confirmFlushing, setConfirmFlushing] = useState(false);
+
+  const handleConfirm = async () => {
+    // Flush all locally-edited fields to the DB before confirming to avoid
+    // the race condition where onBlur + onClick fire simultaneously and the
+    // PATCH hasn't landed before the confirm request reads from the DB.
+    const pendingIds = Object.keys(edits).map(Number).filter(id => {
+      const fields = edits[id];
+      return fields && Object.keys(fields).length > 0;
+    });
+
+    if (pendingIds.length > 0) {
+      setConfirmFlushing(true);
+      await Promise.all(
+        pendingIds.map(async (recordId) => {
+          const fieldEdits = edits[recordId];
+          if (!fieldEdits) return;
+          const data: Record<string, any> = {};
+          for (const [field, value] of Object.entries(fieldEdits)) {
+            if (field === "date") {
+              const iso = typeof value === "string" ? brToISO(value) : value;
+              if (iso) data.date = iso;
+            } else {
+              data[field] = value;
+            }
+          }
+          if (Object.keys(data).length === 0) return;
+          try {
+            await updateRecord.mutateAsync({ id: recordId, data });
+          } catch {
+            // best-effort — proceed even if individual saves fail
+          }
+        })
+      );
+      setConfirmFlushing(false);
+    }
+
     confirmRecords.mutate({ data: { rawInputId: uploadId } }, { onSuccess: () => setLocation("/transactions") });
   };
 
@@ -213,7 +252,7 @@ export default function Review() {
           </div>
           <Button
             onClick={handleConfirm}
-            disabled={!upload?.parsedRecords?.length || confirmRecords.isPending}
+            disabled={!upload?.parsedRecords?.length || confirmRecords.isPending || confirmFlushing}
             className="font-bold gap-2"
           >
             <Check className="w-4 h-4" />
@@ -418,7 +457,13 @@ export default function Review() {
                         />
                       </TableCell>
                       <TableCell className="p-2">
-                        <Select value={record.type} onValueChange={(val) => handleUpdate(record.id, 'type', val)}>
+                        <Select
+                          value={getField(record, 'type') as string}
+                          onValueChange={(val) => {
+                            setField(record.id, 'type', val);
+                            handleUpdate(record.id, 'type', val);
+                          }}
+                        >
                           <SelectTrigger className="h-8 bg-transparent border-transparent hover:border-input">
                             <SelectValue />
                           </SelectTrigger>
