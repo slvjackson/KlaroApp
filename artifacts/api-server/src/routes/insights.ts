@@ -187,6 +187,7 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
           description: g.description,
           recommendation: g.recommendation,
           periodLabel: g.periodLabel,
+          tone: g.tone || "neutral",
         })),
       )
       .returning();
