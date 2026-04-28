@@ -13,6 +13,21 @@ export interface InsightsPromptContext {
   salesChannel?: string;
   biggestChallenge?: string;
   periodLabel: string;
+  // Anamnesis
+  tempoMercado?: string;
+  tipoNegocio?: string;
+  ticketMedio?: string;
+  faixaFaturamento?: string;
+  controleFinanceiro?: string;
+  sabeLucro?: string;
+  separaFinancas?: string;
+  conheceCustos?: string;
+  comoDecide?: string;
+  deixouInvestir?: string;
+  surpresaCaixa?: string;
+  maiorDificuldade?: string;
+  querMelhorar?: string;
+  comMaisClareza?: string;
 }
 
 /**
@@ -33,6 +48,26 @@ export function buildInsightsPrompt(financialSummary: string, ctx: InsightsPromp
   if (ctx.profitMarginGoal !== undefined) profileLines.push(`Meta de margem de lucro: ${ctx.profitMarginGoal}%`);
   if (ctx.biggestChallenge) profileLines.push(`Maior desafio declarado: ${ctx.biggestChallenge}`);
 
+  const anamneseLines: string[] = [];
+  if (ctx.tempoMercado) anamneseLines.push(`Tempo no mercado: ${ctx.tempoMercado}`);
+  if (ctx.tipoNegocio) anamneseLines.push(`Tipo de negócio: ${ctx.tipoNegocio}`);
+  if (ctx.ticketMedio) anamneseLines.push(`Ticket médio: ${ctx.ticketMedio}`);
+  if (ctx.faixaFaturamento) anamneseLines.push(`Faixa de faturamento mensal: ${ctx.faixaFaturamento}`);
+  if (ctx.controleFinanceiro) anamneseLines.push(`Como controla as finanças: ${ctx.controleFinanceiro}`);
+  if (ctx.sabeLucro) anamneseLines.push(`Sabe se está tendo lucro: ${ctx.sabeLucro}`);
+  if (ctx.separaFinancas) anamneseLines.push(`Separa finanças pessoais e do negócio: ${ctx.separaFinancas}`);
+  if (ctx.conheceCustos) anamneseLines.push(`Conhece os custos fixos do negócio: ${ctx.conheceCustos}`);
+  if (ctx.comoDecide) anamneseLines.push(`Como toma decisões financeiras: ${ctx.comoDecide}`);
+  if (ctx.deixouInvestir) anamneseLines.push(`Já deixou de investir por falta de caixa: ${ctx.deixouInvestir}`);
+  if (ctx.surpresaCaixa) anamneseLines.push(`Já teve surpresa negativa no caixa: ${ctx.surpresaCaixa}`);
+  if (ctx.maiorDificuldade) anamneseLines.push(`Maior dificuldade financeira: ${ctx.maiorDificuldade}`);
+  if (ctx.querMelhorar) anamneseLines.push(`Quer melhorar em: ${ctx.querMelhorar}`);
+  if (ctx.comMaisClareza) anamneseLines.push(`Quer mais clareza sobre: ${ctx.comMaisClareza}`);
+
+  const anamneseSection = anamneseLines.length > 0
+    ? `\nDIAGNÓSTICO DO NEGÓCIO (respondido pelo dono):\n${anamneseLines.map((l) => `  ${l}`).join("\n")}\n`
+    : "";
+
   const profileSection = profileLines.length > 0
     ? `\nPERFIL DO NEGÓCIO:\n${profileLines.map((l) => `  ${l}`).join("\n")}\n`
     : "";
@@ -52,7 +87,7 @@ export function buildInsightsPrompt(financialSummary: string, ctx: InsightsPromp
 
   return `Você é um consultor financeiro especialista em pequenos e médios negócios brasileiros.
 Analise os dados financeiros abaixo e gere entre 3 e 5 insights práticos e acionáveis para o dono do negócio.
-${profileSection}${segmentGuidelines}${customLabelNote}
+${profileSection}${anamneseSection}${segmentGuidelines}${customLabelNote}
 ${financialSummary}
 
 Retorne SOMENTE um JSON válido com este formato (sem markdown, sem explicações):

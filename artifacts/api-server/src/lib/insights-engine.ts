@@ -30,6 +30,21 @@ export interface InsightBusinessContext {
   mainProducts?: string;
   salesChannel?: string;
   biggestChallenge?: string;
+  // Anamnesis fields
+  tempoMercado?: string;
+  tipoNegocio?: string;
+  ticketMedio?: string;
+  faixaFaturamento?: string;
+  controleFinanceiro?: string;
+  sabeLucro?: string;
+  separaFinancas?: string;
+  conheceCustos?: string;
+  comoDecide?: string;
+  deixouInvestir?: string;
+  surpresaCaixa?: string;
+  maiorDificuldade?: string;
+  querMelhorar?: string;
+  comMaisClareza?: string;
 }
 
 interface Transaction {
@@ -149,6 +164,20 @@ async function generateWithAI(transactions: Transaction[], ctx?: InsightBusiness
     salesChannel: ctx?.salesChannel,
     biggestChallenge: ctx?.biggestChallenge,
     periodLabel,
+    tempoMercado: ctx?.tempoMercado,
+    tipoNegocio: ctx?.tipoNegocio,
+    ticketMedio: ctx?.ticketMedio,
+    faixaFaturamento: ctx?.faixaFaturamento,
+    controleFinanceiro: ctx?.controleFinanceiro,
+    sabeLucro: ctx?.sabeLucro,
+    separaFinancas: ctx?.separaFinancas,
+    conheceCustos: ctx?.conheceCustos,
+    comoDecide: ctx?.comoDecide,
+    deixouInvestir: ctx?.deixouInvestir,
+    surpresaCaixa: ctx?.surpresaCaixa,
+    maiorDificuldade: ctx?.maiorDificuldade,
+    querMelhorar: ctx?.querMelhorar,
+    comMaisClareza: ctx?.comMaisClareza,
   });
 
   const response = await client.messages.create({

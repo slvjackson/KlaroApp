@@ -106,6 +106,20 @@ router.post("/insights/check-milestones", requireAuth, async (req, res): Promise
     mainProducts: bp?.mainProducts as string | undefined,
     salesChannel: bp?.salesChannel as string | undefined,
     biggestChallenge: bp?.biggestChallenge as string | undefined,
+    tempoMercado: bp?.tempoMercado as string | undefined,
+    tipoNegocio: bp?.tipoNegocio as string | undefined,
+    ticketMedio: bp?.ticketMedio as string | undefined,
+    faixaFaturamento: bp?.faixaFaturamento as string | undefined,
+    controleFinanceiro: bp?.controleFinanceiro as string | undefined,
+    sabeLucro: bp?.sabeLucro as string | undefined,
+    separaFinancas: bp?.separaFinancas as string | undefined,
+    conheceCustos: bp?.conheceCustos as string | undefined,
+    comoDecide: bp?.comoDecide as string | undefined,
+    deixouInvestir: bp?.deixouInvestir as string | undefined,
+    surpresaCaixa: bp?.surpresaCaixa as string | undefined,
+    maiorDificuldade: bp?.maiorDificuldade as string | undefined,
+    querMelhorar: bp?.querMelhorar as string | undefined,
+    comMaisClareza: bp?.comMaisClareza as string | undefined,
   });
 
   if (generated.length === 0) {
@@ -171,6 +185,20 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
       mainProducts: bp?.mainProducts as string | undefined,
       salesChannel: bp?.salesChannel as string | undefined,
       biggestChallenge: bp?.biggestChallenge as string | undefined,
+      tempoMercado: bp?.tempoMercado as string | undefined,
+      tipoNegocio: bp?.tipoNegocio as string | undefined,
+      ticketMedio: bp?.ticketMedio as string | undefined,
+      faixaFaturamento: bp?.faixaFaturamento as string | undefined,
+      controleFinanceiro: bp?.controleFinanceiro as string | undefined,
+      sabeLucro: bp?.sabeLucro as string | undefined,
+      separaFinancas: bp?.separaFinancas as string | undefined,
+      conheceCustos: bp?.conheceCustos as string | undefined,
+      comoDecide: bp?.comoDecide as string | undefined,
+      deixouInvestir: bp?.deixouInvestir as string | undefined,
+      surpresaCaixa: bp?.surpresaCaixa as string | undefined,
+      maiorDificuldade: bp?.maiorDificuldade as string | undefined,
+      querMelhorar: bp?.querMelhorar as string | undefined,
+      comMaisClareza: bp?.comMaisClareza as string | undefined,
     });
 
     if (generated.length === 0) {

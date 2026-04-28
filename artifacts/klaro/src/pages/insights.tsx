@@ -5,6 +5,7 @@ import {
   useListInsights,
   useGenerateInsights,
   useArchiveInsight,
+  useGetMe,
   getListInsightsQueryKey,
   type Insight,
 } from "@workspace/api-client-react";
@@ -12,15 +13,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Lightbulb, RefreshCw, AlertTriangle, AlertOctagon, TrendingUp, Upload, X, Share2, Check } from "lucide-react";
 import { Link } from "wouter";
 import { RichContent } from "@/components/rich-content";
+import { AnamneseCta } from "@/components/anamnese-cta";
 
 export default function Insights() {
   const { isLoading: isAuthLoading } = useRequireAuth();
   const queryClient = useQueryClient();
+  const { data: user } = useGetMe();
   const { data: insights, isLoading } = useListInsights();
   const generateInsights = useGenerateInsights();
   const archiveInsight = useArchiveInsight();
   const [attempted, setAttempted] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
+  const anamneseCompleted = !!bp?.anamneseCompleted;
 
   const handleGenerate = () => {
     generateInsights.mutate({}, {
@@ -96,6 +101,8 @@ export default function Insights() {
             {generateInsights.isPending ? "Analisando…" : "Gerar novos insights"}
           </button>
         </div>
+
+        <AnamneseCta completed={anamneseCompleted} />
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

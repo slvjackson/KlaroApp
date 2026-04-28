@@ -14,6 +14,7 @@ import Transactions from "@/pages/transactions";
 import Insights from "@/pages/insights";
 import Profile from "@/pages/profile";
 import Chat from "@/pages/chat";
+import Anamnese from "@/pages/anamnese";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/insights" component={Insights} />
       <Route path="/profile" component={Profile} />
       <Route path="/chat" component={Chat} />
+      <Route path="/anamnese" component={Anamnese} />
       <Route component={NotFound} />
     </Switch>
   );

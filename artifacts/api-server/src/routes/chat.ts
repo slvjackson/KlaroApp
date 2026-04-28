@@ -242,6 +242,25 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   );
   const today = getTodayBrasilia();
 
+  const anamneseLines: string[] = [];
+  if (bp?.tempoMercado) anamneseLines.push(`Tempo no mercado: ${bp.tempoMercado}`);
+  if (bp?.tipoNegocio) anamneseLines.push(`Tipo de negócio: ${bp.tipoNegocio}`);
+  if (bp?.ticketMedio) anamneseLines.push(`Ticket médio: ${bp.ticketMedio}`);
+  if (bp?.faixaFaturamento) anamneseLines.push(`Faixa de faturamento: ${bp.faixaFaturamento}`);
+  if (bp?.controleFinanceiro) anamneseLines.push(`Controle financeiro atual: ${bp.controleFinanceiro}`);
+  if (bp?.sabeLucro) anamneseLines.push(`Sabe se tem lucro: ${bp.sabeLucro}`);
+  if (bp?.separaFinancas) anamneseLines.push(`Separa finanças pessoais/negócio: ${bp.separaFinancas}`);
+  if (bp?.conheceCustos) anamneseLines.push(`Conhece custos fixos: ${bp.conheceCustos}`);
+  if (bp?.comoDecide) anamneseLines.push(`Como decide financeiramente: ${bp.comoDecide}`);
+  if (bp?.deixouInvestir) anamneseLines.push(`Já deixou de investir por falta de caixa: ${bp.deixouInvestir}`);
+  if (bp?.surpresaCaixa) anamneseLines.push(`Já teve surpresa negativa no caixa: ${bp.surpresaCaixa}`);
+  if (bp?.maiorDificuldade) anamneseLines.push(`Maior dificuldade financeira: ${bp.maiorDificuldade}`);
+  if (bp?.querMelhorar) anamneseLines.push(`Quer melhorar em: ${bp.querMelhorar}`);
+  if (bp?.comMaisClareza) anamneseLines.push(`Quer mais clareza sobre: ${bp.comMaisClareza}`);
+  const anamneseSection = anamneseLines.length > 0
+    ? `\nDIAGNÓSTICO DO NEGÓCIO (respondido pelo dono):\n${anamneseLines.map((l) => `  ${l}`).join("\n")}\n`
+    : "";
+
   const systemPrompt = `Você é o Klaro, um consultor financeiro de IA para pequenos e médios negócios brasileiros.
 Você conversa diretamente com o dono do negócio, de forma simples, amigável e acionável.
 Tom de voz: ${segmentProfile.tom}
@@ -252,6 +271,7 @@ PERFIL DO NEGÓCIO:
   Segmento: ${segmentProfile.label}${bp?.segment === "outro" ? " (segmento não listado — use conhecimento geral de mercado para este setor)" : ""}
   Terminologia: receita = "${segmentProfile.terminologia.receita}", despesa = "${segmentProfile.terminologia.despesa}", cliente = "${segmentProfile.terminologia.cliente}"
   Foco de análise: ${segmentProfile.focoInsights}
+${anamneseSection}
 
 INFERÊNCIA DE DATAS (aplique sempre antes de chamar qualquer ferramenta):
 - Apenas o dia (ex: "dia 5"): assuma mês e ano atuais

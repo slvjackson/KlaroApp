@@ -4,6 +4,7 @@ import { useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { Loader2, CheckCircle2, AlertCircle, Lock, Trash2, X } from "lucide-react";
+import { AnamneseCta } from "@/components/anamnese-cta";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -133,7 +134,7 @@ export default function Profile() {
   const { data: user, refetch } = useGetMe();
   const queryClient = useQueryClient();
 
-  const bp = user?.businessProfile as Record<string, unknown> | null | undefined;
+  const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
 
   const [businessName, setBusinessName] = useState(String(bp?.businessName ?? ""));
   const [name, setName] = useState(user?.name ?? "");
@@ -242,6 +243,8 @@ export default function Profile() {
           <h1 className="text-[22px] font-bold tracking-tight text-white">Perfil do Negócio</h1>
           <p className="text-[12.5px] text-[var(--muted)] mt-1">Essas informações melhoram a leitura dos arquivos e os insights gerados.</p>
         </div>
+
+        <AnamneseCta completed={!!bp?.anamneseCompleted} />
 
         {/* Completion */}
         <div className="glass rounded-2xl p-4">

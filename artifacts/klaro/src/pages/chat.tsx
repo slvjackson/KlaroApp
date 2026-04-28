@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 import { Paperclip, Mic, Send, Loader, ShieldCheck, CornerDownRight, Bookmark, Check } from "lucide-react";
-import { useSaveInsight, getListInsightsQueryKey } from "@workspace/api-client-react";
+import { useSaveInsight, useGetMe, getListInsightsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RichContent } from "@/components/rich-content";
+import { AnamneseCta } from "@/components/anamnese-cta";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -104,6 +105,9 @@ function SaveToast({ visible }: { visible: boolean }) {
 export default function Chat() {
   const { isLoading: isAuthLoading } = useRequireAuth();
   const queryClient = useQueryClient();
+  const { data: user } = useGetMe();
+  const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
+  const anamneseCompleted = !!bp?.anamneseCompleted;
   const saveInsight = useSaveInsight();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
@@ -227,6 +231,9 @@ export default function Chat() {
                       <span className="flex-1">{s}</span>
                     </button>
                   ))}
+                </div>
+                <div className="w-full max-w-xs">
+                  <AnamneseCta completed={anamneseCompleted} />
                 </div>
               </div>
             ) : (
