@@ -36,8 +36,9 @@ function brl0(v: number) {
 
 function fmtMonth(val: string) {
   const MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-  const [, m] = val.split("-");
-  return MONTHS[parseInt(m, 10) - 1] ?? val;
+  const [y, m] = val.split("-");
+  const label = MONTHS[parseInt(m, 10) - 1] ?? val;
+  return y ? `${label}/${y}` : label;
 }
 
 function translateStatus(s: string) {
