@@ -1,12 +1,14 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useListInsights } from "@workspace/api-client-react";
+import { useListInsights, usePatchInsightProgress, getListInsightsQueryKey } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
   FlatList,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -33,10 +35,10 @@ type InsightItem = {
   periodLabel: string;
   tone?: string | null;
   steps?: string[] | null;
+  stepsProgress?: boolean[] | null;
   pinnedAt?: string | null;
 };
 
-type ProgressMap = Record<number, boolean[]>;
 
 // ─── Mission card ─────────────────────────────────────────────────────────────
 
@@ -133,7 +135,6 @@ function MissionDetail({
   const total = steps.length;
 
   function handleToggle(i: number) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onToggle(i);
   }
 
@@ -141,71 +142,78 @@ function MissionDetail({
     <View style={styles.detailOverlay}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       <View style={[styles.detailSheet, { backgroundColor: colors.card, borderColor: `${colors.primary}22` }]}>
+        {/* Handle — fixo no topo */}
         <View style={[styles.detailHandle, { backgroundColor: colors.border }]} />
 
-        {/* Trophy badge */}
-        <View style={[styles.trophyBadge, { backgroundColor: `${colors.primary}12` }]}>
-          <MaterialCommunityIcons name="trophy-outline" size={16} color={colors.primary} />
-          <Text style={[styles.trophyBadgeText, { color: colors.primary }]}>Missão salva</Text>
-        </View>
-
-        <Text style={[styles.detailTitle, { color: colors.foreground }]}>{insight.title}</Text>
-
-        {insight.description ? (
-          <Text style={[styles.detailDesc, { color: colors.mutedForeground }]} numberOfLines={3}>
-            {insight.description}
-          </Text>
-        ) : null}
-
-        {/* Progress bar */}
-        {total > 0 && (
-          <View style={styles.detailProgressRow}>
-            <View style={[styles.progressTrack, { backgroundColor: `${colors.mutedForeground}22`, flex: 1 }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    backgroundColor: done === total ? "#10b981" : colors.primary,
-                    width: `${(done / total) * 100}%` as any,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
-              {done}/{total}
-            </Text>
+        {/* Conteúdo rolável */}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.detailScrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={[styles.trophyBadge, { backgroundColor: `${colors.primary}12` }]}>
+            <MaterialCommunityIcons name="trophy-outline" size={16} color={colors.primary} />
+            <Text style={[styles.trophyBadgeText, { color: colors.primary }]}>Missão salva</Text>
           </View>
-        )}
 
-        <Text style={[styles.stepsLabel, { color: colors.mutedForeground }]}>Passos para concluir:</Text>
+          <Text style={[styles.detailTitle, { color: colors.foreground }]}>{insight.title}</Text>
 
-        <View style={{ gap: 10 }}>
-          {steps.map((step, i) => (
-            <Pressable key={i} onPress={() => handleToggle(i)} style={styles.stepRow}>
-              <View
-                style={[
-                  styles.checkbox,
-                  {
-                    borderColor: progress[i] ? colors.primary : colors.border,
-                    backgroundColor: progress[i] ? `${colors.primary}22` : "transparent",
-                  },
-                ]}
-              >
-                {progress[i] && <Feather name="check" size={12} color={colors.primary} />}
+          {insight.description ? (
+            <Text style={[styles.detailDesc, { color: colors.mutedForeground }]}>
+              {insight.description}
+            </Text>
+          ) : null}
+
+          {total > 0 && (
+            <View style={styles.detailProgressRow}>
+              <View style={[styles.progressTrack, { backgroundColor: `${colors.mutedForeground}22`, flex: 1 }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      backgroundColor: done === total ? "#10b981" : colors.primary,
+                      width: `${(done / total) * 100}%` as any,
+                    },
+                  ]}
+                />
               </View>
-              <Text
-                style={[
-                  styles.stepText,
-                  { color: progress[i] ? colors.mutedForeground : colors.foreground },
-                  progress[i] && { textDecorationLine: "line-through" },
-                ]}
-              >
-                {step}
+              <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
+                {done}/{total}
               </Text>
-            </Pressable>
-          ))}
-        </View>
+            </View>
+          )}
 
+          <Text style={[styles.stepsLabel, { color: colors.mutedForeground }]}>Passos para concluir:</Text>
+
+          <View style={{ gap: 10 }}>
+            {steps.map((step, i) => (
+              <Pressable key={i} onPress={() => handleToggle(i)} style={styles.stepRow}>
+                <View
+                  style={[
+                    styles.checkbox,
+                    {
+                      borderColor: progress[i] ? colors.primary : colors.border,
+                      backgroundColor: progress[i] ? `${colors.primary}22` : "transparent",
+                    },
+                  ]}
+                >
+                  {progress[i] && <Feather name="check" size={12} color={colors.primary} />}
+                </View>
+                <Text
+                  style={[
+                    styles.stepText,
+                    { color: progress[i] ? colors.mutedForeground : colors.foreground },
+                    progress[i] && { textDecorationLine: "line-through" },
+                  ]}
+                >
+                  {step}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </ScrollView>
+
+        {/* Botão fixo no fundo */}
         <Pressable
           onPress={onClose}
           style={({ pressed }) => [
@@ -225,27 +233,34 @@ function MissionDetail({
 export default function MissionsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { data: insights } = useListInsights({ query: { refetchOnMount: "always" } });
-  const [progressMap, setProgressMap] = useState<ProgressMap>({});
+  const patchProgress = usePatchInsightProgress();
   const [selected, setSelected] = useState<InsightItem | null>(null);
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
 
   const pinned: InsightItem[] = ((Array.isArray(insights) ? insights : []) as InsightItem[])
     .filter((i) => !!(i as any).pinnedAt);
+  const selectedLive = selected ? (pinned.find((i) => i.id === selected.id) ?? selected) : null;
 
   function getProgress(insight: InsightItem): boolean[] {
     const steps = insight.steps ?? [];
-    return progressMap[insight.id] ?? steps.map(() => false);
+    return insight.stepsProgress ?? steps.map(() => false);
   }
 
   function handleToggle(insightId: number, stepIdx: number) {
-    setProgressMap((prev) => {
-      const steps = pinned.find((i) => i.id === insightId)?.steps ?? [];
-      const current = prev[insightId] ?? steps.map(() => false);
-      const next = current.map((v, i) => (i === stepIdx ? !v : v));
-      return { ...prev, [insightId]: next };
+    const insight = pinned.find((i) => i.id === insightId);
+    if (!insight) return;
+    const current = getProgress(insight);
+    const next = current.map((v, i) => (i === stepIdx ? !v : v));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    patchProgress.mutate({ id: insightId, stepsProgress: next }, {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() }),
     });
+    queryClient.setQueryData(getListInsightsQueryKey(), (old: InsightItem[] | undefined) =>
+      old?.map((i) => i.id === insightId ? { ...i, stepsProgress: next } : i)
+    );
   }
 
   return (
@@ -307,11 +322,11 @@ export default function MissionsScreen() {
       )}
 
       {/* Detail modal */}
-      {selected && (
+      {selectedLive && (
         <MissionDetail
-          insight={selected}
-          progress={getProgress(selected)}
-          onToggle={(i) => handleToggle(selected.id, i)}
+          insight={selectedLive}
+          progress={getProgress(selectedLive)}
+          onToggle={(i) => handleToggle(selectedLive.id, i)}
           onClose={() => setSelected(null)}
         />
       )}
@@ -360,12 +375,15 @@ const styles = StyleSheet.create({
   detailSheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 24,
-    gap: 14,
+    paddingTop: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
     borderWidth: 1,
-    maxHeight: "85%",
+    maxHeight: "88%",
+    gap: 0,
   },
-  detailHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 4 },
+  detailScrollContent: { gap: 14, paddingBottom: 8 },
+  detailHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
   trophyBadge: {
     flexDirection: "row",
     alignItems: "center",

@@ -11,6 +11,7 @@ export const insightsTable = pgTable("insights", {
   periodLabel: text("period_label").notNull(),
   tone: text("tone"),
   steps: json("steps").$type<string[]>(),
+  stepsProgress: json("steps_progress").$type<boolean[]>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   pinnedAt: timestamp("pinned_at", { withTimezone: true }),

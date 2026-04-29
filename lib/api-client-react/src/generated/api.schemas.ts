@@ -188,6 +188,8 @@ export interface Insight {
   archivedAt?: string | null;
   /** @nullable */
   pinnedAt?: string | null;
+  /** @nullable */
+  stepsProgress?: boolean[] | null;
 }
 
 export type GenerateInsightsBodyPeriod =

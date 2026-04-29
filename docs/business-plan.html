@@ -1,0 +1,870 @@
+<!DOCTYPE html><html><head>
+      <title>business-plan</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      
+      <link rel="stylesheet" href="file:////Users/jackson.alberto/.vscode/extensions/shd101wyy.markdown-preview-enhanced-0.8.24/crossnote/dependencies/katex/katex.min.css">
+      
+      
+      
+      
+      
+      
+      
+      <style>
+      code[class*=language-],pre[class*=language-]{color:#333;background:0 0;font-family:Consolas,"Liberation Mono",Menlo,Courier,monospace;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;word-wrap:normal;line-height:1.4;-moz-tab-size:8;-o-tab-size:8;tab-size:8;-webkit-hyphens:none;-moz-hyphens:none;-ms-hyphens:none;hyphens:none}pre[class*=language-]{padding:.8em;overflow:auto;border-radius:3px;background:#f5f5f5}:not(pre)>code[class*=language-]{padding:.1em;border-radius:.3em;white-space:normal;background:#f5f5f5}.token.blockquote,.token.comment{color:#969896}.token.cdata{color:#183691}.token.doctype,.token.macro.property,.token.punctuation,.token.variable{color:#333}.token.builtin,.token.important,.token.keyword,.token.operator,.token.rule{color:#a71d5d}.token.attr-value,.token.regex,.token.string,.token.url{color:#183691}.token.atrule,.token.boolean,.token.code,.token.command,.token.constant,.token.entity,.token.number,.token.property,.token.symbol{color:#0086b3}.token.prolog,.token.selector,.token.tag{color:#63a35c}.token.attr-name,.token.class,.token.class-name,.token.function,.token.id,.token.namespace,.token.pseudo-class,.token.pseudo-element,.token.url-reference .token.variable{color:#795da3}.token.entity{cursor:help}.token.title,.token.title .token.punctuation{font-weight:700;color:#1d3e81}.token.list{color:#ed6a43}.token.inserted{background-color:#eaffea;color:#55a532}.token.deleted{background-color:#ffecec;color:#bd2c00}.token.bold{font-weight:700}.token.italic{font-style:italic}.language-json .token.property{color:#183691}.language-markup .token.tag .token.punctuation{color:#333}.language-css .token.function,code.language-css{color:#0086b3}.language-yaml .token.atrule{color:#63a35c}code.language-yaml{color:#183691}.language-ruby .token.function{color:#333}.language-markdown .token.url{color:#795da3}.language-makefile .token.symbol{color:#795da3}.language-makefile .token.variable{color:#183691}.language-makefile .token.builtin{color:#0086b3}.language-bash .token.keyword{color:#0086b3}pre[data-line]{position:relative;padding:1em 0 1em 3em}pre[data-line] .line-highlight-wrapper{position:absolute;top:0;left:0;background-color:transparent;display:block;width:100%}pre[data-line] .line-highlight{position:absolute;left:0;right:0;padding:inherit 0;margin-top:1em;background:hsla(24,20%,50%,.08);background:linear-gradient(to right,hsla(24,20%,50%,.1) 70%,hsla(24,20%,50%,0));pointer-events:none;line-height:inherit;white-space:pre}pre[data-line] .line-highlight:before,pre[data-line] .line-highlight[data-end]:after{content:attr(data-start);position:absolute;top:.4em;left:.6em;min-width:1em;padding:0 .5em;background-color:hsla(24,20%,50%,.4);color:#f4f1ef;font:bold 65%/1.5 sans-serif;text-align:center;vertical-align:.3em;border-radius:999px;text-shadow:none;box-shadow:0 1px #fff}pre[data-line] .line-highlight[data-end]:after{content:attr(data-end);top:auto;bottom:.4em}html body{font-family:'Helvetica Neue',Helvetica,'Segoe UI',Arial,freesans,sans-serif;font-size:16px;line-height:1.6;color:#333;background-color:#fff;overflow:initial;box-sizing:border-box;word-wrap:break-word}html body>:first-child{margin-top:0}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{line-height:1.2;margin-top:1em;margin-bottom:16px;color:#000}html body h1{font-size:2.25em;font-weight:300;padding-bottom:.3em}html body h2{font-size:1.75em;font-weight:400;padding-bottom:.3em}html body h3{font-size:1.5em;font-weight:500}html body h4{font-size:1.25em;font-weight:600}html body h5{font-size:1.1em;font-weight:600}html body h6{font-size:1em;font-weight:600}html body h1,html body h2,html body h3,html body h4,html body h5{font-weight:600}html body h5{font-size:1em}html body h6{color:#5c5c5c}html body strong{color:#000}html body del{color:#5c5c5c}html body a:not([href]){color:inherit;text-decoration:none}html body a{color:#08c;text-decoration:none}html body a:hover{color:#00a3f5;text-decoration:none}html body img{max-width:100%}html body>p{margin-top:0;margin-bottom:16px;word-wrap:break-word}html body>ol,html body>ul{margin-bottom:16px}html body ol,html body ul{padding-left:2em}html body ol.no-list,html body ul.no-list{padding:0;list-style-type:none}html body ol ol,html body ol ul,html body ul ol,html body ul ul{margin-top:0;margin-bottom:0}html body li{margin-bottom:0}html body li.task-list-item{list-style:none}html body li>p{margin-top:0;margin-bottom:0}html body .task-list-item-checkbox{margin:0 .2em .25em -1.8em;vertical-align:middle}html body .task-list-item-checkbox:hover{cursor:pointer}html body blockquote{margin:16px 0;font-size:inherit;padding:0 15px;color:#5c5c5c;background-color:#f0f0f0;border-left:4px solid #d6d6d6}html body blockquote>:first-child{margin-top:0}html body blockquote>:last-child{margin-bottom:0}html body hr{height:4px;margin:32px 0;background-color:#d6d6d6;border:0 none}html body table{margin:10px 0 15px 0;border-collapse:collapse;border-spacing:0;display:block;width:100%;overflow:auto;word-break:normal;word-break:keep-all}html body table th{font-weight:700;color:#000}html body table td,html body table th{border:1px solid #d6d6d6;padding:6px 13px}html body dl{padding:0}html body dl dt{padding:0;margin-top:16px;font-size:1em;font-style:italic;font-weight:700}html body dl dd{padding:0 16px;margin-bottom:16px}html body code{font-family:Menlo,Monaco,Consolas,'Courier New',monospace;font-size:.85em;color:#000;background-color:#f0f0f0;border-radius:3px;padding:.2em 0}html body code::after,html body code::before{letter-spacing:-.2em;content:'\00a0'}html body pre>code{padding:0;margin:0;word-break:normal;white-space:pre;background:0 0;border:0}html body .highlight{margin-bottom:16px}html body .highlight pre,html body pre{padding:1em;overflow:auto;line-height:1.45;border:#d6d6d6;border-radius:3px}html body .highlight pre{margin-bottom:0;word-break:normal}html body pre code,html body pre tt{display:inline;max-width:initial;padding:0;margin:0;overflow:initial;line-height:inherit;word-wrap:normal;background-color:transparent;border:0}html body pre code:after,html body pre code:before,html body pre tt:after,html body pre tt:before{content:normal}html body blockquote,html body dl,html body ol,html body p,html body pre,html body ul{margin-top:0;margin-bottom:16px}html body kbd{color:#000;border:1px solid #d6d6d6;border-bottom:2px solid #c7c7c7;padding:2px 4px;background-color:#f0f0f0;border-radius:3px}@media print{html body{background-color:#fff}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{color:#000;page-break-after:avoid}html body blockquote{color:#5c5c5c}html body pre{page-break-inside:avoid}html body table{display:table}html body img{display:block;max-width:100%;max-height:100%}html body code,html body pre{word-wrap:break-word;white-space:pre}}.markdown-preview{width:100%;height:100%;box-sizing:border-box}.markdown-preview ul{list-style:disc}.markdown-preview ul ul{list-style:circle}.markdown-preview ul ul ul{list-style:square}.markdown-preview ol{list-style:decimal}.markdown-preview ol ol,.markdown-preview ul ol{list-style-type:lower-roman}.markdown-preview ol ol ol,.markdown-preview ol ul ol,.markdown-preview ul ol ol,.markdown-preview ul ul ol{list-style-type:lower-alpha}.markdown-preview .newpage,.markdown-preview .pagebreak{page-break-before:always}.markdown-preview pre.line-numbers{position:relative;padding-left:3.8em;counter-reset:linenumber}.markdown-preview pre.line-numbers>code{position:relative}.markdown-preview pre.line-numbers .line-numbers-rows{position:absolute;pointer-events:none;top:1em;font-size:100%;left:0;width:3em;letter-spacing:-1px;border-right:1px solid #999;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}.markdown-preview pre.line-numbers .line-numbers-rows>span{pointer-events:none;display:block;counter-increment:linenumber}.markdown-preview pre.line-numbers .line-numbers-rows>span:before{content:counter(linenumber);color:#999;display:block;padding-right:.8em;text-align:right}.markdown-preview .mathjax-exps .MathJax_Display{text-align:center!important}.markdown-preview:not([data-for=preview]) .code-chunk .code-chunk-btn-group{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .status{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .output-div{margin-bottom:16px}.markdown-preview .md-toc{padding:0}.markdown-preview .md-toc .md-toc-details{margin:0;padding:0;border:none}.markdown-preview .md-toc summary.md-toc-link-wrapper{cursor:pointer;list-style-position:outside}.markdown-preview .md-toc summary.md-toc-link-wrapper::marker{font-size:.85em}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link div,.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}.markdown-preview .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='0']{margin-left:12px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='1']{margin-left:28px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='2']{margin-left:44px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='3']{margin-left:60px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='4']{margin-left:76px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='5']{margin-left:80px}.scrollbar-style::-webkit-scrollbar{width:8px}.scrollbar-style::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}.scrollbar-style::-webkit-scrollbar-thumb{border-radius:5px;background-color:rgba(150,150,150,.66);border:4px solid rgba(150,150,150,.66);background-clip:content-box}html body[for=html-export]:not([data-presentation-mode]){position:relative;width:100%;height:100%;top:0;left:0;margin:0;padding:0;overflow:auto}html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{position:relative;top:0;min-height:100vh}@media screen and (min-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em calc(50% - 457px + 2em)}}@media screen and (max-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{font-size:14px!important;padding:1em}}@media print{html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{display:none}}html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{position:fixed;bottom:8px;left:8px;font-size:28px;cursor:pointer;color:inherit;z-index:99;width:32px;text-align:center;opacity:.4}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] #sidebar-toc-btn{opacity:1}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc{position:fixed;top:0;left:0;width:300px;height:100%;padding:32px 0 48px 0;font-size:14px;box-shadow:0 0 4px rgba(150,150,150,.33);box-sizing:border-box;overflow:auto;background-color:inherit}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar{width:8px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-thumb{border-radius:5px;background-color:rgba(150,150,150,.66);border:4px solid rgba(150,150,150,.66);background-clip:content-box}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc a{text-decoration:none}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc{padding:0 16px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-details{margin:0;padding:0;border:none}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link div,html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='0']{padding-left:0}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='1']{padding-left:16px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='2']{padding-left:32px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='3']{padding-left:48px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='4']{padding-left:64px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='5']{padding-left:80px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{left:300px;width:calc(100% - 300px);padding:2em calc(50% - 457px - 300px / 2);margin:0;box-sizing:border-box}@media screen and (max-width:1274px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{width:100%}}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .markdown-preview{left:50%;transform:translateX(-50%)}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .md-sidebar-toc{display:none}
+/* Please visit the URL below for more information: */
+/*   https://shd101wyy.github.io/markdown-preview-enhanced/#/customize-css */
+
+      </style>
+      <script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    // your code here
+  });
+</script>
+    </head>
+    <body for="html-export">
+      <div class="crossnote markdown-preview  ">
+      <div>
+<h1 id="business-plan--klaroapp">Business Plan — KlaroApp </h1>
+<blockquote>
+<p>Versão 1.0 — Abril 2026<br>
+Confidencial</p>
+</blockquote>
+<hr>
+<h2 id="1-sumário-executivo">1. Sumário Executivo </h2>
+<p><strong>KlaroApp</strong> é uma plataforma de inteligência financeira com IA para micro e pequenos empreendedores brasileiros que não têm budget para contratar um analista de dados, um CFO ou ferramentas corporativas.</p>
+<p>Em vez de entregar dashboards que o empreendedor não sabe interpretar, o Klaro transforma dados financeiros em <strong>insights acionáveis</strong> e <strong>planos de ação passo a passo</strong> — como ter um consultor financeiro no bolso por R$99/mês.</p>
+<p>O diferencial de entrada de dados é total: o empreendedor pode enviar <strong>CSV, PDF, extrato bancário, foto do caderninho ou mensagem pelo WhatsApp</strong>. Nenhuma ferramenta concorrente aceita qualquer coisa que o usuário já tem na mão.</p>
+<p><strong>Stage atual:</strong> Produto em desenvolvimento (MVP funcional), sem clientes pagantes.<br>
+<strong>Time:</strong> 2 sócios — 1 técnico, 1 comercial.<br>
+<strong>Modelo:</strong> SaaS mensal, R<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>99</mn><mo stretchy="false">(</mo><mi>p</mi><mi>r</mi><mi>i</mi><mi>m</mi><mi>e</mi><mi>i</mi><mi>r</mi><mi>o</mi><mi>s</mi><mn>100</mn><mi>c</mi><mi>l</mi><mi>i</mi><mi>e</mi><mi>n</mi><mi>t</mi><mi>e</mi><mi>s</mi><mo stretchy="false">)</mo><mo>→</mo><mi>R</mi></mrow><annotation encoding="application/x-tex">99 (primeiros 100 clientes) → R</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">99</span><span class="mopen">(</span><span class="mord mathnormal">p</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mord mathnormal">im</span><span class="mord mathnormal">e</span><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mord mathnormal">os</span><span class="mord">100</span><span class="mord mathnormal">c</span><span class="mord mathnormal" style="margin-right:0.0197em;">l</span><span class="mord mathnormal">i</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span class="mord mathnormal">t</span><span class="mord mathnormal">es</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0077em;">R</span></span></span></span>149.<br>
+<strong>Captação:</strong> Bootstrapped. Sem necessidade de investimento externo no momento.</p>
+<hr>
+<h2 id="2-problema">2. Problema </h2>
+<p>O Brasil tem mais de <strong>14 milhões de MEIs</strong> e ~6 milhões de micro e pequenas empresas. A grande maioria toma decisões financeiras no escuro:</p>
+<ul>
+<li><strong>Dados existem, mas não viram decisão.</strong> O empreendedor sabe quanto entrou e saiu, mas não sabe o que fazer com isso.</li>
+<li><strong>Ferramentas disponíveis exigem conhecimento contábil.</strong> ERPs como Conta Azul, Nibo e Omie entregam relatórios e dashboards — não prescrevem ações.</li>
+<li><strong>Contratar ajuda especializada é caro.</strong> Um contador faz o básico fiscal; um analista de dados ou CFO está fora do alcance financeiro do MEI.</li>
+<li><strong>A consequência:</strong> decisões por intuição, fluxo de caixa descontrolado e negócios que morrem nos primeiros 5 anos por má gestão financeira (60% dos MEIs fecham antes de 5 anos — SEBRAE 2024).</li>
+</ul>
+<hr>
+<h2 id="3-solução">3. Solução </h2>
+<p><strong>KlaroApp = inteligência financeira com IA, acessível e prescritiva.</strong></p>
+<p>O fluxo do produto:</p>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>Envio de dados em qualquer formato
+(CSV · PDF · extrato bancário · foto do caderninho · mensagem no WhatsApp)
+        ↓
+Leitura e interpretação por IA (OCR + parsing automático)
+        ↓
+Análise financeira por IA (Claude Sonnet)
+        ↓
+Insights: "Seu custo fixo cresceu 18% sem aumento de receita"
+        ↓
+Missão com plano de ação: "1. Mapeie seus custos fixos. 2. Negocie contratos com fornecedores. ..."
+        ↓
+Empreendedor executa com clareza
+</code></pre><p><strong>O que diferencia o Klaro:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Atributo</th>
+<th style="text-align:center">Klaro</th>
+<th style="text-align:center">ERPs tradicionais</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Insights em linguagem simples</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td>Plano de ação gerado por IA</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td>Aceita qualquer formato de dados (CSV, PDF, foto, extrato, WhatsApp)</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td>Não exige conhecimento contábil</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td>Acesso via WhatsApp</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td>Mobile-first</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">Parcial</td>
+</tr>
+<tr>
+<td>Preço acessível para MEI</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td>Setup em menos de 5 minutos</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="4-mercado">4. Mercado </h2>
+<h3 id="tamanho-do-mercado-brasil">Tamanho do mercado (Brasil) </h3>
+<table>
+<thead>
+<tr>
+<th>Segmento</th>
+<th style="text-align:right">Tamanho</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MEIs ativos</td>
+<td style="text-align:right">~14 milhões</td>
+</tr>
+<tr>
+<td>Microempresas (ME)</td>
+<td style="text-align:right">~4 milhões</td>
+</tr>
+<tr>
+<td>Pequenas empresas (EPP)</td>
+<td style="text-align:right">~2 milhões</td>
+</tr>
+<tr>
+<td><strong>Total endereçável (TAM)</strong></td>
+<td style="text-align:right"><strong>~20 milhões</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mercado-alcançável-sam">Mercado alcançável (SAM) </h3>
+<p>Empreendedores com smartphone, acesso à internet e disposição de pagar por ferramenta digital de gestão financeira:</p>
+<ul>
+<li>Estimativa conservadora: 8–12% do TAM</li>
+<li><strong>SAM: ~1,6–2,4 milhões de negócios</strong></li>
+</ul>
+<h3 id="mercado-capturável-nos-primeiros-3-anos-som">Mercado capturável nos primeiros 3 anos (SOM) </h3>
+<ul>
+<li>Meta realista: 5.000 a 15.000 clientes</li>
+<li>Com R<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>149</mn><mi>A</mi><mi>R</mi><mi>P</mi><mi>U</mi><mi>m</mi><mover accent="true"><mi>e</mi><mo>ˊ</mo></mover><mi>d</mi><mi>i</mi><mi>o</mi><mi>e</mi><mi>s</mi><mi>t</mi><mi>a</mi><mi>b</mi><mi>i</mi><mi>l</mi><mi>i</mi><mi>z</mi><mi>a</mi><mi>d</mi><mi>o</mi><mo>:</mo><mo>∗</mo><mo>∗</mo><mi>R</mi></mrow><annotation encoding="application/x-tex">149 ARPU médio estabilizado: **R</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord">149</span><span class="mord mathnormal">A</span><span class="mord mathnormal" style="margin-right:0.0077em;">R</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="mord mathnormal" style="margin-right:0.109em;">U</span><span class="mord mathnormal">m</span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">e</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1944em;"><span class="mord">ˊ</span></span></span></span></span></span></span><span class="mord mathnormal">d</span><span class="mord mathnormal">i</span><span class="mord mathnormal">oes</span><span class="mord mathnormal">t</span><span class="mord mathnormal">abi</span><span class="mord mathnormal" style="margin-right:0.0197em;">l</span><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.044em;">z</span><span class="mord mathnormal">a</span><span class="mord mathnormal">d</span><span class="mord mathnormal">o</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">:</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.4653em;"></span><span class="mord">∗</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0077em;">R</span></span></span></span>0,7M–R$2,2M MRR**</li>
+</ul>
+<h3 id="por-que-agora">Por que agora </h3>
+<ul>
+<li>IA generativa viabilizou análise prescritiva a custo acessível (Haiku 4.5 = R$0,005/ação).</li>
+<li>PIX e digitalização acelerada do MEI: mais dados financeiros disponíveis.</li>
+<li>Geração de empreendedores digitais que cobra experiência mobile-first.</li>
+<li>Nenhum player direto ocupa o espaço de "consultoria financeira com IA para MEI".</li>
+</ul>
+<hr>
+<h2 id="5-produto">5. Produto </h2>
+<h3 id="funcionalidades-atuais-mvp">Funcionalidades atuais (MVP) </h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Importação de transações via CSV</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Anamnese — perfil do negócio e contexto setorial</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Geração de insights financeiros por IA</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Missões com plano de ação passo a passo</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>App mobile (iOS + Android)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Web app</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Autenticação e sessão segura</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="roadmap-próximos-12-meses">Roadmap (próximos 12 meses) </h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">Prioridade</th>
+<th>Feature</th>
+<th>Impacto</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">🔴 Alta</td>
+<td>Leitura de PDF e extrato bancário (OCR + parsing por IA)</td>
+<td>Elimina dependência do CSV; qualquer banco</td>
+</tr>
+<tr>
+<td style="text-align:center">🔴 Alta</td>
+<td>Leitura de foto do caderninho / nota fiscal (OCR mobile)</td>
+<td>Atende empreendedor mais informal; diferencial único</td>
+</tr>
+<tr>
+<td style="text-align:center">🔴 Alta</td>
+<td>Canal WhatsApp — envio de dados e recebimento de insights via bot</td>
+<td>Acesso onde o MEI já está; zero fricção de onboarding</td>
+</tr>
+<tr>
+<td style="text-align:center">🔴 Alta</td>
+<td>Relatório semanal por e-mail</td>
+<td>Retenção e engajamento passivo</td>
+</tr>
+<tr>
+<td style="text-align:center">🟡 Média</td>
+<td>Integração bancária via Open Finance</td>
+<td>Alimentação automática de dados; maior retenção</td>
+</tr>
+<tr>
+<td style="text-align:center">🟡 Média</td>
+<td>Categorização automática de despesas</td>
+<td>Reduz fricção na confirmação de transações</td>
+</tr>
+<tr>
+<td style="text-align:center">🟡 Média</td>
+<td>Comparativo de desempenho por setor</td>
+<td>Diferencial competitivo e benchmarking</td>
+</tr>
+<tr>
+<td style="text-align:center">🟢 Baixa</td>
+<td>Dashboard de metas e acompanhamento</td>
+<td>Gamificação e retenção longa</td>
+</tr>
+<tr>
+<td style="text-align:center">🟢 Baixa</td>
+<td>Multi-empresa (contador gerencia vários clientes)</td>
+<td>Canal B2B2C via contadores</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="6-modelo-de-negócio">6. Modelo de Negócio </h2>
+<h3 id="precificação">Precificação </h3>
+<table>
+<thead>
+<tr>
+<th>Plano</th>
+<th style="text-align:center">Preço/mês</th>
+<th>Público</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Starter</strong> (primeiros 100 clientes)</td>
+<td style="text-align:center">R$99</td>
+<td>Early adopters, MEIs</td>
+</tr>
+<tr>
+<td><strong>Pro</strong> (a partir do 101º)</td>
+<td style="text-align:center">R$149</td>
+<td>Crescimento sustentado</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Os primeiros 10 clientes são onboardados sem cobrança (validação e depoimentos).</p>
+</blockquote>
+<h3 id="métricas-de-saúde-do-saas">Métricas de saúde do SaaS </h3>
+<table>
+<thead>
+<tr>
+<th>Métrica</th>
+<th>Referência assumida</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Churn mensal (inicial)</td>
+<td>4–5%</td>
+</tr>
+<tr>
+<td>Churn mensal (maduro, 12m+)</td>
+<td>2–3%</td>
+</tr>
+<tr>
+<td>LTV médio (R$149 × 18 meses)</td>
+<td>~R$2.682</td>
+</tr>
+<tr>
+<td>CAC estimado (tráfego pago)</td>
+<td>R$200–350</td>
+</tr>
+<tr>
+<td>LTV/CAC</td>
+<td>7–13×</td>
+</tr>
+<tr>
+<td>Payback do CAC</td>
+<td>2–3 meses</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="7-go-to-market">7. Go-to-Market </h2>
+<h3 id="fase-1--validação-meses-13">Fase 1 — Validação (meses 1–3) </h3>
+<ul>
+<li>Onboarding manual dos primeiros 10–30 clientes (gratuito).</li>
+<li>Foco em coletar depoimentos, identificar fricções no produto e validar proposta de valor.</li>
+<li>Canal: rede pessoal dos sócios, grupos de WhatsApp de empreendedores, comunidades no Instagram.</li>
+</ul>
+<h3 id="fase-2--tração-meses-49">Fase 2 — Tração (meses 4–9) </h3>
+<ul>
+<li><strong>Tráfego pago:</strong> Meta Ads + Google Ads direcionados a MEI/microempresário. Criativos focados na dor ("você sabe quanto está gastando, mas não sabe o que fazer?").</li>
+<li><strong>Vendas diretas:</strong> Sócio comercial prospecta ativamente grupos de empreendedores, associações comerciais locais, redes de franqueados pequenos.</li>
+<li><strong>Conteúdo orgânico:</strong> Instagram/TikTok com dicas financeiras práticas — construção de audiência qualificada.</li>
+<li>Meta: 100 clientes pagantes ao fim da Fase 2.</li>
+</ul>
+<h3 id="fase-3--escala-meses-1024">Fase 3 — Escala (meses 10–24) </h3>
+<ul>
+<li>Intensificação do tráfego pago com budget crescente (reinvestimento da receita).</li>
+<li><strong>Canal contador:</strong> Parceria com escritórios de contabilidade que indicam o Klaro para seus clientes MEI (revenue share ou comissão por indicação).</li>
+<li><strong>SEO e inbound:</strong> conteúdo sobre gestão financeira para MEI.</li>
+<li>Meta: 300–500 clientes pagantes ao fim do ano 2.</li>
+</ul>
+<h3 id="budget-de-aquisição-estimado">Budget de aquisição estimado </h3>
+<table>
+<thead>
+<tr>
+<th>Fase</th>
+<th style="text-align:center">Budget/mês</th>
+<th style="text-align:center">CAC alvo</th>
+<th style="text-align:center">Novos clientes/mês</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fase 2</td>
+<td style="text-align:center">R$2.000–5.000</td>
+<td style="text-align:center">R$300</td>
+<td style="text-align:center">7–17</td>
+</tr>
+<tr>
+<td>Fase 3</td>
+<td style="text-align:center">R$8.000–15.000</td>
+<td style="text-align:center">R$250</td>
+<td style="text-align:center">32–60</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="8-projeção-financeira">8. Projeção Financeira </h2>
+<blockquote>
+<p>Baseada nos custos reais de infraestrutura (Railway + Neon + Anthropic + Vercel).<br>
+Taxa de câmbio: R$5,02/USD (29/04/2026).</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">Clientes</th>
+<th style="text-align:right">Receita/mês</th>
+<th style="text-align:center">Infra/mês</th>
+<th style="text-align:right">Lucro Bruto</th>
+<th style="text-align:right">Pró-labore total</th>
+<th style="text-align:right">Pró-labore (cada)</th>
+<th style="text-align:right">Caixa acumulado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"><strong>0</strong></td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:center">R$75</td>
+<td style="text-align:right">−R$75</td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:right">−R$75</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>10</strong></td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:center">R$78</td>
+<td style="text-align:right">−R$78</td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:right">−R$153</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>30</strong></td>
+<td style="text-align:right">R$1.980</td>
+<td style="text-align:center">R$85</td>
+<td style="text-align:right">R$1.895</td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:right">R$1.742</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>50</strong></td>
+<td style="text-align:right">R$3.960</td>
+<td style="text-align:center">R$91</td>
+<td style="text-align:right">R$3.869</td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:right">R$5.611</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>100</strong></td>
+<td style="text-align:right">R$8.910</td>
+<td style="text-align:center">R$112</td>
+<td style="text-align:right">R$8.798</td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:right">R$0</td>
+<td style="text-align:right">R$14.409</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>150</strong> ⚠️</td>
+<td style="text-align:right">R$16.360</td>
+<td style="text-align:center">R$223</td>
+<td style="text-align:right">R$16.137</td>
+<td style="text-align:right">R$6.000</td>
+<td style="text-align:right">R$3.000</td>
+<td style="text-align:right">R$30.546</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>200</strong></td>
+<td style="text-align:right">R$23.810</td>
+<td style="text-align:center">R$244</td>
+<td style="text-align:right">R$23.566</td>
+<td style="text-align:right">R$12.000</td>
+<td style="text-align:right">R$6.000</td>
+<td style="text-align:right">R$54.112</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>300</strong></td>
+<td style="text-align:right">R$38.710</td>
+<td style="text-align:center">R$291</td>
+<td style="text-align:right">R$38.419</td>
+<td style="text-align:right">R$18.000</td>
+<td style="text-align:right">R$9.000</td>
+<td style="text-align:right">R$92.531</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>400</strong></td>
+<td style="text-align:right">R$53.610</td>
+<td style="text-align:center">R$333</td>
+<td style="text-align:right">R$53.277</td>
+<td style="text-align:right">R$24.000</td>
+<td style="text-align:right">R$12.000</td>
+<td style="text-align:right">R$145.808</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>500</strong></td>
+<td style="text-align:right">R$68.510</td>
+<td style="text-align:center">R$380</td>
+<td style="text-align:right">R$68.130</td>
+<td style="text-align:right">R$30.000</td>
+<td style="text-align:right">R$15.000</td>
+<td style="text-align:right">R$213.938</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>700</strong> ⚠️</td>
+<td style="text-align:right">R$98.310</td>
+<td style="text-align:center">R$584</td>
+<td style="text-align:right">R$97.726</td>
+<td style="text-align:right">R$40.000</td>
+<td style="text-align:right">R$20.000</td>
+<td style="text-align:right">R$311.664</td>
+</tr>
+<tr>
+<td style="text-align:center"><strong>1.000</strong></td>
+<td style="text-align:right">R$143.010</td>
+<td style="text-align:center">R$766</td>
+<td style="text-align:right">R$142.244</td>
+<td style="text-align:right">R$50.000</td>
+<td style="text-align:right">R$25.000</td>
+<td style="text-align:right">R$453.908</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ <strong>150 clientes</strong> — Neon sobe para plano Launch (+R<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>95</mn><mi mathvariant="normal">/</mi><mi>m</mi><mover accent="true"><mi>e</mi><mo>^</mo></mover><mi>s</mi><mo stretchy="false">)</mo><mi mathvariant="normal">.</mi><mtext>⚠️</mtext><mo>∗</mo><mo>∗</mo><mn>700</mn><mi>c</mi><mi>l</mi><mi>i</mi><mi>e</mi><mi>n</mi><mi>t</mi><mi>e</mi><mi>s</mi><mo>∗</mo><mo>∗</mo><mtext>—</mtext><mi>V</mi><mi>e</mi><mi>r</mi><mi>c</mi><mi>e</mi><mi>l</mi><mi>s</mi><mi>o</mi><mi>b</mi><mi>e</mi><mi>p</mi><mi>a</mi><mi>r</mi><mi>a</mi><mi>p</mi><mi>l</mi><mi>a</mi><mi>n</mi><mi>o</mi><mi>P</mi><mi>r</mi><mi>o</mi><mo stretchy="false">(</mo><mo>+</mo><mi>R</mi></mrow><annotation encoding="application/x-tex">95/mês).  
+⚠️ **700 clientes** — Vercel sobe para plano Pro (+R</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">95/</span><span class="mord mathnormal">m</span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">e</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1944em;"><span class="mord">^</span></span></span></span></span></span></span><span class="mord mathnormal">s</span><span class="mclose">)</span><span class="mord">.⚠️</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord">∗</span><span class="mord">700</span><span class="mord mathnormal">c</span><span class="mord mathnormal" style="margin-right:0.0197em;">l</span><span class="mord mathnormal">i</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span class="mord mathnormal">t</span><span class="mord mathnormal">es</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∗</span><span class="mord">—</span><span class="mord mathnormal" style="margin-right:0.2222em;">V</span><span class="mord mathnormal" style="margin-right:0.0278em;">er</span><span class="mord mathnormal">ce</span><span class="mord mathnormal" style="margin-right:0.0197em;">l</span><span class="mord mathnormal">so</span><span class="mord mathnormal">b</span><span class="mord mathnormal">e</span><span class="mord mathnormal">p</span><span class="mord mathnormal">a</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mord mathnormal">a</span><span class="mord mathnormal" style="margin-right:0.0197em;">pl</span><span class="mord mathnormal">an</span><span class="mord mathnormal">o</span><span class="mord mathnormal" style="margin-right:0.1389em;">P</span><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="mord mathnormal">o</span><span class="mopen">(</span><span class="mord">+</span><span class="mord mathnormal" style="margin-right:0.0077em;">R</span></span></span></span>100/mês).</p>
+<h3 id="cenário-de-crescimento--24-meses">Cenário de crescimento — 24 meses </h3>
+<table>
+<thead>
+<tr>
+<th>Período</th>
+<th style="text-align:center">Clientes</th>
+<th style="text-align:right">MRR</th>
+<th>Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mês 3</td>
+<td style="text-align:center">30</td>
+<td style="text-align:right">R$1.980</td>
+<td>Beta encerrado, primeiros pagantes</td>
+</tr>
+<tr>
+<td>Mês 6</td>
+<td style="text-align:center">80</td>
+<td style="text-align:right">R$6.930</td>
+<td>Tráfego pago iniciado</td>
+</tr>
+<tr>
+<td>Mês 9</td>
+<td style="text-align:center">130</td>
+<td style="text-align:right">R$13.360</td>
+<td>Break-even operacional</td>
+</tr>
+<tr>
+<td>Mês 12</td>
+<td style="text-align:center">200</td>
+<td style="text-align:right">R$23.810</td>
+<td>Pró-labore R$6k/sócio</td>
+</tr>
+<tr>
+<td>Mês 18</td>
+<td style="text-align:center">400</td>
+<td style="text-align:right">R$53.610</td>
+<td>Pró-labore R$12k/sócio</td>
+</tr>
+<tr>
+<td>Mês 24</td>
+<td style="text-align:center">700</td>
+<td style="text-align:right">R$98.310</td>
+<td>Pró-labore R$20k/sócio</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Break-even operacional estimado:</strong> entre 80–100 clientes pagantes (~mês 6–9).</p>
+</blockquote>
+<hr>
+<h2 id="9-custos-e-estrutura">9. Custos e Estrutura </h2>
+<h3 id="infraestrutura-tecnológica-detalhamento">Infraestrutura tecnológica (detalhamento) </h3>
+<table>
+<thead>
+<tr>
+<th>Serviço</th>
+<th>Função</th>
+<th style="text-align:center">Custo (1.000 clientes)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Railway</td>
+<td>API server</td>
+<td style="text-align:center">R$251/mês</td>
+</tr>
+<tr>
+<td>Neon</td>
+<td>Banco de dados PostgreSQL</td>
+<td style="text-align:center">R$95/mês</td>
+</tr>
+<tr>
+<td>Anthropic</td>
+<td>IA (insights + missões)</td>
+<td style="text-align:center">R$320/mês</td>
+</tr>
+<tr>
+<td>Vercel</td>
+<td>Web app</td>
+<td style="text-align:center">R$100/mês</td>
+</tr>
+<tr>
+<td><strong>Total infra</strong></td>
+<td></td>
+<td style="text-align:center"><strong>R$766/mês</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="custos-fixos-operacionais">Custos fixos operacionais </h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Custo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Apple Developer Program</td>
+<td>R$497/ano</td>
+</tr>
+<tr>
+<td>Google Play</td>
+<td>R$126 (único)</td>
+</tr>
+<tr>
+<td>Domínio</td>
+<td>~R$100/ano</td>
+</tr>
+<tr>
+<td>Ferramentas (Figma, Notion, etc.)</td>
+<td>~R$200/mês</td>
+</tr>
+</tbody>
+</table>
+<h3 id="custo-de-aquisição-fase-2">Custo de aquisição (Fase 2+) </h3>
+<ul>
+<li>Budget inicial de tráfego pago: R$2.000–5.000/mês</li>
+<li>Reinvestimento progressivo conforme MRR cresce</li>
+</ul>
+<hr>
+<h2 id="10-time">10. Time </h2>
+<table>
+<thead>
+<tr>
+<th>Sócio</th>
+<th>Papel</th>
+<th>Responsabilidade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Técnico</strong></td>
+<td>CTO / Produto</td>
+<td>Desenvolvimento, infraestrutura, IA, produto</td>
+</tr>
+<tr>
+<td><strong>Comercial</strong></td>
+<td>CEO / Growth</td>
+<td>Vendas, marketing, parcerias, operação</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Vantagem do modelo:</strong></p>
+<ul>
+<li>Infra 100% cloud, sem custo de servidor próprio.</li>
+<li>IA como serviço (Anthropic) — sem necessidade de time de dados.</li>
+<li>Produto cross-platform (web + mobile) com uma única base de código compartilhada.</li>
+<li>Time enxuto consegue escalar até ~1.000 clientes sem contratação.</li>
+</ul>
+<p><strong>Próximas contratações previstas (acima de 500 clientes):</strong></p>
+<ul>
+<li>Suporte ao cliente / Customer Success (1 pessoa)</li>
+<li>Marketing de conteúdo (freelancer ou CLT)</li>
+</ul>
+<hr>
+<h2 id="11-análise-competitiva">11. Análise Competitiva </h2>
+<h3 id="panorama-atual">Panorama atual </h3>
+<table>
+<thead>
+<tr>
+<th>Concorrente</th>
+<th>Foco</th>
+<th style="text-align:center">Preço</th>
+<th style="text-align:center">IA prescritiva</th>
+<th style="text-align:center">Qualquer formato de entrada</th>
+<th style="text-align:center">WhatsApp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Conta Azul</strong></td>
+<td>ERP + NF-e + contabilidade</td>
+<td style="text-align:center">R$69–349/mês</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td><strong>Nibo</strong></td>
+<td>Gestão financeira + contador</td>
+<td style="text-align:center">R$79–299/mês</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td><strong>Omie</strong></td>
+<td>ERP completo</td>
+<td style="text-align:center">R$119–499/mês</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td><strong>Granatum</strong></td>
+<td>Planejamento orçamentário</td>
+<td style="text-align:center">R$89–249/mês</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td><strong>Excel/Planilhas</strong></td>
+<td>Manual</td>
+<td style="text-align:center">R$0</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td><strong>KlaroApp</strong></td>
+<td>Insights + plano de ação com IA</td>
+<td style="text-align:center">R$99–149/mês</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="posicionamento">Posicionamento </h3>
+<p>O Klaro <strong>não compete</strong> diretamente com ERPs. Enquanto eles resolvem o problema de <strong>registrar e organizar</strong> dados, o Klaro resolve o problema de <strong>entender e agir</strong> sobre eles.</p>
+<blockquote>
+<p><strong>Tagline:</strong> <em>"Você já tem os dados. O Klaro te diz o que fazer com eles."</em></p>
+</blockquote>
+<hr>
+<h2 id="12-riscos-e-mitigações">12. Riscos e Mitigações </h2>
+<table>
+<thead>
+<tr>
+<th>Risco</th>
+<th style="text-align:center">Probabilidade</th>
+<th style="text-align:center">Impacto</th>
+<th>Mitigação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Churn alto por falta de engajamento</td>
+<td style="text-align:center">Alta</td>
+<td style="text-align:center">Alto</td>
+<td>E-mail semanal automático, notificações push, missões gamificadas</td>
+</tr>
+<tr>
+<td>Custo de aquisição acima do previsto</td>
+<td style="text-align:center">Média</td>
+<td style="text-align:center">Alto</td>
+<td>Testar canais orgânicos (TikTok, SEO) em paralelo; canal contadores</td>
+</tr>
+<tr>
+<td>Concorrente grande copia feature de IA</td>
+<td style="text-align:center">Média</td>
+<td style="text-align:center">Médio</td>
+<td>Velocidade de execução + profundidade de personalização por segmento</td>
+</tr>
+<tr>
+<td>Aumento de preço da API Anthropic</td>
+<td style="text-align:center">Baixa</td>
+<td style="text-align:center">Médio</td>
+<td>Prompt caching implementado; possibilidade de migrar modelo se necessário</td>
+</tr>
+<tr>
+<td>Qualidade do OCR em fotos de baixa resolução</td>
+<td style="text-align:center">Média</td>
+<td style="text-align:center">Médio</td>
+<td>Feedback imediato ao usuário com opção de revisão manual; melhoria contínua do modelo</td>
+</tr>
+<tr>
+<td>Custo adicional de infraestrutura WhatsApp (Meta API)</td>
+<td style="text-align:center">Baixa</td>
+<td style="text-align:center">Baixo</td>
+<td>WhatsApp Business API via Twilio ou Z-API; custo por mensagem ~R$0,08, absorvível no plano</td>
+</tr>
+<tr>
+<td>Inadimplência / cancelamento em massa</td>
+<td style="text-align:center">Baixa</td>
+<td style="text-align:center">Alto</td>
+<td>Cobrança anual com desconto; contratos semestrais para clientes maiores</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="13-próximos-passos">13. Próximos Passos </h2>
+<h3 id="curto-prazo-03-meses">Curto prazo (0–3 meses) </h3>
+<ul>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Finalizar MVP e estabilizar produto</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Onboarding dos primeiros 10 clientes beta (gratuito)</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Coletar feedback estruturado e iterar</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Definir identidade visual e posicionamento de marca</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Criar página de vendas (landing page com CTA de cadastro)</li>
+</ul>
+<h3 id="médio-prazo-39-meses">Médio prazo (3–9 meses) </h3>
+<ul>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Lançar tráfego pago (Meta Ads) com budget inicial de R$2.000/mês</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Atingir 100 clientes pagantes</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Implementar integração Open Finance (maior prioridade de produto)</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Iniciar canal de conteúdo (Instagram + TikTok) sobre finanças para MEI</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Estruturar processo de CS para reduzir churn</li>
+</ul>
+<h3 id="longo-prazo-924-meses">Longo prazo (9–24 meses) </h3>
+<ul>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Atingir 300–500 clientes pagantes</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Lançar canal de parceiros contadores</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Avaliar expansão de features (metas, fluxo de caixa projetado, DRE simplificado)</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Reavaliar pricing e criação de plano anual com desconto</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox"> Considerar captação externa se crescimento orgânico demandar aceleração</li>
+</ul>
+<hr>
+<h2 id="apêndice--stack-tecnológica">Apêndice — Stack Tecnológica </h2>
+<table>
+<thead>
+<tr>
+<th>Camada</th>
+<th>Tecnologia</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API</td>
+<td>Node.js + Express (Railway)</td>
+</tr>
+<tr>
+<td>Banco de dados</td>
+<td>PostgreSQL via Neon (serverless)</td>
+</tr>
+<tr>
+<td>IA — Insights</td>
+<td>Claude Sonnet 4.6 (Anthropic)</td>
+</tr>
+<tr>
+<td>IA — Planos de ação</td>
+<td>Claude Haiku 4.5 (Anthropic)</td>
+</tr>
+<tr>
+<td>Web app</td>
+<td>React + Vite (Vercel)</td>
+</tr>
+<tr>
+<td>Mobile</td>
+<td>React Native + Expo (iOS + Android)</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td>Sessão server-side com cookie seguro</td>
+</tr>
+<tr>
+<td>Monorepo</td>
+<td>pnpm workspaces</td>
+</tr>
+</tbody>
+</table>
+</div>
+      </div>
+      
+      
+    
+    
+    
+    
+    
+    
+  
+    </body></html>

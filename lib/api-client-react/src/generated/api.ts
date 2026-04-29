@@ -2043,3 +2043,42 @@ export const usePinInsight = <TError = ErrorType<unknown>, TContext = unknown>(
     : { mutation: { mutationKey }, request: undefined };
   return useMutation({ mutationFn: (id: number) => pinInsight(id, requestOptions), ...mutationOptions });
 };
+
+export const getPatchInsightProgressUrl = (id: number) => `/api/insights/${id}/progress`;
+
+export const patchInsightProgress = async (
+  id: number,
+  stepsProgress: boolean[],
+  options?: RequestInit,
+): Promise<Insight> =>
+  customFetch<Insight>(getPatchInsightProgressUrl(id), {
+    ...options,
+    method: "PATCH",
+    body: JSON.stringify({ stepsProgress }),
+    headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
+  });
+
+export const usePatchInsightProgress = <TError = unknown, TContext = unknown>(
+  requestOptions?: RequestInit,
+  mutationOptions?: UseMutationOptions<
+    Awaited<ReturnType<typeof patchInsightProgress>>,
+    TError,
+    { id: number; stepsProgress: boolean[] },
+    TContext
+  >,
+): UseMutationResult<
+  Awaited<ReturnType<typeof patchInsightProgress>>,
+  TError,
+  { id: number; stepsProgress: boolean[] },
+  TContext
+> => {
+  const mutationKey = ["patchInsightProgress"];
+  const { mutation: mutationOptions_, request: requestOptions_ } = mutationOptions
+    ? (mutationOptions as any)
+    : { mutation: mutationOptions, request: undefined };
+  return useMutation({
+    mutationFn: ({ id, stepsProgress }) => patchInsightProgress(id, stepsProgress, requestOptions ?? requestOptions_),
+    mutationKey,
+    ...mutationOptions_,
+  });
+};

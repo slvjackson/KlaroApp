@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
-import { useListInsights } from "@workspace/api-client-react";
+import { useListInsights, usePatchInsightProgress, getListInsightsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Trophy, TrendingUp, AlertTriangle, AlertOctagon, Lightbulb, ChevronRight, CheckCircle2, Circle, X } from "lucide-react";
 
 type Tone = "positive" | "warning" | "critical" | "neutral";
@@ -19,6 +20,7 @@ type PinnedInsight = {
   description?: string | null;
   tone?: string | null;
   steps?: string[] | null;
+  stepsProgress?: boolean[] | null;
   pinnedAt?: string | null;
   periodLabel?: string | null;
 };
@@ -177,24 +179,32 @@ function MissionDetail({
 
 export default function Missions() {
   const { isLoading: isAuthLoading } = useRequireAuth();
+  const queryClient = useQueryClient();
   const { data: rawInsights, isLoading } = useListInsights({ query: { refetchOnMount: "always" } });
-  const [progressMap, setProgressMap] = useState<Record<number, boolean[]>>({});
+  const patchProgress = usePatchInsightProgress();
   const [selected, setSelected] = useState<PinnedInsight | null>(null);
 
   const insights = Array.isArray(rawInsights) ? (rawInsights as PinnedInsight[]) : [];
   const pinned = insights.filter((i) => !!i.pinnedAt);
+  const selectedLive = selected ? (pinned.find((i) => i.id === selected.id) ?? selected) : null;
 
   function getProgress(insight: PinnedInsight): boolean[] {
     const steps = insight.steps ?? [];
-    return progressMap[insight.id] ?? steps.map(() => false);
+    return insight.stepsProgress ?? steps.map(() => false);
   }
 
   function handleToggle(insightId: number, stepIdx: number) {
-    setProgressMap((prev) => {
-      const steps = pinned.find((i) => i.id === insightId)?.steps ?? [];
-      const current = prev[insightId] ?? steps.map(() => false);
-      return { ...prev, [insightId]: current.map((v, i) => (i === stepIdx ? !v : v)) };
+    const insight = pinned.find((i) => i.id === insightId);
+    if (!insight) return;
+    const current = getProgress(insight);
+    const next = current.map((v, i) => (i === stepIdx ? !v : v));
+    patchProgress.mutate({ id: insightId, stepsProgress: next }, {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() }),
     });
+    // optimistic update
+    queryClient.setQueryData(getListInsightsQueryKey(), (old: PinnedInsight[] | undefined) =>
+      old?.map((i) => i.id === insightId ? { ...i, stepsProgress: next } : i)
+    );
   }
 
   const completedCount = pinned.filter((i) => {
@@ -244,11 +254,11 @@ export default function Missions() {
         )}
       </div>
 
-      {selected && (
+      {selectedLive && (
         <MissionDetail
-          insight={selected}
-          progress={getProgress(selected)}
-          onToggle={(i) => handleToggle(selected.id, i)}
+          insight={selectedLive}
+          progress={getProgress(selectedLive)}
+          onToggle={(i) => handleToggle(selectedLive.id, i)}
           onClose={() => setSelected(null)}
         />
       )}

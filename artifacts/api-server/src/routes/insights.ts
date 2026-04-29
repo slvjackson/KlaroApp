@@ -283,6 +283,27 @@ router.patch("/insights/:id/pin", requireAuth, async (req, res): Promise<void> =
   res.json(pinned);
 });
 
+// PATCH /insights/:id/progress — save step completion state
+router.patch("/insights/:id/progress", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const id = parseInt(req.params.id as string, 10);
+
+  if (isNaN(id)) { res.status(400).json({ error: "ID inválido." }); return; }
+
+  const { stepsProgress } = req.body as { stepsProgress: boolean[] };
+  if (!Array.isArray(stepsProgress)) { res.status(400).json({ error: "stepsProgress deve ser um array." }); return; }
+
+  const [updated] = await db
+    .update(insightsTable)
+    .set({ stepsProgress })
+    .where(and(eq(insightsTable.id, id), eq(insightsTable.userId, userId)))
+    .returning();
+
+  if (!updated) { res.status(404).json({ error: "Insight não encontrado." }); return; }
+
+  res.json(updated);
+});
+
 // DELETE /insights/:id — soft-archive a single insight
 router.delete("/insights/:id", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;

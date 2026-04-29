@@ -7,6 +7,7 @@ import {
   useGetTransactionsByCategory,
   useListInsights,
   useListUploads,
+  useListTransactions,
 } from "@workspace/api-client-react";
 import { Sparkline } from "@/components/Sparkline";
 import { format } from "date-fns";
@@ -16,6 +17,22 @@ import {
   Wallet, TrendingUp, TrendingDown, Receipt,
   Lightbulb, Upload, ChevronRight, FileText,
 } from "lucide-react";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function groupByCategory(
+  transactions: { amount: number; category: string; type: string }[] | undefined,
+  type: "income" | "expense",
+): { category: string; total: number; type: string }[] {
+  if (!Array.isArray(transactions)) return [];
+  const map = new Map<string, number>();
+  for (const t of transactions) {
+    if (t.type === type) map.set(t.category, (map.get(t.category) ?? 0) + t.amount);
+  }
+  return [...map.entries()]
+    .map(([category, total]) => ({ category, total, type }))
+    .sort((a, b) => b.total - a.total);
+}
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -34,7 +51,8 @@ function brl0(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
 }
 
-function fmtMonth(val: string) {
+function fmtMonth(val: string | null | undefined) {
+  if (!val) return "";
   const MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   const [y, m] = val.split("-");
   const label = MONTHS[parseInt(m, 10) - 1] ?? val;
@@ -111,16 +129,35 @@ function SummaryCard({ label, value, tone, icon: Icon, delta, sparkPoints, spark
 
 // ─── Monthly chart (custom SVG bars) ─────────────────────────────────────────
 
-function MonthlyChart({ data }: { data: { month: string; income: number; expenses: number }[] }) {
+function MonthlyChart({
+  data,
+  selectedMonth,
+  onSelectMonth,
+}: {
+  data: { month: string; income: number; expenses: number }[];
+  selectedMonth: string | null;
+  onSelectMonth: (month: string | null) => void;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(...data.flatMap((m) => [m.income, m.expenses]), 1);
+  const hasSelection = selectedMonth !== null;
 
   return (
     <div className="glass rounded-2xl p-5">
       <div className="flex items-start justify-between mb-1">
         <div>
           <div className="text-[15px] font-semibold text-white">Fluxo Mensal</div>
-          <div className="text-[12px] text-[var(--muted)]">Entradas vs. Saídas nos últimos meses</div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <div className="text-[12px] text-[var(--muted)]">Entradas vs. Saídas nos últimos meses</div>
+            {hasSelection && (
+              <button
+                onClick={() => onSelectMonth(null)}
+                className="text-[10.5px] px-2 py-0.5 rounded-full bg-[var(--accent-soft)] text-[#90f048] hover:brightness-110 transition-all"
+              >
+                {fmtMonth(selectedMonth!)} · limpar ×
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-4 text-[11.5px]">
           <div className="flex items-center gap-1.5 text-[var(--muted)]">
@@ -133,7 +170,6 @@ function MonthlyChart({ data }: { data: { month: string; income: number; expense
       </div>
 
       <div className="mt-5 relative h-[180px] flex items-end gap-3">
-        {/* Grid lines */}
         <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="border-t border-dashed border-white/5" />
@@ -144,25 +180,36 @@ function MonthlyChart({ data }: { data: { month: string; income: number; expense
           const ih = (m.income / max) * 100;
           const eh = (m.expenses / max) * 100;
           const isHov = hover === i;
+          const isSelected = selectedMonth === m.month;
+          const isDimmed = hasSelection && !isSelected;
+
           return (
             <div
               key={m.month}
-              className="flex-1 h-full flex flex-col items-center gap-1.5"
+              className="flex-1 h-full flex flex-col items-center gap-1.5 cursor-pointer"
+              style={{ opacity: isDimmed ? 0.3 : 1, transition: "opacity 0.2s" }}
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
+              onClick={() => onSelectMonth(isSelected ? null : m.month)}
             >
               <div className="relative flex-1 w-full flex items-end justify-center gap-1">
-                {isHov && (
+                {(isHov || isSelected) && (
                   <div className="absolute -top-16 z-10 px-2.5 py-1.5 rounded-md bg-[#1a1a20] border border-[var(--border-2)] text-[11px] whitespace-nowrap shadow-xl left-1/2 -translate-x-1/2">
                     <div className="text-white font-semibold">{fmtMonth(m.month)}</div>
                     <div className="text-[var(--income)] tnum">+ {brl0(m.income)}</div>
                     <div className="text-[var(--expense)] tnum">− {brl0(m.expenses)}</div>
                   </div>
                 )}
-                <div className="bar-income w-[11px] rounded-t-md transition-all" style={{ height: ih + "%" }} />
-                <div className="bar-expense w-[11px] rounded-t-md transition-all" style={{ height: eh + "%" }} />
+                <div
+                  className="bar-income w-[11px] rounded-t-md transition-all"
+                  style={{ height: ih + "%", boxShadow: isSelected ? "0 0 8px var(--income)" : undefined }}
+                />
+                <div
+                  className="bar-expense w-[11px] rounded-t-md transition-all"
+                  style={{ height: eh + "%", boxShadow: isSelected ? "0 0 8px var(--expense)" : undefined }}
+                />
               </div>
-              <div className={`text-[10.5px] ${isHov ? "text-white" : "text-[var(--muted)]"}`}>
+              <div className={`text-[10.5px] transition-colors ${isSelected ? "text-white font-semibold" : isHov ? "text-white" : "text-[var(--muted)]"}`}>
                 {fmtMonth(m.month)}
               </div>
             </div>
@@ -177,7 +224,7 @@ function MonthlyChart({ data }: { data: { month: string; income: number; expense
 
 interface CatItem { category: string; total: number; type: string; }
 
-function CategoryDonut({ data }: { data: CatItem[] }) {
+function CategoryDonut({ data, selectedMonth }: { data: CatItem[]; selectedMonth: string | null }) {
   const [donutType, setDonutType] = useState<"expense" | "income">("expense");
 
   const filtered = useMemo(() => {
@@ -204,7 +251,14 @@ function CategoryDonut({ data }: { data: CatItem[] }) {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-[15px] font-semibold text-white">Por Categoria</div>
-          <div className="text-[12px] text-[var(--muted)]">Despesas do período</div>
+          <div className="flex items-center gap-1.5">
+            <div className="text-[12px] text-[var(--muted)]">
+              {selectedMonth ? fmtMonth(selectedMonth) : "Todo o período"}
+            </div>
+            {selectedMonth && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent-soft)] text-[#90f048]">filtrado</span>
+            )}
+          </div>
         </div>
         <div className="flex gap-1 p-0.5 rounded-md bg-[rgba(255,255,255,0.04)] border border-[var(--border)]">
           <button
@@ -269,28 +323,48 @@ function CategoryDonut({ data }: { data: CatItem[] }) {
 
 export default function Dashboard() {
   const { isLoading: isAuthLoading } = useRequireAuth();
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   const { data: summary, isLoading: isSummaryLoading } = useGetDashboardSummary();
   const { data: monthlyTrend, isLoading: isMonthlyLoading } = useGetMonthlyTrend();
   const { data: categoryBreakdown, isLoading: isCategoryLoading } = useGetTransactionsByCategory();
   const { data: insights } = useListInsights();
   const { data: uploads } = useListUploads();
+  const { data: allTx } = useListTransactions({ limit: 5000 });
 
   if (isAuthLoading) return null;
 
-  const netBalance = summary?.netBalance ?? 0;
-  const totalIncome = summary?.totalIncome ?? 0;
-  const totalExpenses = summary?.totalExpenses ?? 0;
-  const txCount = summary?.transactionCount ?? 0;
-
   const monthly = (monthlyTrend ?? []) as { month: string; income: number; expenses: number }[];
   const catData = (categoryBreakdown ?? []) as { category: string; total: number; type: string }[];
+  const allTxArr = (allTx ?? []) as { amount: number; category: string; type: string; date: string }[];
 
-  // Derive sparkline points from monthly data
-  const incomePoints = monthly.map((m) => m.income);
+  // Filter transactions by selected month
+  const filteredTx = useMemo(
+    () => selectedMonth ? allTxArr.filter((t) => t.date.startsWith(selectedMonth)) : allTxArr,
+    [selectedMonth, allTxArr],
+  );
+
+  // Category breakdown — client-side when month selected, API data otherwise
+  const activeCatData = useMemo(
+    () => selectedMonth
+      ? [...groupByCategory(filteredTx, "expense"), ...groupByCategory(filteredTx, "income")]
+      : catData,
+    [selectedMonth, filteredTx, catData],
+  );
+
+  // Summary values — from monthly trend when month selected
+  const selectedTrend = selectedMonth ? monthly.find((m) => m.month === selectedMonth) : null;
+  const totalIncome    = selectedTrend ? selectedTrend.income    : (summary?.totalIncome    ?? 0);
+  const totalExpenses  = selectedTrend ? selectedTrend.expenses  : (summary?.totalExpenses  ?? 0);
+  const netBalance     = selectedTrend ? selectedTrend.income - selectedTrend.expenses : (summary?.netBalance ?? 0);
+  const txCount        = selectedMonth
+    ? filteredTx.length
+    : (summary?.transactionCount ?? 0);
+
+  // Sparkline points
+  const incomePoints  = monthly.map((m) => m.income);
   const expensePoints = monthly.map((m) => m.expenses);
 
-  // Compute delta vs previous month
   function lastDelta(points: number[]) {
     if (points.length < 2) return undefined;
     const prev = points[points.length - 2];
@@ -358,7 +432,11 @@ export default function Dashboard() {
                 </Link>
               </div>
             ) : (
-              <MonthlyChart data={monthly} />
+              <MonthlyChart
+                data={monthly}
+                selectedMonth={selectedMonth}
+                onSelectMonth={setSelectedMonth}
+              />
             )}
           </div>
 
@@ -367,7 +445,7 @@ export default function Dashboard() {
             {isCategoryLoading ? (
               <div className="glass rounded-2xl p-5 h-full animate-pulse" />
             ) : (
-              <CategoryDonut data={catData} />
+              <CategoryDonut data={activeCatData} selectedMonth={selectedMonth} />
             )}
           </div>
         </div>
