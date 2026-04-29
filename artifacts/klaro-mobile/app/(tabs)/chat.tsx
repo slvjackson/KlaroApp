@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -21,6 +22,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+const KLARO_LOGO = require("@/assets/images/icon.png");
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MarkdownText } from "@/components/MarkdownText";
 import { useColors } from "@/hooks/useColors";
@@ -181,9 +184,7 @@ function Bubble({
   return (
     <View style={[styles.bubbleRow, isUser && styles.bubbleRowUser]}>
       {!isUser && (
-        <View style={[styles.avatar, { backgroundColor: `${colors.primary}22` }]}>
-          <Feather name="zap" size={14} color={colors.primary} />
-        </View>
+        <Image source={KLARO_LOGO} style={styles.avatar} />
       )}
       <View style={isUser ? styles.bubbleUserWrap : styles.bubbleAssistantWrap}>
         <View
@@ -231,9 +232,7 @@ function Bubble({
 function TypingIndicator({ hint, colors }: { hint: string | null; colors: ReturnType<typeof useColors> }) {
   return (
     <View style={[styles.typingRow, { paddingHorizontal: 20 }]}>
-      <View style={[styles.avatar, { backgroundColor: `${colors.primary}22` }]}>
-        <Feather name="zap" size={14} color={colors.primary} />
-      </View>
+      <Image source={KLARO_LOGO} style={styles.avatar} />
       <View
         style={[
           styles.bubble,
@@ -582,7 +581,7 @@ const styles = StyleSheet.create({
   bubbleRowUser: { flexDirection: "row-reverse" },
   bubbleUserWrap: { maxWidth: "78%" },
   bubbleAssistantWrap: { maxWidth: "78%", gap: 4 },
-  avatar: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  avatar: { width: 28, height: 28, borderRadius: 14, flexShrink: 0 },
   bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
   bubbleText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22 },
 

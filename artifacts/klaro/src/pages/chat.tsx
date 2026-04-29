@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
-import { Paperclip, Mic, Send, Loader, ShieldCheck, CornerDownRight, Bookmark, Check } from "lucide-react";
+import { Paperclip, Mic, Send, Loader, ShieldCheck, CornerDownRight, Bookmark, Check, RotateCcw } from "lucide-react";
 import { useSaveInsight, useGetMe, getListInsightsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RichContent } from "@/components/rich-content";
 import { AnamneseCta } from "@/components/anamnese-cta";
-
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+import { useChatContext, type ChatMessage } from "@/contexts/chat-context";
 
 const SUGGESTIONS = [
   "Qual foi minha receita este mês?",
@@ -33,11 +29,7 @@ function Bubble({ msg, onSave }: { msg: ChatMessage; onSave?: () => void }) {
   return (
     <div className={`fadeUp flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#5dd620] to-[#6af82f] grid place-items-center shrink-0 mt-0.5">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-            <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
-          </svg>
-        </div>
+        <img src="/logo.png" alt="Klaro" className="w-7 h-7 rounded-full shrink-0 mt-0.5 object-cover" />
       )}
       <div className="flex flex-col gap-1 max-w-[78%]">
         <div
@@ -77,11 +69,7 @@ function Bubble({ msg, onSave }: { msg: ChatMessage; onSave?: () => void }) {
 function TypingBubble() {
   return (
     <div className="fadeUp flex gap-2.5 justify-start">
-      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#5dd620] to-[#6af82f] grid place-items-center shrink-0 mt-0.5">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
-        </svg>
-      </div>
+      <img src="/logo.png" alt="Klaro" className="w-7 h-7 rounded-full shrink-0 mt-0.5 object-cover" />
       <div className="px-4 py-3 bg-[rgba(255,255,255,0.04)] border border-[var(--border)] bubble-bot">
         <span className="dot" /><span className="dot" /><span className="dot" />
       </div>
@@ -109,12 +97,9 @@ export default function Chat() {
   const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
   const anamneseCompleted = !!bp?.anamneseCompleted;
   const saveInsight = useSaveInsight();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
+  const { messages, savedIndices, loading, error, sendMessage: ctxSend, saveIndex, clearChat } = useChatContext();
   const [showToast, setShowToast] = useState(false);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [focused, setFocused] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -135,7 +120,7 @@ export default function Chat() {
       },
       {
         onSuccess: () => {
-          setSavedIndices((prev) => new Set([...prev, idx]));
+          saveIndex(idx);
           queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
           setShowToast(true);
           setTimeout(() => setShowToast(false), 3000);
@@ -147,32 +132,9 @@ export default function Chat() {
   async function sendMessage(text?: string) {
     const msg = (text ?? input).trim();
     if (!msg || loading) return;
-
-    const userMsg: ChatMessage = { role: "user", content: msg };
-    const history = [...messages, userMsg];
-    setMessages(history);
     setInput("");
-    setError("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, history: messages }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error ?? "Erro ao obter resposta.");
-        return;
-      }
-      setMessages([...history, { role: "assistant", content: data.reply }]);
-    } catch {
-      setError("Erro de conexão.");
-    } finally {
-      setLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
+    await ctxSend(msg);
+    setTimeout(() => inputRef.current?.focus(), 50);
   }
 
   const isEmpty = messages.length === 0;
@@ -188,11 +150,7 @@ export default function Chat() {
           {/* Header */}
           <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)] relative shrink-0">
             <div className="relative">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#5dd620] to-[#6af82f] grid place-items-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
-                </svg>
-              </div>
+              <img src="/logo.png" alt="Klaro" className="w-9 h-9 rounded-xl object-cover" />
               <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--income)] border-2 border-[#15151a]" />
             </div>
             <div className="leading-tight flex-1 min-w-0">
@@ -202,17 +160,23 @@ export default function Chat() {
               </div>
               <div className="text-[11px] text-[var(--muted)]">Conectado às suas transações em tempo real</div>
             </div>
+            {messages.length > 0 && (
+              <button
+                onClick={clearChat}
+                title="Nova conversa"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-[var(--muted)] hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <RotateCcw size={12} />
+                Nova conversa
+              </button>
+            )}
           </div>
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto klaro-scroll px-5 py-5 space-y-3.5 relative">
             {isEmpty ? (
               <div className="h-full flex flex-col items-center justify-center text-center gap-5 pb-6">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[rgba(106,248,47,0.3)] to-[rgba(106,248,47,0.15)] border border-[var(--border-2)] grid place-items-center">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#90f048" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
-                  </svg>
-                </div>
+                <img src="/logo.png" alt="Klaro" className="w-14 h-14 rounded-2xl object-cover" />
                 <div>
                   <div className="text-[15px] font-semibold text-white">Pergunte qualquer coisa</div>
                   <div className="text-[12px] text-[var(--muted)] max-w-[260px] leading-relaxed mt-1">
