@@ -101,10 +101,13 @@ Retorne SOMENTE um JSON válido com este formato (sem markdown, sem explicaçõe
     "title": "Título curto do insight (máx 8 palavras)",
     "description": "Análise em 2-3 frases, com números concretos do resumo acima. Tom direto como um consultor falando com o dono.",
     "recommendation": "1 ação concreta e específica que o dono pode fazer agora. Máx 2 frases.",
+    "steps": ["Passo 1 curto e acionável (máx 10 palavras)", "Passo 2", "Passo 3"],
     "periodLabel": "${ctx.periodLabel}",
     "tone": "positive"
   }
 ]
+
+O campo "steps" deve conter um array de 3 a 4 tarefas curtas, gamificadas e acionáveis derivadas da recomendação. Cada passo deve ser uma ação concreta que o dono consegue executar em 1 semana. Linguagem imperativa, máx 10 palavras por passo.
 
 O campo "tone" deve conter EXATAMENTE um destes quatro valores (string literal, sem variações):
 - "positive" → oportunidade, crescimento, resultado acima do esperado, ponto forte

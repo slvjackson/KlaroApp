@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -10,8 +10,10 @@ export const insightsTable = pgTable("insights", {
   recommendation: text("recommendation").notNull(),
   periodLabel: text("period_label").notNull(),
   tone: text("tone"),
+  steps: json("steps").$type<string[]>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
+  pinnedAt: timestamp("pinned_at", { withTimezone: true }),
 });
 
 export const insertInsightSchema = createInsertSchema(insightsTable).omit({ id: true, createdAt: true, archivedAt: true });

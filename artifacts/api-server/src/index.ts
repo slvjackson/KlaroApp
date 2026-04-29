@@ -19,6 +19,12 @@ if (Number.isNaN(port) || port <= 0) {
 pool.query("ALTER TABLE insights ADD COLUMN IF NOT EXISTS tone TEXT").catch((e) =>
   logger.warn({ err: e }, "Could not add tone column to insights")
 );
+pool.query("ALTER TABLE insights ADD COLUMN IF NOT EXISTS steps JSON").catch((e) =>
+  logger.warn({ err: e }, "Could not add steps column to insights")
+);
+pool.query("ALTER TABLE insights ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ").catch((e) =>
+  logger.warn({ err: e }, "Could not add pinned_at column to insights")
+);
 
 app.listen(port, (err) => {
   if (err) {

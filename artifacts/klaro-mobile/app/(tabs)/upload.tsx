@@ -1,13 +1,14 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useListUploads } from "@workspace/api-client-react";
 import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActionSheetIOS,
   ActivityIndicator,
+  Animated,
   FlatList,
   Modal,
   Platform,
@@ -21,6 +22,77 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { getApiBaseUrl } from "@/constants/api";
 import { useAuth } from "@/contexts/AuthContext";
+
+function UploadingOverlay({ fileName }: { fileName: string }) {
+  const colors = useColors();
+  const spin = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 1800, useNativeDriver: true })
+    ).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.1, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [spin, pulse]);
+
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+
+  return (
+    <Modal visible transparent animationType="fade">
+      <View style={[overlayStyles.root, { backgroundColor: "rgba(0,0,0,0.75)" }]}>
+        <View
+          style={[
+            overlayStyles.card,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderRadius: colors.radius,
+            },
+          ]}
+        >
+          <Animated.View style={{ transform: [{ scale: pulse }], marginBottom: 16 }}>
+            <View
+              style={[
+                overlayStyles.iconWrap,
+                { backgroundColor: `${colors.primary}20`, borderRadius: 40 },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="file-upload-outline"
+                size={40}
+                color={colors.primary}
+              />
+            </View>
+          </Animated.View>
+
+          <Text style={[overlayStyles.title, { color: colors.foreground }]}>
+            Enviando arquivo…
+          </Text>
+          {fileName ? (
+            <Text
+              style={[overlayStyles.fileName, { color: colors.mutedForeground }]}
+              numberOfLines={1}
+            >
+              {fileName}
+            </Text>
+          ) : null}
+          <Text style={[overlayStyles.sub, { color: colors.mutedForeground }]}>
+            A IA vai analisar e extrair as transações automaticamente.
+          </Text>
+
+          <Animated.View style={{ transform: [{ rotate }], marginTop: 20 }}>
+            <Feather name="loader" size={22} color={colors.primary} />
+          </Animated.View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 function UploadItem({
   item,
@@ -114,6 +186,7 @@ export default function UploadScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const [uploading, setUploading] = useState(false);
+  const [uploadingFileName, setUploadingFileName] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [showSourcePicker, setShowSourcePicker] = useState(false);
 
@@ -123,6 +196,7 @@ export default function UploadScreen() {
 
   async function uploadFile(uri: string, name: string, mimeType: string) {
     setUploading(true);
+    setUploadingFileName(name);
     setUploadError("");
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -241,9 +315,7 @@ export default function UploadScreen() {
           },
         ]}
       >
-        {uploading ? (
-          <ActivityIndicator color={colors.primary} size="large" />
-        ) : (
+        {(
           <>
             <View
               style={[
@@ -266,12 +338,13 @@ export default function UploadScreen() {
             </Text>
             <Pressable
               onPress={handleChooseSource}
+              disabled={uploading}
               style={({ pressed }) => [
                 styles.uploadBtn,
                 {
                   backgroundColor: colors.primary,
                   borderRadius: colors.radius,
-                  opacity: pressed ? 0.8 : 1,
+                  opacity: uploading ? 0.5 : pressed ? 0.8 : 1,
                 },
               ]}
             >
@@ -302,6 +375,9 @@ export default function UploadScreen() {
       >
         Histórico
       </Text>
+
+      {/* Full-screen upload overlay */}
+      {uploading && <UploadingOverlay fileName={uploadingFileName} />}
 
       {/* Android source picker (iOS uses ActionSheetIOS) */}
       <Modal
@@ -491,5 +567,45 @@ const styles = StyleSheet.create({
   sourceOptionText: {
     fontSize: 16,
     fontFamily: "Inter_400Regular",
+  },
+});
+
+const overlayStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 40,
+  },
+  card: {
+    width: "100%",
+    borderWidth: 1,
+    padding: 32,
+    alignItems: "center",
+  },
+  iconWrap: {
+    width: 80,
+    height: 80,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  title: {
+    fontSize: 18,
+    fontFamily: "Inter_600SemiBold",
+    textAlign: "center",
+  },
+  fileName: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    marginTop: 4,
+    maxWidth: 220,
+  },
+  sub: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 19,
+    marginTop: 8,
   },
 });

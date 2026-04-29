@@ -202,6 +202,9 @@ function Bubble({
             <MarkdownText
               text={message.content}
               color={colors.foreground}
+              mutedColor={colors.mutedForeground}
+              cardColor={colors.card}
+              borderColor={colors.border}
               style={styles.bubbleText}
             />
           )}
@@ -383,7 +386,7 @@ export default function ChatScreen() {
       });
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Salvo!", "Insight salvo na aba Inteligência.");
+      Alert.alert("Salvo!", "Insight salvo na aba Insights.");
     } catch {
       Alert.alert("Erro", "Não foi possível salvar o insight.");
     }

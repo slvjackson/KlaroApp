@@ -181,9 +181,13 @@ export interface Insight {
   periodLabel: string;
   /** @nullable */
   tone?: "positive" | "warning" | "critical" | "neutral" | null;
+  /** @nullable */
+  steps?: string[] | null;
   createdAt: string;
   /** @nullable */
   archivedAt?: string | null;
+  /** @nullable */
+  pinnedAt?: string | null;
 }
 
 export type GenerateInsightsBodyPeriod =

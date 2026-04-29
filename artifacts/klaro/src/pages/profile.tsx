@@ -268,7 +268,7 @@ export default function Profile() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[12.5px] font-semibold text-white leading-snug">Faça o diagnóstico do negócio</div>
-              <div className="text-[11px] text-[var(--muted)] mt-0.5">4 perguntas rápidas para a IA gerar análises muito mais precisas.</div>
+              <div className="text-[11px] text-[var(--muted)] mt-0.5">Responda perguntas rápidas para a IA gerar análises muito mais precisas.</div>
             </div>
             <Link href="/anamnese">
               <button className="text-[12px] font-semibold text-[#90f048] shrink-0 hover:underline transition-colors">

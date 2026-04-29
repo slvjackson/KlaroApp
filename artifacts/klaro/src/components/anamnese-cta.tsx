@@ -8,7 +8,7 @@ interface Props {
 export function AnamneseCta({ completed }: Props) {
   if (completed) return null;
   return (
-    <Link href="/anamnese">
+    <Link href="/anamnese" className="block">
       <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-[rgba(106,248,47,0.08)] to-[rgba(106,248,47,0.03)] border border-[rgba(106,248,47,0.18)] hover:border-[rgba(106,248,47,0.35)] transition-colors cursor-pointer group">
         <div className="w-8 h-8 rounded-xl bg-[var(--accent-soft)] grid place-items-center shrink-0 group-hover:scale-105 transition-transform">
           <Sparkles size={14} className="text-[#90f048]" />

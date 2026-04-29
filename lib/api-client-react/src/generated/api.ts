@@ -2018,3 +2018,28 @@ export const useSaveInsight = <
 > => {
   return useMutation(getSaveInsightMutationOptions(options));
 };
+
+// ─── Pin Insight ──────────────────────────────────────────────────────────────
+
+/**
+ * @summary Pin an insight permanently (won't be auto-archived)
+ */
+export const getPinInsightUrl = (id: number) => `/api/insights/${id}/pin`;
+
+export const pinInsight = async (id: number, options?: RequestInit): Promise<Insight> =>
+  customFetch<Insight>(getPinInsightUrl(id), { ...options, method: "PATCH" });
+
+export const usePinInsight = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof pinInsight>>, TError, number, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseMutationResult<Awaited<ReturnType<typeof pinInsight>>, TError, number, TContext> => {
+  const mutationKey = ["pinInsight"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+  return useMutation({ mutationFn: (id: number) => pinInsight(id, requestOptions), ...mutationOptions });
+};

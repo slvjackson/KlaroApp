@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, Upload, ArrowLeftRight, Lightbulb, Sparkles, User, LogOut } from "lucide-react";
+import { LayoutDashboard, Upload, ArrowLeftRight, Lightbulb, Sparkles, User, LogOut, Trophy } from "lucide-react";
 import { KlaroMark } from "@/components/KlaroMark";
 
 const NAV_ITEMS = [
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/upload",       label: "Upload",     icon: Upload },
   { href: "/transactions", label: "Transações", icon: ArrowLeftRight },
   { href: "/insights",     label: "Insights",   icon: Lightbulb },
+  { href: "/missions",     label: "Missões",    icon: Trophy },
   { href: "/chat",         label: "Chat Klaro", icon: Sparkles, badge: "IA" },
 ];
 

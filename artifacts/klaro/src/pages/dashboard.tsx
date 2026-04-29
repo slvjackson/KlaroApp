@@ -62,7 +62,6 @@ interface SummaryCardProps {
 
 function SummaryCard({ label, value, tone, icon: Icon, delta, sparkPoints, sparkColor, loading }: SummaryCardProps) {
   const up = (delta ?? 0) >= 0;
-  const deltaGood = tone === "expense" ? !up : up;
 
   const iconCls =
     tone === "income" ? "bg-[var(--income-soft)] text-[var(--income)]" :
@@ -94,7 +93,7 @@ function SummaryCard({ label, value, tone, icon: Icon, delta, sparkPoints, spark
 
       <div className="mt-2.5 flex items-center justify-between">
         {delta !== undefined && (
-          <div className={`flex items-center gap-1 text-[11px] font-semibold ${deltaGood ? "text-[var(--income)]" : "text-[var(--expense)]"}`}>
+          <div className={`flex items-center gap-1 text-[11px] font-semibold ${up ? "text-[var(--income)]" : "text-[var(--expense)]"}`}>
             {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
             <span>{up ? "+" : ""}{delta}%</span>
             <span className="text-[var(--muted)] font-normal ml-1">vs mês anterior</span>

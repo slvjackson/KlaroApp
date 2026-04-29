@@ -10,6 +10,7 @@ interface TransactionRowProps {
   category: string;
   date: string;
   onPress?: () => void;
+  onLongPress?: () => void;
 }
 
 export function TransactionRow({
@@ -19,6 +20,7 @@ export function TransactionRow({
   category,
   date,
   onPress,
+  onLongPress,
 }: TransactionRowProps) {
   const colors = useColors();
   const isIncome = type === "income";
@@ -45,6 +47,7 @@ export function TransactionRow({
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => [
         styles.row,
         {

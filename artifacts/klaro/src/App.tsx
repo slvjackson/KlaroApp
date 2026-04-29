@@ -15,6 +15,7 @@ import Insights from "@/pages/insights";
 import Profile from "@/pages/profile";
 import Chat from "@/pages/chat";
 import Anamnese from "@/pages/anamnese";
+import Missions from "@/pages/missions";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/chat" component={Chat} />
       <Route path="/anamnese" component={Anamnese} />
+      <Route path="/missions" component={Missions} />
       <Route component={NotFound} />
     </Switch>
   );

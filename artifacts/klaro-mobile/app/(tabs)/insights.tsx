@@ -125,7 +125,8 @@ function InsightCard({
   const swipeRef = useRef<SwipeableMethods>(null);
   const fresh = isNewInsight(createdAt);
 
-  const validTone = (tone && tone in TONE_CONFIG ? tone : "neutral") as Tone;
+  const VALID_TONES: Tone[] = ["positive", "warning", "critical", "neutral"];
+  const validTone: Tone = (tone && VALID_TONES.includes(tone as Tone)) ? (tone as Tone) : "neutral";
   const tc = TONE_CONFIG[validTone];
   const toneColor = tc.color || colors.primary;
   const borderColor = validTone !== "neutral"
@@ -346,7 +347,7 @@ export default function InsightsScreen() {
           </View>
           <View style={styles.anamneseText}>
             <Text style={[styles.anamneseTitle, { color: colors.foreground }]}>Quer insights mais precisos?</Text>
-            <Text style={[styles.anamneseSub, { color: colors.mutedForeground }]}>Responda 4 perguntas rápidas sobre seu negócio.</Text>
+            <Text style={[styles.anamneseSub, { color: colors.mutedForeground }]}>Responda perguntas rápidas sobre seu negócio.</Text>
           </View>
           <Text style={[styles.anamneseCta, { color: colors.primary }]}>Fazer →</Text>
         </Pressable>
@@ -368,7 +369,7 @@ export default function InsightsScreen() {
               recommendation={item.recommendation}
               periodLabel={item.periodLabel}
               createdAt={item.createdAt}
-              tone={(item as any).tone}
+              tone={item.tone}
               onArchive={handleArchive}
             />
           )}

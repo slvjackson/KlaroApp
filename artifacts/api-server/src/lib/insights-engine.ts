@@ -14,6 +14,7 @@ export interface GeneratedInsight {
   title: string;
   description: string;
   recommendation: string;
+  steps: string[];
   periodLabel: string;
   tone: InsightTone;
 }
@@ -199,6 +200,7 @@ async function generateWithAI(transactions: Transaction[], ctx?: InsightBusiness
     title: String(g["title"] ?? ""),
     description: String(g["description"] ?? ""),
     recommendation: String(g["recommendation"] ?? ""),
+    steps: Array.isArray(g["steps"]) ? (g["steps"] as unknown[]).map(String) : [],
     periodLabel: String(g["periodLabel"] ?? periodLabel),
     tone: VALID_TONES.includes(String(g["tone"])) ? (g["tone"] as InsightTone) : "neutral",
   }));
@@ -215,6 +217,7 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
       title: "Nenhuma transação encontrada",
       description: "Você ainda não tem transações confirmadas para analisar.",
       recommendation: "Faça upload de um extrato ou planilha para começar.",
+      steps: ["Acesse a tela de upload", "Importe seu extrato bancário", "Confirme os registros na revisão"],
       periodLabel: "Geral",
       tone: "warning",
     }];
@@ -236,6 +239,9 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
     recommendation: netBalance >= 0
       ? "Continue monitorando mensalmente e reinvista o lucro no crescimento."
       : "Revise as maiores despesas e busque reduzir custos não essenciais.",
+    steps: netBalance >= 0
+      ? ["Defina uma meta de margem para o próximo mês", "Reserve parte do lucro para reinvestimento", "Compare com o mês anterior"]
+      : ["Liste as 3 maiores despesas do período", "Identifique quais são cortáveis", "Negocie pelo menos um custo fixo"],
     periodLabel,
     tone: netBalance >= 0 ? "positive" : "critical",
   });
@@ -251,6 +257,9 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
         recommendation: change >= 0
           ? "Garanta que estoque e operação acompanhem o crescimento."
           : "Investigue quais produtos ou clientes geraram menos receita.",
+        steps: change >= 0
+          ? ["Identifique o que impulsionou o crescimento", "Reforce a estratégia de vendas", "Prepare estoque para manter ritmo"]
+          : ["Liste os clientes com menor frequência de compra", "Contate os 5 maiores clientes inativos", "Avalie promoções para reativar vendas"],
         periodLabel: `${months[months.length - 2]} → ${months[months.length - 1]}`,
         tone: change >= 0 ? "positive" : "warning",
       });
@@ -264,6 +273,7 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
       title: `Maior despesa: ${topExpCat.label}`,
       description: `${topExpCat.label} representa ${pct}% das suas despesas (R$${topExpCat.total.toFixed(2)}).`,
       recommendation: "Avalie se é possível renegociar ou encontrar alternativas para esse custo.",
+      steps: ["Pesquise 2 fornecedores alternativos", "Solicite proposta de renegociação", "Calcule a economia possível por mês"],
       periodLabel,
       tone: "warning",
     });
@@ -276,6 +286,9 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
     recommendation: avgTicket < 100
       ? "Considere combos ou upsell para aumentar o valor médio por venda."
       : "Bom ticket médio. Foque em aumentar o volume de vendas.",
+    steps: avgTicket < 100
+      ? ["Crie um combo de produtos complementares", "Ofereça desconto progressivo no volume", "Teste um produto premium acima da média"]
+      : ["Defina meta de volume de vendas para o próximo mês", "Crie campanha para novos clientes", "Ative clientes que compraram há mais de 30 dias"],
     periodLabel,
     tone: "neutral",
   });
@@ -287,12 +300,55 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
       title: `Melhor mês: ${peakMonth}`,
       description: `Pico de receita em ${peakMonth}: R$${monthlyData.get(peakMonth)!.income.toFixed(2)}.`,
       recommendation: "Analise o que impulsionou esse mês e repita as ações bem-sucedidas.",
+      steps: ["Anote o que foi feito diferente naquele mês", "Identifique quais produtos mais venderam", "Planeje repetir as ações no próximo pico"],
       periodLabel: peakMonth,
       tone: "positive",
     });
   }
 
   return insights;
+}
+
+// ─── Steps for a single insight ──────────────────────────────────────────────
+
+export async function generateStepsForInsight(insight: {
+  title: string;
+  description: string;
+  recommendation: string;
+}): Promise<string[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return [
+      "Leia com atenção a recomendação do insight",
+      "Identifique a ação mais urgente a tomar",
+      "Defina um prazo para executar a primeira ação",
+      "Acompanhe o resultado após 30 dias",
+    ];
+  }
+
+  const client = new Anthropic({ apiKey });
+  const prompt = `Você é um consultor financeiro para pequenos negócios no Brasil.
+
+Com base neste insight financeiro:
+Título: ${insight.title}
+Análise: ${insight.description}
+Recomendação: ${insight.recommendation}
+
+Crie um plano de ação com exatamente 4 passos concretos e práticos, executáveis em curto prazo, que o empresário pode fazer para agir sobre este insight. Seja específico e direto — sem jargões. Os passos devem estar em ordem lógica.
+
+Responda APENAS com um array JSON de 4 strings, sem markdown, sem texto adicional:
+["Passo 1...", "Passo 2...", "Passo 3...", "Passo 4..."]`;
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 512,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "[]";
+  const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+  const parsed = JSON.parse(json) as unknown[];
+  return Array.isArray(parsed) ? parsed.filter((s) => typeof s === "string").map(String).slice(0, 5) : [];
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

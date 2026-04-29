@@ -1,37 +1,42 @@
 import { Router } from "express";
 import { db, insightsTable, transactionsTable, usersTable } from "@workspace/db";
-import { eq, isNull, and, gte } from "drizzle-orm";
+import { eq, isNull, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
-import { generateInsights } from "../lib/insights-engine";
+import { generateInsights, generateStepsForInsight } from "../lib/insights-engine";
 
 const router = Router();
 
 type Period = "30d" | "3m" | "6m" | "12m";
 
-function getPeriodStartDate(period: Period): string {
-  const now = new Date();
+const MONTHS_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+function fmtMonth(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  return `${MONTHS_PT[d.getUTCMonth()]}/${d.getUTCFullYear()}`;
+}
+
+function computePeriodLabel(period: Period, transactions: { date: string }[]): string {
+  const labels: Record<Period, string> = { "30d": "30 dias", "3m": "3 meses", "6m": "6 meses", "12m": "12 meses" };
+  if (transactions.length === 0) return labels[period];
+  const dates = transactions.map((t) => t.date).sort();
+  const first = dates[0]!;
+  const last = dates[dates.length - 1]!;
+  return first === last
+    ? `${labels[period]} · ${fmtMonth(first)}`
+    : `${labels[period]} · ${fmtMonth(first)} – ${fmtMonth(last)}`;
+}
+
+// Computes startDate relative to `anchor` (latest transaction date), not today.
+// This ensures period filters work correctly even for historical datasets.
+function getPeriodStartDate(period: Period, anchor: Date): string {
+  const d = new Date(anchor);
   switch (period) {
-    case "30d": {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 30);
-      return d.toISOString().split("T")[0];
-    }
-    case "3m": {
-      const d = new Date(now);
-      d.setMonth(d.getMonth() - 3);
-      return d.toISOString().split("T")[0];
-    }
-    case "6m": {
-      const d = new Date(now);
-      d.setMonth(d.getMonth() - 6);
-      return d.toISOString().split("T")[0];
-    }
-    case "12m": {
-      const d = new Date(now);
-      d.setFullYear(d.getFullYear() - 1);
-      return d.toISOString().split("T")[0];
-    }
+    case "30d": d.setDate(d.getDate() - 30); break;
+    case "3m":  d.setMonth(d.getMonth() - 3); break;
+    case "6m":  d.setMonth(d.getMonth() - 6); break;
+    case "12m": d.setFullYear(d.getFullYear() - 1); break;
   }
+  return d.toISOString().split("T")[0]!;
 }
 
 // GET /insights — list non-archived insights for current user
@@ -69,9 +74,7 @@ router.post("/insights/check-milestones", requireAuth, async (req, res): Promise
   }
 
   // No insights for this month — auto-generate using last 3 months of data
-  const startDate = getPeriodStartDate("3m");
-
-  const [userRow, transactions] = await Promise.all([
+  const [userRow, allTx] = await Promise.all([
     db
       .select({ name: usersTable.name, businessProfile: usersTable.businessProfile })
       .from(usersTable)
@@ -80,9 +83,18 @@ router.post("/insights/check-milestones", requireAuth, async (req, res): Promise
     db
       .select()
       .from(transactionsTable)
-      .where(and(eq(transactionsTable.userId, userId), gte(transactionsTable.date, startDate)))
+      .where(eq(transactionsTable.userId, userId))
       .orderBy(transactionsTable.date),
   ]);
+
+  if (allTx.length === 0) {
+    res.json({ triggered: false });
+    return;
+  }
+
+  const anchor = new Date(allTx[allTx.length - 1]!.date + "T00:00:00Z");
+  const startDate = getPeriodStartDate("3m", anchor);
+  const transactions = allTx.filter((t) => t.date && t.date >= startDate);
 
   if (transactions.length === 0) {
     res.json({ triggered: false });
@@ -91,11 +103,11 @@ router.post("/insights/check-milestones", requireAuth, async (req, res): Promise
 
   const bp = userRow?.businessProfile as Record<string, unknown> | null;
 
-  // Archive old insights before generating new ones
+  // Archive old non-pinned insights before generating new ones
   await db
     .update(insightsTable)
     .set({ archivedAt: new Date() })
-    .where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt)));
+    .where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt), isNull(insightsTable.pinnedAt)));
 
   const generated = await generateInsights(transactions, {
     businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
@@ -136,6 +148,7 @@ router.post("/insights/check-milestones", requireAuth, async (req, res): Promise
         title: g.title,
         description: g.description,
         recommendation: g.recommendation,
+        steps: g.steps ?? [],
         periodLabel: g.periodLabel,
         tone: g.tone || "neutral",
       })),
@@ -164,18 +177,21 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
         .orderBy(transactionsTable.date),
     ]);
 
-    // Default to 12 months when no period is specified to avoid feeding 25+ years of data
-    const effectivePeriod = period ?? "12m";
-    const startDate = getPeriodStartDate(effectivePeriod);
+    const effectivePeriod = period ?? "3m";
+    const anchor = rawTransactions.length > 0
+      ? new Date(rawTransactions[rawTransactions.length - 1]!.date + "T00:00:00Z")
+      : new Date();
+    const startDate = getPeriodStartDate(effectivePeriod, anchor);
     const transactions = rawTransactions.filter((t) => t.date && t.date >= startDate);
+    const periodLabel = computePeriodLabel(effectivePeriod, transactions);
 
     const bp = userRow?.businessProfile as Record<string, unknown> | null;
 
-    // Archive existing insights (soft delete) before replacing
+    // Archive existing non-pinned insights (soft delete) before replacing
     await db
       .update(insightsTable)
       .set({ archivedAt: new Date() })
-      .where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt)));
+      .where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt), isNull(insightsTable.pinnedAt)));
 
     const generated = await generateInsights(transactions, {
       businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
@@ -215,7 +231,8 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
           title: g.title,
           description: g.description,
           recommendation: g.recommendation,
-          periodLabel: g.periodLabel,
+          steps: g.steps ?? [],
+          periodLabel,
           tone: g.tone || "neutral",
         })),
       )
@@ -226,6 +243,44 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
     console.error("[insights/generate] error:", err);
     res.status(500).json({ error: "Erro ao gerar insights. Tente novamente." });
   }
+});
+
+// PATCH /insights/:id/pin — pin insight + generate action-plan steps via AI
+router.patch("/insights/:id/pin", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const id = parseInt(req.params.id as string, 10);
+
+  if (isNaN(id)) {
+    res.status(400).json({ error: "ID inválido." });
+    return;
+  }
+
+  const [existing] = await db
+    .select()
+    .from(insightsTable)
+    .where(and(eq(insightsTable.id, id), eq(insightsTable.userId, userId)));
+
+  if (!existing) {
+    res.status(404).json({ error: "Insight não encontrado." });
+    return;
+  }
+
+  const existingSteps = Array.isArray(existing.steps) && existing.steps.length > 0;
+  const steps = existingSteps
+    ? existing.steps!
+    : await generateStepsForInsight({
+        title: existing.title,
+        description: existing.description,
+        recommendation: existing.recommendation,
+      });
+
+  const [pinned] = await db
+    .update(insightsTable)
+    .set({ pinnedAt: new Date(), steps })
+    .where(eq(insightsTable.id, id))
+    .returning();
+
+  res.json(pinned);
 });
 
 // DELETE /insights/:id — soft-archive a single insight

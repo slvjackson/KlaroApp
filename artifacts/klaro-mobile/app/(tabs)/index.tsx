@@ -1,13 +1,15 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   useGetDashboardSummary,
   useGetMonthlyTrend,
+  useListInsights,
   useListTransactions,
 } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
+  Dimensions,
   Modal,
   Platform,
   Pressable,
@@ -20,21 +22,25 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SpeedDialFab } from "@/components/SpeedDialFab";
 import { GoalProgress } from "@/components/GoalProgress";
-import { MetricCard } from "@/components/MetricCard";
-import { SkeletonChart, SkeletonGoal, SkeletonMetricRow } from "@/components/Skeleton";
+import { SkeletonChart, SkeletonGoal } from "@/components/Skeleton";
 import { TransactionRow } from "@/components/TransactionRow";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTransactionForm } from "@/contexts/TransactionFormContext";
 import { useColors } from "@/hooks/useColors";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const SCREEN_W = Dimensions.get("window").width;
+const INSIGHT_CARD_W = SCREEN_W - 56; // 20 left pad + 24 right peek
+const INSIGHT_GAP = 12;
 
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
-
 const MONTH_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatBRL(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -49,12 +55,13 @@ function fBRL(value: number, compact = false): string {
 }
 
 function fMonth(yyyymm: string): string {
-  return MONTH_SHORT[parseInt(yyyymm.split("-")[1], 10) - 1] ?? yyyymm;
+  const [year, month] = yyyymm.split("-");
+  return `${MONTH_SHORT[parseInt(month, 10) - 1] ?? yyyymm}/${year}`;
 }
 
 function fMonthFull(yyyymm: string): string {
   const [year, month] = yyyymm.split("-");
-  return `${MONTH_NAMES[parseInt(month, 10) - 1]} ${year}`;
+  return `${MONTH_NAMES[parseInt(month, 10) - 1]}/${year}`;
 }
 
 function currentMonthKey() {
@@ -62,10 +69,6 @@ function currentMonthKey() {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function currentMonthLabel() {
-  const d = new Date(Date.now() - 3 * 60 * 60 * 1000);
-  return MONTH_NAMES[d.getUTCMonth()];
-}
 
 function groupByCategory(
   transactions: { amount: number; category: string }[] | undefined
@@ -77,6 +80,171 @@ function groupByCategory(
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
+}
+
+// ─── Tone config (for insight cards) ─────────────────────────────────────────
+
+type Tone = "positive" | "warning" | "critical" | "neutral";
+const VALID_TONES: Tone[] = ["positive", "warning", "critical", "neutral"];
+const TONE_CONFIG: Record<Tone, { iconSet: "Feather" | "MCI"; iconName: string; color: string }> = {
+  positive: { iconSet: "Feather", iconName: "trending-up", color: "#10b981" },
+  warning:  { iconSet: "Feather", iconName: "alert-triangle", color: "#f59e0b" },
+  critical: { iconSet: "MCI", iconName: "alert-octagon", color: "#ef4444" },
+  neutral:  { iconSet: "MCI", iconName: "lightbulb-outline", color: "" },
+};
+
+// ─── SummaryCard ──────────────────────────────────────────────────────────────
+
+type CardTone = "income" | "expense" | "brand" | "neutral";
+
+interface SummaryCardProps {
+  label: string;
+  value: string;
+  tone: CardTone;
+  icon: (color: string) => React.ReactNode;
+  delta?: number | null;
+  loading?: boolean;
+}
+
+function SummaryCard({ label, value, tone, icon, delta, loading }: SummaryCardProps) {
+  const colors = useColors();
+
+  const iconBg =
+    tone === "income"  ? `${colors.income}22` :
+    tone === "expense" ? `${colors.expense}22` :
+    tone === "brand"   ? `${colors.primary}22` :
+    `${colors.foreground}10`;
+
+  const iconColor =
+    tone === "income"  ? colors.income :
+    tone === "expense" ? colors.expense :
+    tone === "brand"   ? colors.primary :
+    colors.mutedForeground;
+
+  const valueColor =
+    tone === "income"  ? colors.income :
+    tone === "expense" ? colors.expense :
+    tone === "brand"   ? colors.primary :
+    colors.foreground;
+
+  const up = (delta ?? 0) >= 0;
+  const deltaColor = delta != null ? (up ? colors.income : colors.expense) : colors.mutedForeground;
+
+  return (
+    <View style={[
+      styles.summaryCard,
+      { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+    ]}>
+      <View style={styles.summaryCardTop}>
+        <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{label}</Text>
+        <View style={[styles.summaryIconBox, { backgroundColor: iconBg, borderRadius: 8 }]}>
+          {icon(iconColor)}
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={[styles.summaryValueSkeleton, { backgroundColor: `${colors.foreground}10` }]} />
+      ) : (
+        <Text style={[styles.summaryValue, { color: valueColor }]} numberOfLines={1} adjustsFontSizeToFit>
+          {value}
+        </Text>
+      )}
+
+      {delta != null && (
+        <View style={styles.summaryDeltaRow}>
+          <Feather
+            name={up ? "trending-up" : "trending-down"}
+            size={11}
+            color={deltaColor}
+          />
+          <Text style={[styles.summaryDelta, { color: deltaColor }]}>
+            {up ? "+" : ""}{delta.toFixed(1)}%
+          </Text>
+          <Text style={[styles.summaryDeltaSub, { color: colors.mutedForeground }]}>
+            vs mês ant.
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── Insight carousel ─────────────────────────────────────────────────────────
+
+interface InsightItem {
+  id: number;
+  title: string;
+  description: string;
+  tone?: string | null;
+}
+
+function InsightCarousel({ insights }: { insights: InsightItem[] }) {
+  const colors = useColors();
+  if (insights.length === 0) return null;
+
+  return (
+    <View style={styles.section}>
+      <View style={[styles.sectionHeader, { paddingHorizontal: 20 }]}>
+        <View style={styles.sectionTitleRow}>
+          <MaterialCommunityIcons name="lightbulb-outline" size={16} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Insights Recentes</Text>
+        </View>
+        <Pressable
+          onPress={() => router.push("/(tabs)/intelligence")}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        >
+          <Text style={[styles.seeAll, { color: colors.primary }]}>Ver todos →</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="fast"
+        snapToInterval={INSIGHT_CARD_W + INSIGHT_GAP}
+        snapToAlignment="start"
+        contentContainerStyle={[styles.carouselContent, { paddingHorizontal: 20, gap: INSIGHT_GAP }]}
+      >
+        {insights.slice(0, 6).map((ins) => {
+          const validTone: Tone = (ins.tone && VALID_TONES.includes(ins.tone as Tone))
+            ? (ins.tone as Tone)
+            : "neutral";
+          const tc = TONE_CONFIG[validTone];
+          const toneColor = tc.color || colors.primary;
+          const borderColor = validTone !== "neutral" ? `${toneColor}33` : colors.border;
+
+          return (
+            <Pressable
+              key={ins.id}
+              onPress={() => router.push("/(tabs)/intelligence")}
+              style={({ pressed }) => [
+                styles.insightCard,
+                {
+                  width: INSIGHT_CARD_W,
+                  backgroundColor: colors.card,
+                  borderColor,
+                  borderRadius: colors.radius,
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <View style={[styles.insightIconBox, { backgroundColor: `${toneColor}1a`, borderRadius: 8 }]}>
+                {tc.iconSet === "MCI"
+                  ? <MaterialCommunityIcons name={tc.iconName as any} size={16} color={toneColor} />
+                  : <Feather name={tc.iconName as any} size={14} color={toneColor} />}
+              </View>
+              <Text style={[styles.insightTitle, { color: colors.foreground }]} numberOfLines={2}>
+                {ins.title}
+              </Text>
+              <Text style={[styles.insightDesc, { color: colors.mutedForeground }]} numberOfLines={3}>
+                {ins.description}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
 }
 
 // ─── KPI Tooltip ──────────────────────────────────────────────────────────────
@@ -135,7 +303,7 @@ function MonthlyBarChart({
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]}>
       <View style={styles.legendRow}>
         <View style={styles.legend}>
-          {[{ label: "Receita", color: colors.income }, { label: "Despesa", color: colors.expense }].map((l) => (
+          {[{ label: "Entradas", color: colors.income }, { label: "Saídas", color: colors.expense }].map((l) => (
             <View key={l.label} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: l.color }]} />
               <Text style={[styles.legendLabel, { color: colors.mutedForeground }]}>{l.label}</Text>
@@ -167,9 +335,9 @@ function MonthlyBarChart({
               ]}
             >
               <View style={[styles.barsAligned, { height: BAR_MAX_H }]}>
-                {ih > 0 && <View style={{ height: ih, width: BAR_W, backgroundColor: colors.income, borderRadius: 3, ...(isSelected && { opacity: 1 }) }} />}
+                {ih > 0 && <View style={{ height: ih, width: BAR_W, backgroundColor: colors.income, borderRadius: 3 }} />}
                 {ih === 0 && <View style={{ width: BAR_W }} />}
-                {eh > 0 && <View style={{ height: eh, width: BAR_W, backgroundColor: colors.expense, borderRadius: 3, ...(isSelected && { opacity: 1 }) }} />}
+                {eh > 0 && <View style={{ height: eh, width: BAR_W, backgroundColor: colors.expense, borderRadius: 3 }} />}
                 {eh === 0 && <View style={{ width: BAR_W }} />}
               </View>
               <Text style={[styles.barLabel, { color: isSelected ? colors.primary : colors.mutedForeground }, isSelected && { fontFamily: "Inter_600SemiBold" }]}>
@@ -184,7 +352,7 @@ function MonthlyBarChart({
   );
 }
 
-// ─── Horizontal bars ──────────────────────────────────────────────────────────
+// ─── Horizontal bars (categories) ────────────────────────────────────────────
 
 function HorizontalBars({
   data,
@@ -233,7 +401,7 @@ function HorizontalBars({
   );
 }
 
-// ─── Quick metrics ────────────────────────────────────────────────────────────
+// ─── Quick KPI metrics ────────────────────────────────────────────────────────
 
 interface Summary { totalIncome?: number; totalExpenses?: number; transactionCount?: number; }
 
@@ -326,6 +494,7 @@ export default function DashboardScreen() {
 
   const { data: summary, refetch: refetchSummary } = useGetDashboardSummary();
   const { data: trend, isLoading: trendLoading, refetch: refetchTrend } = useGetMonthlyTrend();
+  const { data: insights } = useListInsights();
   const { data: recentTx, isLoading: recentLoading, refetch: refetchRecent } =
     useListTransactions({ limit: 5 });
   const { data: allIncomeTx, refetch: refetchIncome } = useListTransactions({
@@ -336,11 +505,11 @@ export default function DashboardScreen() {
   });
 
   const isLoading = trendLoading || recentLoading;
-  const monthKey = currentMonthKey();
-  const monthLabel = currentMonthLabel();
   const trendData = Array.isArray(trend) ? trend : [];
+  const lastEntry = trendData.length > 0 ? trendData[trendData.length - 1] : null;
+  const monthKey = lastEntry?.month ?? currentMonthKey();
+  const monthLabel = fMonthFull(monthKey);
 
-  // Current-month metrics (always current month regardless of selectedMonth)
   const currentTrend = trendData.find((d) => d.month === monthKey);
   const prevMonthKey = useMemo(() => {
     const [y, m] = monthKey.split("-").map(Number);
@@ -361,8 +530,13 @@ export default function DashboardScreen() {
     prevTrend && prevTrend.expenses > 0
       ? ((monthExpenses - prevTrend.expenses) / prevTrend.expenses) * 100
       : null;
+  const netTrend =
+    prevTrend
+      ? (prevTrend.income - prevTrend.expenses) !== 0
+        ? ((monthNet - (prevTrend.income - prevTrend.expenses)) / Math.abs(prevTrend.income - prevTrend.expenses)) * 100
+        : null
+      : null;
 
-  // Revenue for goal card (current month from income transactions)
   const monthRevenue = useMemo(() => {
     if (!Array.isArray(allIncomeTx)) return 0;
     return allIncomeTx
@@ -372,7 +546,6 @@ export default function DashboardScreen() {
 
   const revenueGoal = user?.businessProfile?.monthlyRevenueGoal ?? 0;
 
-  // Filtered transactions for category analysis (react to selectedMonth)
   const filteredIncomeTx = useMemo(() => {
     if (!selectedMonth || !Array.isArray(allIncomeTx)) return allIncomeTx;
     return allIncomeTx.filter((t) => t.date.startsWith(selectedMonth));
@@ -417,6 +590,7 @@ export default function DashboardScreen() {
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const btmPad = insets.bottom + (Platform.OS === "web" ? 34 : 0);
+  const txCount = summary?.transactionCount ?? 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -429,7 +603,7 @@ export default function DashboardScreen() {
         }
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingHorizontal: 20 }]}>
           <View>
             <Text style={[styles.greeting, { color: colors.mutedForeground }]}>Olá,</Text>
             <Text style={[styles.name, { color: colors.foreground }]}>
@@ -440,50 +614,67 @@ export default function DashboardScreen() {
         </View>
 
         {isLoading ? (
-          <View style={styles.loadingBox}>
-            <SkeletonMetricRow />
+          <View style={[styles.loadingBox, { paddingHorizontal: 20 }]}>
+            <View style={[styles.summaryGrid, { opacity: 0.4 }]}>
+              {[0, 1, 2, 3].map((i) => (
+                <View key={i} style={[styles.summaryCard, styles.summaryCardSkeleton, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius }]} />
+              ))}
+            </View>
             <SkeletonGoal />
             <SkeletonChart />
           </View>
         ) : (
           <>
-            {/* Current-month metric cards */}
-            <View style={styles.metricsRow}>
-              <MetricCard
-                label={`Receita · ${monthLabel.slice(0, 3)}`}
-                value={formatBRL(monthIncome)}
-                accent
-                trendPct={incomeTrend}
-              />
-              <MetricCard
-                label={`Despesas · ${monthLabel.slice(0, 3)}`}
-                value={formatBRL(monthExpenses)}
-                valueColor={colors.expense}
-                trendPct={expenseTrend}
-                trendInverse
-              />
-            </View>
-            <View style={styles.metricsRow}>
-              <MetricCard
-                label={`Saldo · ${monthLabel.slice(0, 3)}`}
+            {/* ─ Summary cards (2×2 grid) ─ */}
+            <View style={[styles.summaryGrid, { paddingHorizontal: 20 }]}>
+              <SummaryCard
+                label="Saldo do mês"
                 value={formatBRL(monthNet)}
-                valueColor={monthNet >= 0 ? colors.income : colors.expense}
-                sublabel={`Total histórico: ${formatBRL(summary?.netBalance ?? 0)}`}
+                tone={monthNet >= 0 ? "brand" : "expense"}
+                icon={(color) => <MaterialCommunityIcons name="wallet-outline" size={15} color={color} />}
+                delta={netTrend}
+              />
+              <SummaryCard
+                label="Entradas"
+                value={formatBRL(monthIncome)}
+                tone="income"
+                icon={(color) => <Feather name="trending-up" size={15} color={color} />}
+                delta={incomeTrend}
+              />
+              <SummaryCard
+                label="Saídas"
+                value={formatBRL(monthExpenses)}
+                tone="expense"
+                icon={(color) => <Feather name="trending-down" size={15} color={color} />}
+                delta={expenseTrend}
+              />
+              <SummaryCard
+                label="Transações"
+                value={String(txCount)}
+                tone="neutral"
+                icon={(color) => <MaterialCommunityIcons name="receipt-outline" size={15} color={color} />}
               />
             </View>
 
-            {/* Goal progress */}
-            <GoalProgress
-              current={monthRevenue}
-              goal={revenueGoal}
-              label="Meta do mês"
-              onPress={revenueGoal === 0 ? () => router.push("/(tabs)/profile") : undefined}
-            />
+            {/* ─ Meta do mês ─ */}
+            <View style={{ paddingHorizontal: 20 }}>
+              <GoalProgress
+                current={monthRevenue}
+                goal={revenueGoal}
+                label="Meta do mês"
+                onPress={revenueGoal === 0 ? () => router.push("/(tabs)/profile") : undefined}
+              />
+            </View>
 
-            {/* Monthly evolution chart */}
+            {/* ─ Insights carousel ─ */}
+            {Array.isArray(insights) && insights.length > 0 && (
+              <InsightCarousel insights={insights as InsightItem[]} />
+            )}
+
+            {/* ─ Fluxo mensal ─ */}
             {trendData.length > 0 && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Evolução Mensal</Text>
+              <View style={[styles.section, { paddingHorizontal: 20 }]}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Fluxo Mensal</Text>
                 <MonthlyBarChart
                   data={trendData}
                   selectedMonth={selectedMonth}
@@ -492,13 +683,15 @@ export default function DashboardScreen() {
               </View>
             )}
 
-            {/* Filter badge */}
+            {/* ─ Filter badge ─ */}
             {selectedMonth && (
-              <FilterBadge month={selectedMonth} onClear={() => setSelectedMonth(null)} />
+              <View style={{ paddingHorizontal: 20 }}>
+                <FilterBadge month={selectedMonth} onClear={() => setSelectedMonth(null)} />
+              </View>
             )}
 
-            {/* KPI grid */}
-            <View style={styles.section}>
+            {/* ─ Indicadores ─ */}
+            <View style={[styles.section, { paddingHorizontal: 20 }]}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
                 Indicadores{selectedMonth ? ` · ${fMonth(selectedMonth)}` : ""}
               </Text>
@@ -509,8 +702,8 @@ export default function DashboardScreen() {
               />
             </View>
 
-            {/* Top expense categories */}
-            <View style={styles.section}>
+            {/* ─ Principais Despesas ─ */}
+            <View style={[styles.section, { paddingHorizontal: 20 }]}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
                 Principais Despesas{selectedMonth ? ` · ${fMonth(selectedMonth)}` : ""}
               </Text>
@@ -521,8 +714,8 @@ export default function DashboardScreen() {
               />
             </View>
 
-            {/* Top income categories */}
-            <View style={styles.section}>
+            {/* ─ Principais Receitas ─ */}
+            <View style={[styles.section, { paddingHorizontal: 20 }]}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
                 Principais Receitas{selectedMonth ? ` · ${fMonth(selectedMonth)}` : ""}
               </Text>
@@ -533,8 +726,8 @@ export default function DashboardScreen() {
               />
             </View>
 
-            {/* Recent transactions */}
-            <View style={styles.section}>
+            {/* ─ Transações recentes ─ */}
+            <View style={[styles.section, { paddingHorizontal: 20 }]}>
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recentes</Text>
                 <Pressable onPress={() => router.push("/(tabs)/transactions")}>
@@ -546,7 +739,7 @@ export default function DashboardScreen() {
                 <View style={[styles.emptyBox, { backgroundColor: colors.card, borderRadius: colors.radius, borderWidth: 1, borderColor: colors.border }]}>
                   <Feather name="inbox" size={32} color={colors.mutedForeground} />
                   <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                    Nenhuma transação ainda.{"\n"}Adicione uma pelo botão + ou faça upload.
+                    Nenhuma transação ainda.{"\n"}Adicione pelo botão + ou faça upload.
                   </Text>
                 </View>
               ) : (
@@ -577,23 +770,42 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { paddingHorizontal: 20, gap: 16 },
+  content: { gap: 20 },
 
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 4 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   greeting: { fontSize: 13, fontFamily: "Inter_400Regular" },
   name: { fontSize: 22, fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
   period: { fontSize: 13, fontFamily: "Inter_500Medium", textTransform: "capitalize", paddingBottom: 4 },
 
-  loadingBox: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 60 },
+  loadingBox: { gap: 16 },
 
-  metricsRow: { flexDirection: "row", gap: 12 },
+  // ─ Summary cards ─
+  summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  summaryCard: { flex: 1, minWidth: "44%", borderWidth: 1, padding: 14, gap: 6 },
+  summaryCardSkeleton: { height: 100 },
+  summaryCardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  summaryLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.6, flex: 1, marginRight: 4 },
+  summaryIconBox: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
+  summaryValueSkeleton: { height: 28, borderRadius: 6, marginVertical: 4 },
+  summaryValue: { fontSize: 20, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
+  summaryDeltaRow: { flexDirection: "row", alignItems: "center", gap: 3 },
+  summaryDelta: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  summaryDeltaSub: { fontSize: 10, fontFamily: "Inter_400Regular" },
+
+  // ─ Insight carousel ─
+  carouselContent: { flexDirection: "row" },
+  insightCard: { borderWidth: 1, padding: 16, gap: 10 },
+  insightIconBox: { width: 30, height: 30, alignItems: "center", justifyContent: "center" },
+  insightTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", lineHeight: 20 },
+  insightDesc: { fontSize: 12.5, fontFamily: "Inter_400Regular", lineHeight: 18 },
 
   section: { gap: 10 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   sectionTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
-  seeAll: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  seeAll: { fontSize: 13, fontFamily: "Inter_500Medium" },
 
-  // Chart
+  // ─ Monthly chart ─
   card: { borderWidth: 1, padding: 16, gap: 14 },
   legendRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   legend: { flexDirection: "row", gap: 16 },
@@ -607,11 +819,11 @@ const styles = StyleSheet.create({
   barLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
   barDot: { width: 5, height: 5, borderRadius: 3 },
 
-  // Filter badge
+  // ─ Filter badge ─
   filterBadge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, marginTop: -6 },
   filterBadgeText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
-  // KPI grid
+  // ─ KPI grid ─
   metricsGrid2: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   kpiCard: { flex: 1, minWidth: "45%", borderWidth: 1, padding: 14, gap: 4 },
   kpiLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -619,13 +831,13 @@ const styles = StyleSheet.create({
   kpiValue: { fontSize: 22, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
   kpiSub: { fontSize: 11, fontFamily: "Inter_400Regular" },
 
-  // Tooltip
+  // ─ Tooltip ─
   tooltipOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 32 },
   tooltipBox: { padding: 20, borderWidth: 1, gap: 8, maxWidth: 320 },
   tooltipTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   tooltipBody: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
-  // Horizontal bars
+  // ─ Horizontal bars ─
   hBarHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
   hBarRight: { flexDirection: "row", alignItems: "center", gap: 4 },
   hBarLabel: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
@@ -633,7 +845,7 @@ const styles = StyleSheet.create({
   hBarTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
   hBarFill: { height: 8, borderRadius: 4 },
 
-  // Transactions
+  // ─ Transactions ─
   txList: { overflow: "hidden" },
   emptyBox: { padding: 32, alignItems: "center", gap: 12 },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
