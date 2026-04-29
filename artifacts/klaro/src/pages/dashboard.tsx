@@ -332,8 +332,6 @@ export default function Dashboard() {
   const { data: uploads } = useListUploads();
   const { data: allTx } = useListTransactions({ limit: 5000 });
 
-  if (isAuthLoading) return null;
-
   const monthly = (monthlyTrend ?? []) as { month: string; income: number; expenses: number }[];
   const catData = (categoryBreakdown ?? []) as { category: string; total: number; type: string }[];
   const allTxArr = (allTx ?? []) as { amount: number; category: string; type: string; date: string }[];
@@ -351,6 +349,8 @@ export default function Dashboard() {
       : catData,
     [selectedMonth, filteredTx, catData],
   );
+
+  if (isAuthLoading) return null;
 
   // Summary values — from monthly trend when month selected
   const selectedTrend = selectedMonth ? monthly.find((m) => m.month === selectedMonth) : null;

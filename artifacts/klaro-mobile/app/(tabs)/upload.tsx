@@ -268,7 +268,10 @@ export default function UploadScreen() {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "application/vnd.ms-excel",
         "application/pdf",
+        "application/x-ofx",
+        "application/ofx",
         "image/*",
+        "*/*",
       ],
       copyToCacheDirectory: true,
     });
@@ -334,7 +337,7 @@ export default function UploadScreen() {
             <Text
               style={[styles.uploadSub, { color: colors.mutedForeground }]}
             >
-              CSV, XLSX, PDF ou imagem
+              CSV, XLSX, PDF, OFX ou imagem
             </Text>
             <Pressable
               onPress={handleChooseSource}

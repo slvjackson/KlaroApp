@@ -160,7 +160,7 @@ function TopBar({ onOpenChat, chatOpen }) {
       {!chatOpen && (
         <button onClick={onOpenChat} className="btn-primary flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold text-white">
           <Icon name="sparkles" size={13}/>
-          Assistente Klaro
+          Klaro IA
         </button>
       )}
     </div>

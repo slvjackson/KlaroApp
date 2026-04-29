@@ -412,9 +412,7 @@ export default function ChatScreen() {
           { paddingTop: topPad + 12, borderBottomColor: colors.border, backgroundColor: colors.background },
         ]}
       >
-        <View style={[styles.headerIcon, { backgroundColor: `${colors.primary}22` }]}>
-          <Feather name="zap" size={18} color={colors.primary} />
-        </View>
+        <Image source={KLARO_LOGO} style={styles.headerIcon} />
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Klaro IA</Text>
           <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
@@ -571,7 +569,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: 1,
   },
-  headerIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  headerIcon: { width: 40, height: 40, borderRadius: 10 },
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
 
@@ -581,7 +579,7 @@ const styles = StyleSheet.create({
   bubbleRowUser: { flexDirection: "row-reverse" },
   bubbleUserWrap: { maxWidth: "78%" },
   bubbleAssistantWrap: { maxWidth: "78%", gap: 4 },
-  avatar: { width: 28, height: 28, borderRadius: 14, flexShrink: 0 },
+  avatar: { width: 28, height: 28, borderRadius: 7, flexShrink: 0 },
   bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
   bubbleText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 22 },
 

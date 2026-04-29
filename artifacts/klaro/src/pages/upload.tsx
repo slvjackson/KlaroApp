@@ -8,7 +8,7 @@ import { format } from "date-fns";
 
 const SUPPORTED = [
   { icon: FileText, label: "PDF" },
-  { icon: FileSpreadsheet, label: "Excel / CSV" },
+  { icon: FileSpreadsheet, label: "Excel / CSV / OFX" },
   { icon: FileImage, label: "Imagem" },
 ];
 
@@ -117,7 +117,7 @@ export default function Upload() {
                   <div className="text-[15px] font-semibold text-white">
                     {isDragging ? "Solte o arquivo aqui" : "Arraste um arquivo ou clique para selecionar"}
                   </div>
-                  <p className="text-[12.5px] text-[var(--muted)] mt-1">Suporta CSV, Excel (.xlsx), PDF e imagens</p>
+                  <p className="text-[12.5px] text-[var(--muted)] mt-1">Suporta CSV, Excel, PDF, OFX (extrato bancário) e imagens</p>
                 </div>
 
                 <label className="cursor-pointer">
@@ -127,7 +127,7 @@ export default function Upload() {
                   <input
                     type="file"
                     className="hidden"
-                    accept=".csv,.xlsx,.xls,.pdf,image/*"
+                    accept=".csv,.xlsx,.xls,.pdf,.ofx,.qfx,.qbo,image/*"
                     onChange={onFileInput}
                   />
                 </label>

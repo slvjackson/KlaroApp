@@ -769,6 +769,106 @@ export async function rawTextToRecords(text: string, ctx?: ParseBusinessContext)
   return generateMockRecords(3, "Texto extraído");
 }
 
+// ─── OFX Parser ──────────────────────────────────────────────────────────────
+
+/**
+ * Extract a single tag value from OFX content.
+ * Handles both SGML style (<TAG>value\n) and XML style (<TAG>value</TAG>).
+ */
+function ofxTag(content: string, tag: string): string | null {
+  const xmlMatch = content.match(new RegExp(`<${tag}>([^<\\r\\n]+)</${tag}>`, "i"));
+  if (xmlMatch) return xmlMatch[1].trim();
+  const sgmlMatch = content.match(new RegExp(`<${tag}>([^<\\r\\n]+)`, "i"));
+  return sgmlMatch ? sgmlMatch[1].trim() : null;
+}
+
+/**
+ * Parse OFX date: YYYYMMDD[HHMMSS][.mmm][TZ] → YYYY-MM-DD
+ */
+function parseOFXDate(raw: string): string | null {
+  const clean = raw.replace(/\[.*?\]/, "").replace(/\..+$/, "").trim();
+  if (clean.length < 8) return null;
+  return `${clean.slice(0, 4)}-${clean.slice(4, 6)}-${clean.slice(6, 8)}`;
+}
+
+/**
+ * Parse OFX/QFX file (both SGML 1.x and XML 2.x formats).
+ * Extraction is 100% deterministic — no AI required.
+ * AI (Haiku) is only used for segment-aware category classification.
+ */
+export async function parseOFX(content: string, ctx?: ParseBusinessContext): Promise<ExtractedRecord[]> {
+  // Extract all <STMTTRN>...</STMTTRN> blocks
+  // In SGML the closing tag may be absent; we look for the next opening tag as boundary
+  const blocks: string[] = [];
+  const openRe = /<STMTTRN>/gi;
+  const closeRe = /<\/STMTTRN>/gi;
+
+  // Try XML-style first (has closing tags)
+  let match;
+  const xmlBlocks = [...content.matchAll(/<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi)];
+  if (xmlBlocks.length > 0) {
+    xmlBlocks.forEach((m) => blocks.push(m[0]));
+  } else {
+    // SGML: split on <STMTTRN> and treat each chunk as a block
+    const parts = content.split(/<STMTTRN>/i);
+    parts.slice(1).forEach((p) => blocks.push("<STMTTRN>" + p.split(/<\/BANKTRANLIST>/i)[0]));
+  }
+
+  if (blocks.length === 0) {
+    logger.warn("OFX: no STMTTRN blocks found");
+    return [];
+  }
+
+  const records: ExtractedRecord[] = [];
+
+  for (const block of blocks) {
+    const trnType = ofxTag(block, "TRNTYPE") ?? "OTHER";
+    const dateRaw = ofxTag(block, "DTPOSTED") ?? ofxTag(block, "DTUSER") ?? "";
+    const amountRaw = ofxTag(block, "TRNAMT") ?? "0";
+    const memo = ofxTag(block, "MEMO") ?? ofxTag(block, "NAME") ?? "";
+
+    const date = parseOFXDate(dateRaw);
+    if (!date) continue;
+
+    const amount = parseFloat(amountRaw.replace(",", "."));
+    if (isNaN(amount) || amount === 0) continue;
+
+    // OFX sign convention: positive = credit (income), negative = debit (expense)
+    // But some banks invert this for checking accounts; TRNTYPE is the truth source
+    const creditTypes = new Set(["CREDIT", "DEP", "DIRECTDEP", "INT", "DIV"]);
+    const debitTypes  = new Set(["DEBIT", "ATM", "POS", "PAYMENT", "DIRECTDEBIT", "FEE", "SRVCHG", "CHECK"]);
+    let type: "income" | "expense";
+    if (creditTypes.has(trnType.toUpperCase())) {
+      type = "income";
+    } else if (debitTypes.has(trnType.toUpperCase())) {
+      type = "expense";
+    } else {
+      type = amount >= 0 ? "income" : "expense";
+    }
+
+    const description = memo.trim() || trnType;
+    const category = classifyCategory(description);
+
+    records.push({
+      date,
+      description,
+      amount: Math.abs(amount),
+      type,
+      category,
+      confidence: 0.85,
+    });
+  }
+
+  logger.info({ count: records.length }, "OFX: transactions extracted");
+
+  // Upgrade category/type with segment-aware AI when context is available
+  if (ctx && (ctx.segment || ctx.segmentCustomLabel || ctx.userExamples?.length)) {
+    return classifyWithSegment(records, ctx);
+  }
+
+  return records;
+}
+
 export function generateMockRecords(count: number = 5, source: string = "Arquivo"): ExtractedRecord[] {
   const today = new Date();
   const templates = [

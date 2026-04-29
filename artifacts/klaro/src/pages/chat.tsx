@@ -29,7 +29,7 @@ function Bubble({ msg, onSave }: { msg: ChatMessage; onSave?: () => void }) {
   return (
     <div className={`fadeUp flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <img src="/logo.png" alt="Klaro" className="w-7 h-7 rounded-full shrink-0 mt-0.5 object-cover" />
+        <img src="/logo.png" alt="Klaro" className="w-7 h-7 rounded-[6px] shrink-0 mt-0.5 object-cover" />
       )}
       <div className="flex flex-col gap-1 max-w-[78%]">
         <div
@@ -69,7 +69,7 @@ function Bubble({ msg, onSave }: { msg: ChatMessage; onSave?: () => void }) {
 function TypingBubble() {
   return (
     <div className="fadeUp flex gap-2.5 justify-start">
-      <img src="/logo.png" alt="Klaro" className="w-7 h-7 rounded-full shrink-0 mt-0.5 object-cover" />
+      <img src="/logo.png" alt="Klaro" className="w-7 h-7 rounded-[6px] shrink-0 mt-0.5 object-cover" />
       <div className="px-4 py-3 bg-[rgba(255,255,255,0.04)] border border-[var(--border)] bubble-bot">
         <span className="dot" /><span className="dot" /><span className="dot" />
       </div>
@@ -150,15 +150,15 @@ export default function Chat() {
           {/* Header */}
           <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)] relative shrink-0">
             <div className="relative">
-              <img src="/logo.png" alt="Klaro" className="w-9 h-9 rounded-xl object-cover" />
+              <img src="/logo.png" alt="Klaro" className="w-9 h-9 rounded-[8px] object-cover" />
               <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--income)] border-2 border-[#15151a]" />
             </div>
             <div className="leading-tight flex-1 min-w-0">
               <div className="text-[13.5px] font-semibold text-white flex items-center gap-1.5">
-                Assistente Klaro
+                Klaro IA
                 <span className="text-[9px] font-bold tracking-wider px-1.5 py-[1px] rounded bg-[var(--accent-soft)] text-[#90f048] border border-[rgba(106,248,47,0.3)]">IA</span>
               </div>
-              <div className="text-[11px] text-[var(--muted)]">Conectado às suas transações em tempo real</div>
+              <div className="text-[11px] text-[var(--muted)]">Consultor financeiro do seu negócio</div>
             </div>
             {messages.length > 0 && (
               <button
@@ -176,7 +176,7 @@ export default function Chat() {
           <div ref={scrollRef} className="flex-1 overflow-y-auto klaro-scroll px-5 py-5 space-y-3.5 relative">
             {isEmpty ? (
               <div className="h-full flex flex-col items-center justify-center text-center gap-5 pb-6">
-                <img src="/logo.png" alt="Klaro" className="w-14 h-14 rounded-2xl object-cover" />
+                <img src="/logo.png" alt="Klaro" className="w-14 h-14 rounded-xl object-cover" />
                 <div>
                   <div className="text-[15px] font-semibold text-white">Pergunte qualquer coisa</div>
                   <div className="text-[12px] text-[var(--muted)] max-w-[260px] leading-relaxed mt-1">

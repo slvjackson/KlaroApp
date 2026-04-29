@@ -4,7 +4,7 @@ import { db, rawInputsTable, parsedRecordsTable, usersTable, transactionsTable }
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { saveFile, deleteFile } from "../lib/storage";
-import { parseCSV, parseXLSX, extractPDFText, extractImageText, rawTextToRecords, generateMockRecords } from "../lib/parser";
+import { parseCSV, parseXLSX, parseOFX, extractPDFText, extractImageText, rawTextToRecords, generateMockRecords } from "../lib/parser";
 import { logger } from "../lib/logger";
 import fs from "fs";
 import path from "path";
@@ -58,9 +58,10 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
   if (["csv"].includes(ext)) fileType = "csv";
   else if (["xlsx", "xls"].includes(ext)) fileType = "xlsx";
   else if (ext === "pdf") fileType = "pdf";
+  else if (["ofx", "qfx", "qbo"].includes(ext)) fileType = "ofx";
   else if (["png", "jpg", "jpeg", "webp"].includes(ext)) fileType = "image";
   else {
-    res.status(400).json({ error: `Tipo de arquivo não suportado: .${ext}. Use CSV, XLSX, PDF ou imagens.` });
+    res.status(400).json({ error: `Tipo de arquivo não suportado: .${ext}. Use CSV, XLSX, PDF, OFX ou imagens.` });
     return;
   }
 
@@ -121,6 +122,8 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
 
     if (fileType === "csv") {
       records = await parseCSV(content, parseCtx);
+    } else if (fileType === "ofx") {
+      records = await parseOFX(content, parseCtx);
     } else if (fileType === "xlsx") {
       records = await parseXLSX(stored.storedPath, parseCtx);
     } else if (fileType === "pdf") {

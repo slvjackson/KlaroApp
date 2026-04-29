@@ -83,7 +83,7 @@ function ChatPanel({ onClose, layout = "split" }) {
         </div>
         <div className="leading-tight flex-1 min-w-0">
           <div className="text-[13.5px] font-semibold text-white flex items-center gap-1.5">
-            Assistente Klaro
+            Klaro IA
             <span className="text-[9px] font-bold tracking-wider px-1.5 py-[1px] rounded bg-[var(--accent-soft)] text-[#a18bff] border border-[rgba(124,92,255,0.3)]">IA</span>
           </div>
           <div className="text-[11px] text-[var(--muted)]">Conectado às suas transações em tempo real</div>
