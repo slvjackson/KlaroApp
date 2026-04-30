@@ -177,9 +177,19 @@ router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  // Fetch current profile so we can merge — prevents any client from accidentally
+  // wiping fields it didn't know about (e.g. anamneseCompleted set by another surface)
+  const [current] = await db
+    .select({ businessProfile: usersTable.businessProfile })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+
   const patch: Record<string, unknown> = {};
   if (name !== undefined) patch.name = String(name).trim();
-  if (businessProfile !== undefined) patch.businessProfile = businessProfile;
+  if (businessProfile !== undefined) {
+    const existing = (current?.businessProfile as Record<string, unknown> | null) ?? {};
+    patch.businessProfile = { ...existing, ...businessProfile };
+  }
 
   const [updated] = await db
     .update(usersTable)

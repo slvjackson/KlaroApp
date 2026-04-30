@@ -696,9 +696,11 @@ ${segmentHint}`;
       }],
     });
 
-    const csv = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-    if (!csv || csv === "SEM_DADOS") return [];
+    const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+    if (!raw || raw === "SEM_DADOS") return [];
 
+    // Prepend header so parseCSV can identify columns by name reliably
+    const csv = `data,descricao,categoria,valor,tipo\n${raw}`;
     const records = await parseCSV(csv, ctx);
     logger.info({ count: records.length, filePath }, "PDF vision extraction completed");
     return records;
@@ -808,7 +810,9 @@ ${text}`,
   });
 
   const result = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-  return result === "SEM_DADOS" ? "" : result;
+  if (result === "SEM_DADOS" || !result) return "";
+  // Prepend header so parseCSV identifies columns by name reliably
+  return `data,descricao,categoria,valor,tipo\n${result}`;
 }
 
 export async function rawTextToRecords(text: string, ctx?: ParseBusinessContext): Promise<ExtractedRecord[]> {
