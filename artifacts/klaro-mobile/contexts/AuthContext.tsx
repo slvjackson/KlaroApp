@@ -6,8 +6,11 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
+import { AppState, type AppStateStatus } from "react-native";
+import { getApiBaseUrl } from "@/constants/api";
 
 const TOKEN_KEY = "klaro_auth_token";
 const USER_KEY = "klaro_auth_user";
@@ -60,6 +63,7 @@ interface AuthContextValue {
   login: (token: string, user: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: AuthUser) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -69,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
+  const tokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -78,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem(USER_KEY),
         ]);
         if (storedToken && storedUser) {
+          tokenRef.current = storedToken;
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
           setAuthTokenGetter(() => storedToken);
@@ -90,11 +96,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const currentToken = tokenRef.current;
+    if (!currentToken) return;
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const freshUser: AuthUser = data.user ?? data;
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+      setUser(freshUser);
+      queryClient.invalidateQueries();
+    } catch {
+      // Network error — keep stale data
+    }
+  }, [queryClient]);
+
+  // Refetch user from server whenever app returns to foreground
+  useEffect(() => {
+    const handleAppState = (next: AppStateStatus) => {
+      if (next === "active") refreshUser();
+    };
+    const sub = AppState.addEventListener("change", handleAppState);
+    return () => sub.remove();
+  }, [refreshUser]);
+
   const login = useCallback(async (newToken: string, newUser: AuthUser) => {
     await Promise.all([
       AsyncStorage.setItem(TOKEN_KEY, newToken),
       AsyncStorage.setItem(USER_KEY, JSON.stringify(newUser)),
     ]);
+    tokenRef.current = newToken;
     setToken(newToken);
     setUser(newUser);
     setAuthTokenGetter(() => newToken);
@@ -105,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.removeItem(TOKEN_KEY),
       AsyncStorage.removeItem(USER_KEY),
     ]);
+    tokenRef.current = null;
     setToken(null);
     setUser(null);
     setAuthTokenGetter(null);
@@ -117,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
