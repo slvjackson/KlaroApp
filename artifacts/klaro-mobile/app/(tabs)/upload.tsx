@@ -23,10 +23,24 @@ import { useColors } from "@/hooks/useColors";
 import { getApiBaseUrl } from "@/constants/api";
 import { useAuth } from "@/contexts/AuthContext";
 
+const UPLOAD_PHASES = [
+  { after: 0,  title: "Enviando arquivo…",       sub: "Aguarde enquanto o arquivo é enviado." },
+  { after: 4,  title: "Analisando com IA…",      sub: "A IA está lendo e identificando as transações." },
+  { after: 15, title: "Extraindo transações…",   sub: "Arquivos grandes podem levar alguns instantes." },
+  { after: 35, title: "Quase lá…",               sub: "Finalizando a extração. Obrigado pela paciência!" },
+  { after: 60, title: "Ainda processando…",      sub: "Documento extenso. Continue aguardando." },
+];
+
 function UploadingOverlay({ fileName }: { fileName: string }) {
   const colors = useColors();
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     Animated.loop(
@@ -41,6 +55,11 @@ function UploadingOverlay({ fileName }: { fileName: string }) {
   }, [spin, pulse]);
 
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+
+  const phase = UPLOAD_PHASES.reduce(
+    (cur, p) => (elapsed >= p.after ? p : cur),
+    UPLOAD_PHASES[0]
+  );
 
   return (
     <Modal visible transparent animationType="fade">
@@ -71,7 +90,7 @@ function UploadingOverlay({ fileName }: { fileName: string }) {
           </Animated.View>
 
           <Text style={[overlayStyles.title, { color: colors.foreground }]}>
-            Enviando arquivo…
+            {phase.title}
           </Text>
           {fileName ? (
             <Text
@@ -82,12 +101,18 @@ function UploadingOverlay({ fileName }: { fileName: string }) {
             </Text>
           ) : null}
           <Text style={[overlayStyles.sub, { color: colors.mutedForeground }]}>
-            A IA vai analisar e extrair as transações automaticamente.
+            {phase.sub}
           </Text>
 
           <Animated.View style={{ transform: [{ rotate }], marginTop: 20 }}>
             <Feather name="loader" size={22} color={colors.primary} />
           </Animated.View>
+
+          {elapsed >= 4 && (
+            <Text style={[overlayStyles.timer, { color: colors.mutedForeground }]}>
+              {elapsed}s
+            </Text>
+          )}
         </View>
       </View>
     </Modal>
@@ -601,5 +626,11 @@ const overlayStyles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 19,
     marginTop: 8,
+  },
+  timer: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    marginTop: 10,
+    opacity: 0.5,
   },
 });
