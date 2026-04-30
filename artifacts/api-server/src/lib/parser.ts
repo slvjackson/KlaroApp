@@ -407,6 +407,7 @@ function rowsToRecords(rows: Record<string, unknown>[], context: string): Extrac
   let amountKey = findColumn(keys, [
     "valor", "value", "amount", "montante", "quantia", "valor transacao",
   ]);
+  const categoryKey = findColumn(keys, ["categoria", "category", "grupo", "class", "classificacao"]);
   const typeKeyCandidate = findColumn(keys, ["tipo", "type", "natureza", "dc", "d/c", "operacao"]);
   // Only use the type column if its values actually look like income/expense indicators.
   // A column named "tipo" might contain service names (e.g. "Ensaio", "Evento") rather than
@@ -504,12 +505,13 @@ function rowsToRecords(rows: Record<string, unknown>[], context: string): Extrac
       type = classifyType(amountKey ? parseAmount(row[amountKey]) : 0, desc);
     }
 
+    const rawCategory = categoryKey ? String(row[categoryKey] ?? "").trim() : "";
     records.push({
       date,
       description: desc,
       amount,
       type,
-      category: classifyCategory(desc),
+      category: rawCategory || classifyCategory(desc),
       confidence: 0.8,
     });
   }
@@ -659,15 +661,20 @@ export async function parsePDFWithClaude(filePath: string, ctx?: ParseBusinessCo
     : "tipo=entrada para receitas, tipo=saida para despesas.";
 
   const prompt = `Você é um especialista em extração de dados financeiros de extratos bancários e documentos contábeis.
-Analise este documento PDF e extraia TODAS as transações financeiras.
-Retorne SOMENTE um CSV sem cabeçalho com as colunas: data,descricao,valor,tipo
-${segmentHint}
-Regras:
-- data: formato DD/MM/YYYY com ano completo (ex: 05/01/${new Date().getFullYear()})
-- valor: número positivo com ponto decimal (ex: 1234.56)
-- tipo: "entrada" para créditos/receitas, "saida" para débitos/despesas
-- Use vírgula como separador de colunas
-- Se não houver transações financeiras, retorne apenas: SEM_DADOS`;
+Analise este documento PDF e extraia TODAS as transações financeiras, página por página, sem pular nenhuma linha.
+
+Retorne SOMENTE um CSV sem cabeçalho com exatamente 5 colunas: data,descricao,categoria,valor,tipo
+
+REGRAS CRÍTICAS:
+- descricao: copie EXATAMENTE o texto da coluna "Descrição" do documento (ex: "Venda Loja - Pedido #3384"). NUNCA escreva "entrada" ou "saida" como descrição.
+- categoria: copie EXATAMENTE o texto da coluna "Categoria" do documento (ex: "Venda Loja", "Fornecedores", "Salários"). Se não houver coluna de categoria, infira uma.
+- data: formato DD/MM/YYYY com ano completo
+- valor: número positivo com ponto decimal (ex: 1234.56). Ignore o sinal negativo — use a coluna "tipo" para isso.
+- tipo: "entrada" para valores positivos/créditos/receitas, "saida" para valores negativos/débitos/despesas
+- Separador de colunas: vírgula. Se a descrição contiver vírgula, envolva em aspas duplas.
+- Extraia TODAS as linhas de TODAS as páginas sem exceção.
+- Se não houver transações financeiras, retorne apenas: SEM_DADOS
+${segmentHint}`;
 
   try {
     const response = await client.messages.create({
