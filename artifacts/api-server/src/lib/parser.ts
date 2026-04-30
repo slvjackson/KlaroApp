@@ -660,20 +660,24 @@ export async function parsePDFWithClaude(filePath: string, ctx?: ParseBusinessCo
     ? `Contexto do negócio: segmento ${profile.label}. ENTRADA: ${profile.terminologia.receita}. SAÍDA: ${profile.terminologia.despesa}.`
     : "tipo=entrada para receitas, tipo=saida para despesas.";
 
-  const prompt = `Você é um especialista em extração de dados financeiros de extratos bancários e documentos contábeis.
-Analise este documento PDF e extraia TODAS as transações financeiras, página por página, sem pular nenhuma linha.
+  const prompt = `Você é um especialista em extração de dados financeiros. Analise este documento e extraia TODAS as transações financeiras de TODAS as páginas.
+
+O documento pode ter qualquer formato: tabela estruturada, extrato bancário, nota fiscal, recibo, lista de movimentações, etc.
 
 Retorne SOMENTE um CSV sem cabeçalho com exatamente 5 colunas: data,descricao,categoria,valor,tipo
 
-REGRAS CRÍTICAS:
-- descricao: copie EXATAMENTE o texto da coluna "Descrição" do documento (ex: "Venda Loja - Pedido #3384"). NUNCA escreva "entrada" ou "saida" como descrição.
-- categoria: copie EXATAMENTE o texto da coluna "Categoria" do documento (ex: "Venda Loja", "Fornecedores", "Salários"). Se não houver coluna de categoria, infira uma.
-- data: formato DD/MM/YYYY com ano completo
-- valor: número positivo com ponto decimal (ex: 1234.56). Ignore o sinal negativo — use a coluna "tipo" para isso.
-- tipo: "entrada" para valores positivos/créditos/receitas, "saida" para valores negativos/débitos/despesas
-- Separador de colunas: vírgula. Se a descrição contiver vírgula, envolva em aspas duplas.
-- Extraia TODAS as linhas de TODAS as páginas sem exceção.
-- Se não houver transações financeiras, retorne apenas: SEM_DADOS
+REGRAS PARA CADA CAMPO:
+- data: DD/MM/YYYY com ano completo. Se só tiver dia/mês, use o ano do documento. Se não houver data, use a data mais recente visível.
+- descricao: texto que identifica a transação — copie do documento se tiver coluna de descrição/histórico/memo/narrativa. Para extratos bancários, use o histórico ou beneficiário. Para recibos/NF, use o produto/serviço ou fornecedor. NUNCA escreva apenas "entrada" ou "saida".
+- categoria: se o documento tiver coluna de categoria, copie o valor. Se não tiver, classifique inteligentemente pela descrição: ex: "Salários", "Fornecedores", "Aluguel", "Vendas", "Impostos", "Energia", "Marketing", "Transporte", "Alimentação", etc.
+- valor: número positivo com ponto decimal (ex: 1234.56). Ignore sinais negativos — use o campo tipo.
+- tipo: "entrada" para receitas/créditos/recebimentos, "saida" para despesas/débitos/pagamentos.
+
+REGRAS GERAIS:
+- Separador: vírgula. Se descrição ou categoria contiver vírgula, envolva em aspas duplas.
+- Extraia absolutamente TODAS as linhas de TODAS as páginas, sem pular nenhuma.
+- Ignore linhas de total, subtotal, saldo e cabeçalho — apenas transações individuais.
+- Se não houver transações financeiras no documento, retorne apenas: SEM_DADOS
 ${segmentHint}`;
 
   try {
@@ -776,28 +780,26 @@ Use seu conhecimento sobre ${profile.label} para classificar o tipo de cada tran
     : "\n- tipo=entrada para receitas/recebimentos, tipo=saida para despesas/pagamentos\n";
 
   const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 2048,
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
     messages: [
       {
         role: "user",
-        content: `Você é um assistente especializado em extração de dados financeiros.
-Analise o texto abaixo e extraia todas as transações financeiras.
-Retorne SOMENTE um CSV com as colunas: data,descricao,valor,tipo
-${segmentHint}
-Regras gerais:
-- Valores sempre positivos (use a coluna "tipo" para indicar entrada/saída).
-- tipo: "entrada" para receitas, "saida" para despesas/pagamentos.
-- Use vírgula como separador de colunas. Use ponto como separador decimal.
-- Não inclua cabeçalho, não inclua explicações.
-- Se não houver dados financeiros, retorne somente: SEM_DADOS
+        content: `Você é um especialista em extração de dados financeiros. Analise o texto abaixo e extraia TODAS as transações financeiras.
 
-Regras de data (IMPORTANTE):
-- Formato de saída sempre DD/MM/YYYY com o ano completo (ex: 05/01/${new Date().getFullYear()}).
-- Prefira sempre o padrão brasileiro DD/MM/YYYY. Só use MM/DD/YYYY se o dia for > 12 e estiver na segunda posição.
-- Se houver apenas o dia (ex: "10") → dia 10, mês atual (${new Date().getMonth() + 1}), ano atual (${new Date().getFullYear()}).
-- Se houver apenas dia/mês (ex: "10/01") → dia 10, mês 01, ano atual (${new Date().getFullYear()}).
-- Nunca invente datas; se não houver nenhuma informação de data, use a data de hoje (${new Date().toLocaleDateString("pt-BR")}).
+O texto pode vir de qualquer fonte: extrato bancário, planilha exportada, nota fiscal, recibo, relatório contábil, etc.
+
+Retorne SOMENTE um CSV sem cabeçalho com 5 colunas: data,descricao,categoria,valor,tipo
+${segmentHint}
+REGRAS:
+- data: DD/MM/YYYY com ano completo. Se só tiver dia/mês, use ano atual (${new Date().getFullYear()}). Se apenas dia, use mês atual (${new Date().getMonth() + 1}/${new Date().getFullYear()}). Nunca invente datas; se não houver, use hoje (${new Date().toLocaleDateString("pt-BR")}).
+- descricao: texto que identifica a transação — use o histórico, beneficiário, produto, fornecedor ou qualquer texto descritivo presente. NUNCA escreva apenas "entrada" ou "saida".
+- categoria: classifique inteligentemente pela descrição quando não houver coluna explícita. Ex: "Salários", "Fornecedores", "Aluguel", "Vendas", "Impostos", "Energia", "Marketing", "Transporte", "Alimentação", "Serviços". Seja específico.
+- valor: número positivo com ponto decimal (ex: 1234.56). Não use sinal negativo.
+- tipo: "entrada" para receitas/créditos, "saida" para despesas/débitos.
+- Separador: vírgula. Se descrição ou categoria tiver vírgula, envolva em aspas duplas.
+- Ignore linhas de total, saldo, cabeçalho — apenas transações individuais.
+- Se não houver dados financeiros, retorne somente: SEM_DADOS
 
 Texto:
 ${text}`,
