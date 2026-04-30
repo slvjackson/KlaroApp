@@ -184,6 +184,7 @@ export default function Profile() {
         body: JSON.stringify({
           name: name.trim() || undefined,
           businessProfile: {
+            ...bp,
             businessName: businessName.trim() || undefined,
             segment: segment || undefined,
             segmentCustomLabel: segment === "outro" ? (segmentCustomLabel.trim() || undefined) : undefined,

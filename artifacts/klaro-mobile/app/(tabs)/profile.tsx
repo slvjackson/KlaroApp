@@ -264,6 +264,7 @@ export default function ProfileScreen() {
     try {
       if (!silent) setSaving(true);
       const profile: BusinessProfile = {
+        ...bp,
         businessName: s.businessName.trim() || undefined,
         segment: s.segment || undefined,
         segmentCustomLabel: s.segment === "outro" ? (s.segmentCustomLabel.trim() || undefined) : undefined,

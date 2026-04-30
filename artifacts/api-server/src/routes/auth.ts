@@ -167,19 +167,23 @@ router.delete("/auth/me", requireAuth, async (req, res): Promise<void> => {
   res.json({ message: "Conta excluída." });
 });
 
-// PATCH /auth/me — update business profile
+// PATCH /auth/me — update name and/or business profile
 router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
-  const { businessProfile } = req.body;
+  const { name, businessProfile } = req.body;
 
-  if (businessProfile === undefined) {
+  if (name === undefined && businessProfile === undefined) {
     res.status(400).json({ error: "Nenhum dado enviado." });
     return;
   }
 
+  const patch: Record<string, unknown> = {};
+  if (name !== undefined) patch.name = String(name).trim();
+  if (businessProfile !== undefined) patch.businessProfile = businessProfile;
+
   const [updated] = await db
     .update(usersTable)
-    .set({ businessProfile })
+    .set(patch)
     .where(eq(usersTable.id, userId))
     .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt });
 
