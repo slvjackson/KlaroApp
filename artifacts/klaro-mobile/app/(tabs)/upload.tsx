@@ -263,16 +263,7 @@ export default function UploadScreen() {
 
   async function handleFile() {
     const result = await DocumentPicker.getDocumentAsync({
-      type: [
-        "text/csv",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "application/vnd.ms-excel",
-        "application/pdf",
-        "application/x-ofx",
-        "application/ofx",
-        "image/*",
-        "*/*",
-      ],
+      type: "*/*",
       copyToCacheDirectory: true,
     });
     if (result.canceled || !result.assets[0]) return;
