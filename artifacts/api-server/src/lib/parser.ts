@@ -639,6 +639,64 @@ export async function extractPDFText(filePath: string): Promise<string> {
   }
 }
 
+export async function parsePDFWithClaude(filePath: string, ctx?: ParseBusinessContext): Promise<ExtractedRecord[]> {
+  const client = getAnthropicClient();
+  if (!client) {
+    logger.warn("ANTHROPIC_API_KEY not set — skipping PDF vision");
+    return [];
+  }
+
+  const absPath = path.resolve(process.cwd(), filePath);
+  const buffer = fs.readFileSync(absPath);
+  const base64 = buffer.toString("base64");
+
+  const profile = (ctx?.segment || ctx?.segmentCustomLabel)
+    ? getSegmentProfile(ctx!.segment, ctx!.segmentCustomLabel)
+    : null;
+
+  const segmentHint = profile
+    ? `Contexto do negócio: segmento ${profile.label}. ENTRADA: ${profile.terminologia.receita}. SAÍDA: ${profile.terminologia.despesa}.`
+    : "tipo=entrada para receitas, tipo=saida para despesas.";
+
+  const prompt = `Você é um especialista em extração de dados financeiros de extratos bancários e documentos contábeis.
+Analise este documento PDF e extraia TODAS as transações financeiras.
+Retorne SOMENTE um CSV sem cabeçalho com as colunas: data,descricao,valor,tipo
+${segmentHint}
+Regras:
+- data: formato DD/MM/YYYY com ano completo (ex: 05/01/${new Date().getFullYear()})
+- valor: número positivo com ponto decimal (ex: 1234.56)
+- tipo: "entrada" para créditos/receitas, "saida" para débitos/despesas
+- Use vírgula como separador de colunas
+- Se não houver transações financeiras, retorne apenas: SEM_DADOS`;
+
+  try {
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      messages: [{
+        role: "user" as const,
+        content: [
+          {
+            type: "document" as const,
+            source: { type: "base64" as const, media_type: "application/pdf" as const, data: base64 },
+          },
+          { type: "text" as const, text: prompt },
+        ],
+      }],
+    });
+
+    const csv = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+    if (!csv || csv === "SEM_DADOS") return [];
+
+    const records = await parseCSV(csv, ctx);
+    logger.info({ count: records.length, filePath }, "PDF vision extraction completed");
+    return records;
+  } catch (err) {
+    logger.error({ err, absPath }, "PDF vision extraction failed");
+    return [];
+  }
+}
+
 const IMAGE_MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif" | "image/webp"> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",

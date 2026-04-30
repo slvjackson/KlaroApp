@@ -4,7 +4,7 @@ import { db, rawInputsTable, parsedRecordsTable, usersTable, transactionsTable }
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { saveFile, deleteFile } from "../lib/storage";
-import { parseCSV, parseXLSX, parseOFX, extractPDFText, extractImageText, rawTextToRecords, generateMockRecords } from "../lib/parser";
+import { parseCSV, parseXLSX, parseOFX, extractPDFText, parsePDFWithClaude, extractImageText, rawTextToRecords, generateMockRecords } from "../lib/parser";
 import { logger } from "../lib/logger";
 import fs from "fs";
 import path from "path";
@@ -131,11 +131,17 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
       records = await parseXLSX(stored.storedPath, parseCtx);
     } else if (fileType === "pdf") {
       const text = await extractPDFText(stored.storedPath);
-      await db
-        .update(rawInputsTable)
-        .set({ originalText: text })
-        .where(eq(rawInputsTable.id, rawInput.id));
-      records = await rawTextToRecords(text, parseCtx);
+      if (text) {
+        await db.update(rawInputsTable).set({ originalText: text }).where(eq(rawInputsTable.id, rawInput.id));
+      }
+      if (text.length >= 80) {
+        // Text-based PDF: structure with AI
+        records = await rawTextToRecords(text, parseCtx);
+      } else {
+        // Scanned/image PDF: use Claude's native PDF vision
+        logger.info({ chars: text.length }, "PDF text sparse — falling back to Claude vision");
+        records = await parsePDFWithClaude(stored.storedPath, parseCtx);
+      }
     } else {
       // Image: OCR with segment context for better categorisation
       const text = await extractImageText(stored.storedPath, parseCtx);
