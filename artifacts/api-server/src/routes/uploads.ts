@@ -53,12 +53,15 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
   const { originalname, mimetype, buffer } = req.file;
   const ext = path.extname(originalname).toLowerCase().replace(".", "");
 
-  // Determine file type category
+  // Determine file type category — also sniff content for OFX (allows .txt rename workaround on iOS)
+  const contentSniff = buffer.slice(0, 256).toString("utf-8").trimStart();
+  const looksLikeOFX = contentSniff.startsWith("OFXHEADER") || /^<\?xml[^>]*>\s*<OFX/i.test(contentSniff) || contentSniff.startsWith("<OFX");
+
   let fileType: string;
-  if (["csv"].includes(ext)) fileType = "csv";
+  if (["ofx", "qfx", "qbo"].includes(ext) || looksLikeOFX) fileType = "ofx";
+  else if (["csv"].includes(ext)) fileType = "csv";
   else if (["xlsx", "xls"].includes(ext)) fileType = "xlsx";
   else if (ext === "pdf") fileType = "pdf";
-  else if (["ofx", "qfx", "qbo"].includes(ext)) fileType = "ofx";
   else if (["png", "jpg", "jpeg", "webp"].includes(ext)) fileType = "image";
   else {
     res.status(400).json({ error: `Tipo de arquivo não suportado: .${ext}. Use CSV, XLSX, PDF, OFX ou imagens.` });
