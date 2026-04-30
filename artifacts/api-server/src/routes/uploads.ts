@@ -131,19 +131,23 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
       records = await parseXLSX(stored.storedPath, parseCtx);
     } else if (fileType === "pdf") {
       const text = await extractPDFText(stored.storedPath);
+      logger.info({ chars: text.length, hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY }, "PDF: text extracted");
       if (text) {
         await db.update(rawInputsTable).set({ originalText: text }).where(eq(rawInputsTable.id, rawInput.id));
       }
       // Try text-based parsing first (fast, cheap)
       let pdfRecords = text.length >= 80 ? await rawTextToRecords(text, parseCtx) : [];
+      logger.info({ textRecords: pdfRecords.length }, "PDF: text-based parse result");
 
       // rawTextToRecords returns mock records when it can't parse — detect and retry with vision
       const isMockFallback = pdfRecords.length > 0 && pdfRecords.every((r) => r.description.includes("(Texto extraído)") || r.description.includes("Texto extraido"));
       if (pdfRecords.length === 0 || isMockFallback) {
         logger.info({ chars: text.length, isMockFallback }, "PDF text parsing insufficient — using Claude vision");
         pdfRecords = await parsePDFWithClaude(stored.storedPath, parseCtx);
+        logger.info({ visionRecords: pdfRecords.length }, "PDF: vision parse result");
       }
       records = pdfRecords.length > 0 ? pdfRecords : generateMockRecords(3, "PDF");
+      logger.info({ finalRecords: records.length }, "PDF: final result");
     } else {
       // Image: OCR with segment context for better categorisation
       const text = await extractImageText(stored.storedPath, parseCtx);

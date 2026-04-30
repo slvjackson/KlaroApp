@@ -33,4 +33,9 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  logger.info({
+    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    hasSessionSecret: !!process.env.SESSION_SECRET,
+  }, "Environment check");
 });
