@@ -263,7 +263,7 @@ export default function UploadScreen() {
 
   async function handleFile() {
     const result = await DocumentPicker.getDocumentAsync({
-      type: ["*/*", "com.klaro.ofx"],
+      type: "*/*",
       copyToCacheDirectory: true,
     });
     if (result.canceled || !result.assets[0]) return;
