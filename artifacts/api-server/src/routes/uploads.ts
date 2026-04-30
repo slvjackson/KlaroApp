@@ -134,14 +134,16 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
       if (text) {
         await db.update(rawInputsTable).set({ originalText: text }).where(eq(rawInputsTable.id, rawInput.id));
       }
-      if (text.length >= 80) {
-        // Text-based PDF: structure with AI
-        records = await rawTextToRecords(text, parseCtx);
-      } else {
-        // Scanned/image PDF: use Claude's native PDF vision
-        logger.info({ chars: text.length }, "PDF text sparse — falling back to Claude vision");
-        records = await parsePDFWithClaude(stored.storedPath, parseCtx);
+      // Try text-based parsing first (fast, cheap)
+      let pdfRecords = text.length >= 80 ? await rawTextToRecords(text, parseCtx) : [];
+
+      // rawTextToRecords returns mock records when it can't parse — detect and retry with vision
+      const isMockFallback = pdfRecords.length > 0 && pdfRecords.every((r) => r.description.includes("(Texto extraído)") || r.description.includes("Texto extraido"));
+      if (pdfRecords.length === 0 || isMockFallback) {
+        logger.info({ chars: text.length, isMockFallback }, "PDF text parsing insufficient — using Claude vision");
+        pdfRecords = await parsePDFWithClaude(stored.storedPath, parseCtx);
       }
+      records = pdfRecords.length > 0 ? pdfRecords : generateMockRecords(3, "PDF");
     } else {
       // Image: OCR with segment context for better categorisation
       const text = await extractImageText(stored.storedPath, parseCtx);
