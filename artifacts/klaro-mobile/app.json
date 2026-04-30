@@ -21,7 +21,26 @@
           "NSAllowsArbitraryLoads": true
         },
         "NSCameraUsageDescription": "Usado para fotografar comprovantes e documentos financeiros.",
-        "NSPhotoLibraryUsageDescription": "Usado para selecionar imagens de comprovantes da galeria."
+        "NSPhotoLibraryUsageDescription": "Usado para selecionar imagens de comprovantes da galeria.",
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "OFX Financial File",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": ["com.klaro.ofx"]
+          }
+        ],
+        "UTImportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.klaro.ofx",
+            "UTTypeDescription": "OFX Financial Data",
+            "UTTypeConformsTo": ["public.data", "public.text"],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": ["ofx", "qfx", "qbo"],
+              "public.mime-type": ["application/x-ofx", "application/ofx", "application/x-qfx"]
+            }
+          }
+        ]
       }
     },
     "android": {},
