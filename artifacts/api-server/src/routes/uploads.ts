@@ -44,6 +44,7 @@ router.get("/uploads", requireAuth, async (req, res): Promise<void> => {
 // POST /uploads — upload and parse a file
 router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Promise<void> => {
   const userId = req.session.userId!;
+  logger.info({ userId, hasFile: !!req.file, contentType: req.headers["content-type"] }, "Upload request received");
 
   if (!req.file) {
     res.status(400).json({ error: "Nenhum arquivo enviado." });
@@ -52,6 +53,7 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
 
   const { originalname, mimetype, buffer } = req.file;
   const ext = path.extname(originalname).toLowerCase().replace(".", "");
+  logger.info({ originalname, mimetype, ext, size: buffer.length }, "File received");
 
   // Determine file type category — also sniff content for OFX (allows .txt rename workaround on iOS)
   const contentSniff = buffer.slice(0, 256).toString("utf-8").trimStart();
