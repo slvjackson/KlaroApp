@@ -19,6 +19,9 @@ import Chat from "@/pages/chat";
 import Anamnese from "@/pages/anamnese";
 import Missions from "@/pages/missions";
 import { GlobalUploadOverlay } from "@/pages/upload";
+import VerifyEmail from "@/pages/verify-email";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +40,9 @@ function Router() {
       <Route path="/chat" component={Chat} />
       <Route path="/anamnese" component={Anamnese} />
       <Route path="/missions" component={Missions} />
+      <Route path="/verify-email" component={VerifyEmail} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route component={NotFound} />
     </Switch>
   );

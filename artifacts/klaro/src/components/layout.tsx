@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, Upload, ArrowLeftRight, Lightbulb, Sparkles, User, LogOut, Trophy } from "lucide-react";
+import { LayoutDashboard, Upload, ArrowLeftRight, Lightbulb, Sparkles, User, LogOut, Trophy, Mail, X } from "lucide-react";
 import { KlaroMark } from "@/components/KlaroMark";
 
 const NAV_ITEMS = [
@@ -19,6 +20,21 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
   const logout = useLogout();
   const queryClient = useQueryClient();
   const { data: user } = useGetMe();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
+
+  const showVerifyBanner = user && !user.emailVerifiedAt && !bannerDismissed;
+
+  async function handleResend() {
+    setResending(true);
+    try {
+      await fetch("/api/auth/resend-verification", { method: "POST", credentials: "include" });
+      setResendDone(true);
+    } finally {
+      setResending(false);
+    }
+  }
 
   const handleLogout = () => {
     logout.mutate(undefined, {
@@ -121,6 +137,32 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
             <KlaroMark size={24} />
           </Link>
         </div>
+
+        {showVerifyBanner && (
+          <div className="flex items-center gap-3 px-6 md:px-8 py-2.5 bg-[rgba(106,248,47,0.08)] border-b border-[rgba(106,248,47,0.2)] text-[12.5px]">
+            <Mail size={14} className="shrink-0 text-[var(--accent)]" />
+            <span className="flex-1 text-[var(--muted)]">
+              Confirme seu e-mail para garantir acesso à sua conta.{" "}
+              {resendDone ? (
+                <span className="text-[var(--accent)]">Link enviado! Verifique sua caixa de entrada.</span>
+              ) : (
+                <button
+                  onClick={handleResend}
+                  disabled={resending}
+                  className="text-[var(--accent)] hover:brightness-110 font-medium underline underline-offset-2 disabled:opacity-50"
+                >
+                  {resending ? "Enviando…" : "Reenviar e-mail"}
+                </button>
+              )}
+            </span>
+            <button
+              onClick={() => setBannerDismissed(true)}
+              className="text-[var(--muted)] hover:text-white transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         <main className="flex-1 min-w-0 px-6 md:px-8 py-6 overflow-y-auto klaro-scroll">
           {children}

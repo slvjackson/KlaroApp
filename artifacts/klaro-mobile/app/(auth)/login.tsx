@@ -144,6 +144,15 @@ export default function LoginScreen() {
             </Text>
           ) : null}
 
+          <Pressable
+            onPress={() => router.push("/(auth)/forgot-password")}
+            style={styles.forgotLink}
+          >
+            <Text style={[styles.forgotText, { color: colors.mutedForeground }]}>
+              Esqueci minha senha
+            </Text>
+          </Pressable>
+
           <KlaroButton
             title="Entrar"
             onPress={handleLogin}
@@ -220,5 +229,14 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",
+  },
+  forgotLink: {
+    alignSelf: "flex-end",
+    paddingVertical: 4,
+  },
+  forgotText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    textDecorationLine: "underline",
   },
 });

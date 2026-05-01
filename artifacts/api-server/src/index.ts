@@ -25,6 +25,21 @@ pool.query("ALTER TABLE insights ADD COLUMN IF NOT EXISTS steps JSON").catch((e)
 pool.query("ALTER TABLE insights ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ").catch((e) =>
   logger.warn({ err: e }, "Could not add pinned_at column to insights")
 );
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ").catch((e) =>
+  logger.warn({ err: e }, "Could not add email_verified_at column to users")
+);
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token TEXT").catch((e) =>
+  logger.warn({ err: e }, "Could not add email_verification_token column to users")
+);
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMPTZ").catch((e) =>
+  logger.warn({ err: e }, "Could not add email_verification_expires_at column to users")
+);
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token TEXT").catch((e) =>
+  logger.warn({ err: e }, "Could not add password_reset_token column to users")
+);
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ").catch((e) =>
+  logger.warn({ err: e }, "Could not add password_reset_expires_at column to users")
+);
 
 app.listen(port, (err) => {
   if (err) {

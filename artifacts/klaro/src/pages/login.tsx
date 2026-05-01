@@ -106,6 +106,12 @@ export default function Login() {
               </div>
             </div>
 
+            <div className="flex justify-end">
+              <Link href="/forgot-password" className="text-[12px] text-[var(--muted)] hover:text-white transition-colors">
+                Esqueci minha senha
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={login.isPending || !email.trim() || !password}
