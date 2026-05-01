@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://klaroapp.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
