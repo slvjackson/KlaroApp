@@ -228,11 +228,19 @@ export default function UploadScreen() {
       const formData = new FormData();
       formData.append("file", { uri, name, type: mimeType } as unknown as Blob);
 
-      const res = await fetch(`${baseUrl}/api/uploads`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4 * 60 * 1000); // 4 min timeout
+      let res: Response;
+      try {
+        res = await fetch(`${baseUrl}/api/uploads`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
