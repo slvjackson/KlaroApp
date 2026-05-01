@@ -52,6 +52,7 @@ export interface AuthUser {
   id: number;
   name: string;
   email: string;
+  emailVerifiedAt?: string | null;
   businessProfile?: BusinessProfile | null;
   createdAt: string;
 }

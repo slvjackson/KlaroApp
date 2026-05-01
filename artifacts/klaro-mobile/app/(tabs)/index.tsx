@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SpeedDialFab } from "@/components/SpeedDialFab";
+import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import { GoalProgress } from "@/components/GoalProgress";
 import { SkeletonChart, SkeletonGoal } from "@/components/Skeleton";
 import { TransactionRow } from "@/components/TransactionRow";
@@ -594,6 +595,7 @@ export default function DashboardScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <VerifyEmailBanner />
       <ScrollView
         style={[styles.root, { backgroundColor: colors.background }]}
         contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: btmPad + 120 }]}

@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://klaroapp.onrender.com/api/:path*"
+      "destination": "https://workspaceapi-server-production-a4f2.up.railway.app/api/:path*"
     },
     {
       "source": "/(.*)",
