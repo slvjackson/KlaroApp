@@ -6,7 +6,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActionSheetIOS,
-  ActivityIndicator,
   Modal,
   Platform,
   Pressable,
@@ -18,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getApiBaseUrl } from "@/constants/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { UploadingOverlay } from "@/components/UploadingOverlay";
 
 interface SpeedDialFabProps {
   onAdd: () => void;
@@ -30,6 +30,7 @@ export function SpeedDialFab({ onAdd }: SpeedDialFabProps) {
 
   const [fabOpen, setFabOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingFileName, setUploadingFileName] = useState("");
   const [showSourcePicker, setShowSourcePicker] = useState(false);
 
   const baseUrl = getApiBaseUrl();
@@ -37,23 +38,35 @@ export function SpeedDialFab({ onAdd }: SpeedDialFabProps) {
 
   async function uploadFile(uri: string, name: string, mimeType: string) {
     setUploading(true);
+    setUploadingFileName(name);
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const formData = new FormData();
       formData.append("file", { uri, name, type: mimeType } as unknown as Blob);
-      const res = await fetch(`${baseUrl}/api/uploads`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4 * 60 * 1000);
+      let res: Response;
+      try {
+        res = await fetch(`${baseUrl}/api/uploads`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
       if (!res.ok) return;
       const upload = await res.json();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push(`/review/${upload.id}`);
     } catch {
-      // silently ignore — review screen will show error
+      // review screen will handle missing upload
     } finally {
       setUploading(false);
+      setUploadingFileName("");
     }
   }
 
@@ -78,13 +91,7 @@ export function SpeedDialFab({ onAdd }: SpeedDialFabProps) {
 
   async function handleFile() {
     const result = await DocumentPicker.getDocumentAsync({
-      type: [
-        "text/csv",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "application/vnd.ms-excel",
-        "application/pdf",
-        "image/*",
-      ],
+      type: "*/*",
       copyToCacheDirectory: true,
     });
     if (result.canceled || !result.assets[0]) return;
@@ -109,6 +116,9 @@ export function SpeedDialFab({ onAdd }: SpeedDialFabProps) {
 
   return (
     <>
+      {/* Full-screen upload overlay — same progressive phases as the Upload tab */}
+      {uploading && <UploadingOverlay fileName={uploadingFileName} />}
+
       {/* Backdrop + secondary actions */}
       {fabOpen && (
         <>
@@ -124,24 +134,19 @@ export function SpeedDialFab({ onAdd }: SpeedDialFabProps) {
                 { backgroundColor: colors.card, color: colors.foreground },
               ]}
             >
-              {uploading ? "Enviando…" : "Upload"}
+              Upload
             </Text>
             <Pressable
               onPress={() => {
                 setFabOpen(false);
                 handleChooseSource();
               }}
-              disabled={uploading}
               style={[
                 styles.secondary,
                 { backgroundColor: colors.secondary, borderColor: colors.border },
               ]}
             >
-              {uploading ? (
-                <ActivityIndicator size="small" color={colors.foreground} />
-              ) : (
-                <Feather name="upload" size={20} color={colors.foreground} />
-              )}
+              <Feather name="upload" size={20} color={colors.foreground} />
             </Pressable>
           </View>
           {/* Add action */}
