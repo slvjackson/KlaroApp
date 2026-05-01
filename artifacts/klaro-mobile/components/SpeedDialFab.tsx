@@ -3,7 +3,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActionSheetIOS,
   Modal,
@@ -32,6 +32,7 @@ export function SpeedDialFab({ onAdd }: SpeedDialFabProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadingFileName, setUploadingFileName] = useState("");
   const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const controllerRef = useRef<AbortController | null>(null);
 
   const baseUrl = getApiBaseUrl();
   const bottom = insets.bottom + (Platform.OS === "web" ? 34 : 0) + 84;
@@ -45,6 +46,7 @@ export function SpeedDialFab({ onAdd }: SpeedDialFabProps) {
       formData.append("file", { uri, name, type: mimeType } as unknown as Blob);
 
       const controller = new AbortController();
+      controllerRef.current = controller;
       const timeoutId = setTimeout(() => controller.abort(), 4 * 60 * 1000);
       let res: Response;
       try {
@@ -56,14 +58,17 @@ export function SpeedDialFab({ onAdd }: SpeedDialFabProps) {
         });
       } finally {
         clearTimeout(timeoutId);
+        controllerRef.current = null;
       }
 
       if (!res.ok) return;
       const upload = await res.json();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push(`/review/${upload.id}`);
-    } catch {
-      // review screen will handle missing upload
+    } catch (err) {
+      if (err instanceof Error && err.name !== "AbortError") {
+        // non-cancel errors — review screen will handle missing upload
+      }
     } finally {
       setUploading(false);
       setUploadingFileName("");
@@ -117,7 +122,12 @@ export function SpeedDialFab({ onAdd }: SpeedDialFabProps) {
   return (
     <>
       {/* Full-screen upload overlay — same progressive phases as the Upload tab */}
-      {uploading && <UploadingOverlay fileName={uploadingFileName} />}
+      {uploading && (
+        <UploadingOverlay
+          fileName={uploadingFileName}
+          onCancel={() => controllerRef.current?.abort()}
+        />
+      )}
 
       {/* Backdrop + secondary actions */}
       {fabOpen && (

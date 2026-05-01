@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChatProvider } from "@/contexts/chat-context";
+import { UploadProvider, useUploadContext } from "@/contexts/upload-context";
 import NotFound from "@/pages/not-found";
 
 import Home from "@/pages/home";
@@ -17,6 +18,7 @@ import Profile from "@/pages/profile";
 import Chat from "@/pages/chat";
 import Anamnese from "@/pages/anamnese";
 import Missions from "@/pages/missions";
+import { GlobalUploadOverlay } from "@/pages/upload";
 
 const queryClient = new QueryClient();
 
@@ -40,13 +42,25 @@ function Router() {
   );
 }
 
+function AppInner() {
+  const { uploading, uploadingFileName, cancel } = useUploadContext();
+  return (
+    <>
+      <Router />
+      {uploading && <GlobalUploadOverlay fileName={uploadingFileName} onCancel={cancel} />}
+    </>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ChatProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
+            <UploadProvider>
+              <AppInner />
+            </UploadProvider>
           </WouterRouter>
           <Toaster />
         </ChatProvider>

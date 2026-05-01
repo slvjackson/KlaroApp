@@ -1,6 +1,6 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Modal, StyleSheet, Text, View } from "react-native";
+import { Alert, Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 
 const UPLOAD_PHASES = [
@@ -11,7 +11,13 @@ const UPLOAD_PHASES = [
   { after: 60, title: "Ainda processando…",      sub: "Documento extenso. Continue aguardando." },
 ];
 
-export function UploadingOverlay({ fileName }: { fileName: string }) {
+export function UploadingOverlay({
+  fileName,
+  onCancel,
+}: {
+  fileName: string;
+  onCancel?: () => void;
+}) {
   const colors = useColors();
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
@@ -93,6 +99,34 @@ export function UploadingOverlay({ fileName }: { fileName: string }) {
               {elapsed}s
             </Text>
           )}
+
+          {onCancel && (
+            <Pressable
+              onPress={() =>
+                Alert.alert(
+                  "Cancelar upload?",
+                  "O envio será interrompido.",
+                  [
+                    { text: "Continuar", style: "cancel" },
+                    { text: "Cancelar upload", style: "destructive", onPress: onCancel },
+                  ]
+                )
+              }
+              style={({ pressed }) => [
+                styles.cancelBtn,
+                {
+                  borderColor: colors.border,
+                  borderRadius: colors.radius,
+                  opacity: pressed ? 0.6 : 1,
+                },
+              ]}
+            >
+              <Feather name="x" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>
+                Cancelar upload
+              </Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </Modal>
@@ -142,5 +176,18 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     marginTop: 10,
     opacity: 0.5,
+  },
+  cancelBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  cancelBtnText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
   },
 });

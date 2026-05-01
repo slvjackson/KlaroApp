@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
-import { useUploadFile, useListUploads } from "@workspace/api-client-react";
-import { useLocation } from "wouter";
-import { UploadCloud, Loader2, FileImage, FileSpreadsheet, FileText, AlertTriangle, Sparkles, Brain, CheckCircle2 } from "lucide-react";
+import { useListUploads } from "@workspace/api-client-react";
+import { useUploadContext } from "@/contexts/upload-context";
+import { UploadCloud, Loader2, FileImage, FileSpreadsheet, FileText, AlertTriangle, Sparkles, Brain, CheckCircle2, X } from "lucide-react";
 import { format } from "date-fns";
 
-const SUPPORTED = [
-  { icon: FileText, label: "PDF" },
-  { icon: FileSpreadsheet, label: "Excel / CSV / OFX" },
-  { icon: FileImage, label: "Imagem" },
-];
+// ─── Phases ────────────────────────────────────────────────────────────────────
 
 const UPLOAD_PHASES = [
   { after: 0,  icon: UploadCloud,   title: "Enviando arquivo…",      sub: "Aguardando confirmação do servidor." },
@@ -20,13 +16,22 @@ const UPLOAD_PHASES = [
   { after: 60, icon: CheckCircle2,  title: "Ainda processando…",     sub: "Documento extenso. Continue aguardando." },
 ];
 
-function UploadingOverlay({ fileName }: { fileName: string }) {
+// ─── Overlay (also exported for App.tsx to render globally) ────────────────────
+
+export function GlobalUploadOverlay({
+  fileName,
+  onCancel,
+}: {
+  fileName: string;
+  onCancel: () => void;
+}) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
+    setElapsed(0);
     const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [fileName]);
 
   const phase = UPLOAD_PHASES.reduce(
     (cur, p) => (elapsed >= p.after ? p : cur),
@@ -52,7 +57,6 @@ function UploadingOverlay({ fileName }: { fileName: string }) {
               style={{ animation: "pulse 2s ease-in-out infinite" }}
             />
           </div>
-          {/* Orbiting ring */}
           <div
             className="absolute -inset-2 rounded-[28px] border border-[var(--accent)]/25"
             style={{ animation: "spin 4s linear infinite" }}
@@ -96,56 +100,59 @@ function UploadingOverlay({ fileName }: { fileName: string }) {
                       ? "linear-gradient(90deg, #6af82f, #4de020)"
                       : "rgba(255,255,255,0.1)",
                 boxShadow:
-                  i === phaseIndex
-                    ? "0 0 8px rgba(106,248,47,0.6)"
-                    : "none",
+                  i === phaseIndex ? "0 0 8px rgba(106,248,47,0.6)" : "none",
               }}
             />
           ))}
         </div>
 
-        {/* Elapsed + spinner */}
+        {/* Spinner + elapsed */}
         <div className="flex items-center gap-3 text-[var(--muted)]">
           <Loader2 size={14} className="animate-spin shrink-0 opacity-60" />
           {elapsed >= 4 && (
             <span className="text-[11px] opacity-50 tabular-nums">{elapsed}s</span>
           )}
         </div>
+
+        {/* Cancel */}
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-1.5 text-[12px] text-[var(--muted)] hover:text-white transition-colors border border-[var(--border)] rounded-xl px-4 py-2"
+        >
+          <X size={12} />
+          Cancelar upload
+        </button>
       </div>
     </div>
   );
 }
 
+// ─── Supported formats ─────────────────────────────────────────────────────────
+
+const SUPPORTED = [
+  { icon: FileText, label: "PDF" },
+  { icon: FileSpreadsheet, label: "Excel / CSV / OFX" },
+  { icon: FileImage, label: "Imagem" },
+];
+
+// ─── Upload page ───────────────────────────────────────────────────────────────
+
 export default function Upload() {
   const { isLoading: isAuthLoading } = useRequireAuth();
-  const [, setLocation] = useLocation();
-  const uploadFile = useUploadFile();
   const { data: existingUploads } = useListUploads();
+  const { uploading, uploadError, startUpload, dismissError } = useUploadContext();
   const [isDragging, setIsDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [uploadingFileName, setUploadingFileName] = useState("");
 
   // Duplicate confirmation state
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [duplicateUpload, setDuplicateUpload] = useState<{ fileName: string; createdAt: string } | null>(null);
 
   function doUpload(file: File) {
-    setError(null);
-    setUploadingFileName(file.name);
-    uploadFile.mutate(
-      { data: { file } },
-      {
-        onSuccess: (data) => setLocation(`/review/${data.id}`),
-        onError: (err: any) => {
-          setUploadingFileName("");
-          setError(err.message || "Erro ao fazer upload do arquivo");
-        },
-      }
-    );
+    dismissError();
+    startUpload(file);
   }
 
   const handleFile = (file: File) => {
-    // Check for duplicate filename among existing uploads
     const existing = (existingUploads ?? []) as { fileName: string; createdAt: string }[];
     const duplicate = existing.find((u) => u.fileName === file.name);
     if (duplicate) {
@@ -169,11 +176,14 @@ export default function Upload() {
 
   const onDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); }, []);
   const onDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); }, []);
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files?.[0]) handleFile(e.dataTransfer.files[0]);
-  }, [existingUploads]);
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      if (e.dataTransfer.files?.[0]) handleFile(e.dataTransfer.files[0]);
+    },
+    [existingUploads],
+  );
 
   const onFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) handleFile(e.target.files[0]);
@@ -217,7 +227,7 @@ export default function Upload() {
               <p className="text-[12.5px] text-[var(--muted)] mt-1">Suporta CSV, Excel, PDF, OFX (extrato bancário) e imagens</p>
             </div>
 
-            <label className={`cursor-pointer ${uploadFile.isPending ? "pointer-events-none opacity-50" : ""}`}>
+            <label className={`cursor-pointer ${uploading ? "pointer-events-none opacity-50" : ""}`}>
               <div className="btn-primary px-6 py-2.5 rounded-xl text-[13px] font-semibold inline-block">
                 Selecionar arquivo
               </div>
@@ -226,12 +236,12 @@ export default function Upload() {
                 className="hidden"
                 accept=".csv,.xlsx,.xls,.pdf,.ofx,.qfx,.qbo,image/*"
                 onChange={onFileInput}
-                disabled={uploadFile.isPending}
+                disabled={uploading}
               />
             </label>
 
-            {error && (
-              <p className="text-[12.5px] text-[var(--expense)]">{error}</p>
+            {uploadError && (
+              <p className="text-[12.5px] text-[var(--expense)]">{uploadError}</p>
             )}
           </div>
         </div>
@@ -263,9 +273,6 @@ export default function Upload() {
           </div>
         </div>
       </div>
-
-      {/* Full-screen upload progress overlay */}
-      {uploadFile.isPending && <UploadingOverlay fileName={uploadingFileName} />}
 
       {/* Duplicate file confirmation modal */}
       {duplicateUpload && pendingFile && (

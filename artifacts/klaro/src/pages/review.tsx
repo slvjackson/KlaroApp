@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
-import { useGetUpload, getGetUploadQueryKey, useUpdateParsedRecord, useDeleteParsedRecord, useConfirmParsedRecords, ParsedRecord } from "@workspace/api-client-react";
+import { useGetUpload, getGetUploadQueryKey, useUpdateParsedRecord, useDeleteParsedRecord, useConfirmParsedRecords, useDeleteUpload, ParsedRecord } from "@workspace/api-client-react";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -40,6 +40,9 @@ export default function Review() {
   const updateRecord = useUpdateParsedRecord();
   const deleteRecord = useDeleteParsedRecord();
   const confirmRecords = useConfirmParsedRecords();
+  const deleteUpload = useDeleteUpload();
+  const [discarding, setDiscarding] = useState(false);
+  const [showDiscard, setShowDiscard] = useState(false);
 
   // Per-row local edits
   const [edits, setEdits] = useState<Record<number, Record<string, any>>>({});
@@ -237,6 +240,17 @@ export default function Review() {
 
   const canApply = someSelected && (!!bulkCategory || !!bulkType || !!bulkDate.trim());
 
+  async function handleDiscard() {
+    setDiscarding(true);
+    try {
+      await deleteUpload.mutateAsync({ id: uploadId });
+      setLocation("/upload");
+    } finally {
+      setDiscarding(false);
+      setShowDiscard(false);
+    }
+  }
+
   if (isAuthLoading) return null;
 
   return (
@@ -250,14 +264,24 @@ export default function Review() {
               {isLoading ? <Skeleton className="h-4 w-48" /> : `Arquivo: ${upload?.fileName}`}
             </p>
           </div>
-          <Button
-            onClick={handleConfirm}
-            disabled={!upload?.parsedRecords?.length || confirmRecords.isPending || confirmFlushing}
-            className="font-bold gap-2"
-          >
-            <Check className="w-4 h-4" />
-            Confirmar Registros
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowDiscard(true)}
+              disabled={discarding}
+              className="h-9 px-4 rounded-xl border border-[var(--border)] text-[var(--muted)] text-[13px] font-medium hover:text-white hover:border-white/20 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <X size={13} />
+              Descartar
+            </button>
+            <Button
+              onClick={handleConfirm}
+              disabled={!upload?.parsedRecords?.length || confirmRecords.isPending || confirmFlushing}
+              className="font-bold gap-2"
+            >
+              <Check className="w-4 h-4" />
+              Confirmar Registros
+            </Button>
+          </div>
         </div>
 
         {/* Row filter */}
@@ -509,6 +533,40 @@ export default function Review() {
           </div>
         )}
       </div>
+
+      {/* Discard confirmation modal */}
+      {showDiscard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowDiscard(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="glass-strong rounded-2xl p-6 w-full max-w-sm relative z-10 fadeUp" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--expense-soft)] border border-[rgba(244,63,94,0.25)] grid place-items-center mx-auto mb-3">
+                <Trash2 size={20} className="text-[var(--expense)]" />
+              </div>
+              <p className="text-[15px] font-semibold text-white mb-2">Descartar upload?</p>
+              <p className="text-[13px] text-[var(--muted)] leading-relaxed">
+                O arquivo e todos os registros extraídos serão excluídos permanentemente. Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDiscard(false)}
+                className="flex-1 h-10 rounded-xl border border-[var(--border)] text-[var(--muted)] text-[13px] font-medium hover:text-white hover:border-white/20 transition-colors"
+              >
+                Manter
+              </button>
+              <button
+                onClick={handleDiscard}
+                disabled={discarding}
+                className="flex-1 h-10 rounded-xl bg-[var(--expense)] text-white text-[13px] font-semibold hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {discarding ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                Descartar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

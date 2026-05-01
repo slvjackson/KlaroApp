@@ -4,7 +4,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -117,6 +117,7 @@ export default function UploadScreen() {
   const [uploading, setUploading] = useState(false);
   const [uploadingFileName, setUploadingFileName] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const controllerRef = useRef<AbortController | null>(null);
   const [showSourcePicker, setShowSourcePicker] = useState(false);
 
   const { data: uploads, isLoading, refetch } = useListUploads();
@@ -133,7 +134,8 @@ export default function UploadScreen() {
       formData.append("file", { uri, name, type: mimeType } as unknown as Blob);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4 * 60 * 1000); // 4 min timeout
+      controllerRef.current = controller;
+      const timeoutId = setTimeout(() => controller.abort(), 4 * 60 * 1000);
       let res: Response;
       try {
         res = await fetch(`${baseUrl}/api/uploads`, {
@@ -144,6 +146,7 @@ export default function UploadScreen() {
         });
       } finally {
         clearTimeout(timeoutId);
+        controllerRef.current = null;
       }
 
       if (!res.ok) {
@@ -158,8 +161,11 @@ export default function UploadScreen() {
       await refetch();
       router.push(`/review/${upload.id}`);
     } catch (err) {
-      console.error("Upload error:", err);
-      setUploadError(`Erro: ${err instanceof Error ? err.message : String(err)}`);
+      if (err instanceof Error && err.name === "AbortError") {
+        // user-cancelled — no error
+      } else {
+        setUploadError(`Erro: ${err instanceof Error ? err.message : String(err)}`);
+      }
     } finally {
       setUploading(false);
     }
@@ -308,7 +314,12 @@ export default function UploadScreen() {
       </Text>
 
       {/* Full-screen upload overlay */}
-      {uploading && <UploadingOverlay fileName={uploadingFileName} />}
+      {uploading && (
+        <UploadingOverlay
+          fileName={uploadingFileName}
+          onCancel={() => controllerRef.current?.abort()}
+        />
+      )}
 
       {/* Android source picker (iOS uses ActionSheetIOS) */}
       <Modal

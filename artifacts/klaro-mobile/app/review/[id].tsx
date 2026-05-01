@@ -2,6 +2,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   useConfirmParsedRecords,
   useDeleteParsedRecord,
+  useDeleteUpload,
   useGetUpload,
   useUpdateParsedRecord,
 } from "@workspace/api-client-react";
@@ -671,6 +672,7 @@ export default function ReviewScreen() {
   const confirmMutation = useConfirmParsedRecords();
   const updateMutation = useUpdateParsedRecord();
   const deleteMutation = useDeleteParsedRecord();
+  const deleteUploadMutation = useDeleteUpload();
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
 
@@ -781,6 +783,28 @@ export default function ReviewScreen() {
     } finally {
       setConfirming(false);
     }
+  }
+
+  function handleDiscardUpload() {
+    Alert.alert(
+      "Descartar upload?",
+      "O arquivo e todos os registros extraídos serão excluídos permanentemente.",
+      [
+        { text: "Manter", style: "cancel" },
+        {
+          text: "Descartar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteUploadMutation.mutateAsync({ id: Number(id) });
+              router.replace("/(tabs)/upload");
+            } catch {
+              Alert.alert("Erro", "Não foi possível descartar o upload.");
+            }
+          },
+        },
+      ]
+    );
   }
 
   // ─ Loading
@@ -1093,6 +1117,15 @@ export default function ReviewScreen() {
                 loading={confirming}
                 fullWidth
               />
+              <Pressable
+                onPress={handleDiscardUpload}
+                disabled={deleteUploadMutation.isPending}
+                style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, alignItems: "center", paddingVertical: 4 }]}
+              >
+                <Text style={[styles.discardText, { color: colors.mutedForeground }]}>
+                  Descartar upload
+                </Text>
+              </Pressable>
             </View>
           )}
         </>
@@ -1340,4 +1373,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   deleteBtnText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  discardText: { fontSize: 13, fontFamily: "Inter_400Regular", textDecorationLine: "underline" },
 });
