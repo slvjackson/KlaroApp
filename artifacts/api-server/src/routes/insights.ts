@@ -110,6 +110,7 @@ router.post("/insights/check-milestones", requireAuth, async (req, res): Promise
     .where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt), isNull(insightsTable.pinnedAt)));
 
   const generated = await generateInsights(transactions, {
+    userId,
     businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
     segment: bp?.segment as string | undefined,
     segmentCustomLabel: bp?.segmentCustomLabel as string | undefined,
@@ -234,6 +235,7 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
     const bp = userRow?.businessProfile as Record<string, unknown> | null;
 
     const generated = await generateInsights(transactions, {
+      userId,
       businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
       segment: bp?.segment as string | undefined,
       segmentCustomLabel: bp?.segmentCustomLabel as string | undefined,
@@ -318,7 +320,7 @@ router.patch("/insights/:id/pin", requireAuth, async (req, res): Promise<void> =
         title: existing.title,
         description: existing.description,
         recommendation: existing.recommendation,
-      });
+      }, userId);
 
   const [pinned] = await db
     .update(insightsTable)

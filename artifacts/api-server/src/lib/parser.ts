@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "./logger";
 import { buildOcrPrompt, getSegmentProfile } from "../prompts/builder";
+import { logTokenUsage } from "./token-logger";
 
 export interface UserCategoryExample {
   description: string;
@@ -12,6 +13,7 @@ export interface UserCategoryExample {
 }
 
 export interface ParseBusinessContext {
+  userId?: number;
   businessName?: string;
   segment?: string;
   segmentCustomLabel?: string;
@@ -117,12 +119,14 @@ Responda SOMENTE com um JSON array na mesma ordem, sem texto adicional:
 Transações:
 ${items}`;
 
+  const CLASSIFY_MODEL = "claude-haiku-4-5-20251001";
   try {
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: CLASSIFY_MODEL,
       max_tokens: 1024,
       messages: [{ role: "user", content: prompt }],
     });
+    if (ctx?.userId) logTokenUsage(ctx.userId, "parse", CLASSIFY_MODEL, response.usage.input_tokens, response.usage.output_tokens);
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
     const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -680,9 +684,10 @@ REGRAS GERAIS:
 - Se não houver transações financeiras no documento, retorne apenas: SEM_DADOS
 ${segmentHint}`;
 
+  const PDF_MODEL = "claude-sonnet-4-6";
   try {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: PDF_MODEL,
       max_tokens: 8192,
       messages: [{
         role: "user" as const,
@@ -695,6 +700,7 @@ ${segmentHint}`;
         ],
       }],
     });
+    if (ctx?.userId) logTokenUsage(ctx.userId, "parse", PDF_MODEL, response.usage.input_tokens, response.usage.output_tokens);
 
     const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "";
     if (!raw || raw === "SEM_DADOS") return [];
@@ -739,8 +745,9 @@ export async function extractImageText(filePath: string, ctx?: ParseBusinessCont
     const imageData = fs.readFileSync(absPath);
     const base64 = imageData.toString("base64");
 
+    const IMAGE_MODEL = "claude-sonnet-4-6";
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: IMAGE_MODEL,
       max_tokens: 2048,
       messages: [
         {
@@ -755,6 +762,7 @@ export async function extractImageText(filePath: string, ctx?: ParseBusinessCont
         },
       ],
     });
+    if (ctx?.userId) logTokenUsage(ctx.userId, "parse", IMAGE_MODEL, response.usage.input_tokens, response.usage.output_tokens);
 
     const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
     if (text === "SEM_DADOS" || !text) return "";
@@ -781,8 +789,9 @@ async function structureTextWithAI(text: string, ctx?: ParseBusinessContext): Pr
 Use seu conhecimento sobre ${profile.label} para classificar o tipo de cada transação.\n`
     : "\n- tipo=entrada para receitas/recebimentos, tipo=saida para despesas/pagamentos\n";
 
+  const STRUCT_MODEL = "claude-sonnet-4-6";
   const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
+    model: STRUCT_MODEL,
     max_tokens: 4096,
     messages: [
       {
@@ -809,6 +818,7 @@ ${text}`,
     ],
   });
 
+  if (ctx?.userId) logTokenUsage(ctx.userId, "parse", STRUCT_MODEL, response.usage.input_tokens, response.usage.output_tokens);
   const result = response.content[0].type === "text" ? response.content[0].text.trim() : "";
   if (result === "SEM_DADOS" || !result) return "";
   // Prepend header so parseCSV identifies columns by name reliably

@@ -23,6 +23,11 @@ interface AdminUser {
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
   asaasSubscriptionId: string | null;
+  tokenInputTotal: number;
+  tokenOutputTotal: number;
+  tokenCallCount: number;
+  tokenCostUSD: number;
+  operationalCostShare: number;
 }
 
 interface Metrics {
@@ -399,6 +404,39 @@ function UsersTab() {
                 <div>
                   <div className="text-[var(--muted)] mb-0.5">Próx. renovação</div>
                   <div className="text-white">{dateStr(u.currentPeriodEnd)}</div>
+                </div>
+              </div>
+
+              {/* Token & cost stats */}
+              <div className="glass rounded-xl p-3">
+                <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Consumo & Custo</div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-[12px]">
+                  <div>
+                    <div className="text-[var(--muted)] mb-0.5">Tokens entrada</div>
+                    <div className="text-white font-medium">{u.tokenInputTotal.toLocaleString("pt-BR")}</div>
+                  </div>
+                  <div>
+                    <div className="text-[var(--muted)] mb-0.5">Tokens saída</div>
+                    <div className="text-white font-medium">{u.tokenOutputTotal.toLocaleString("pt-BR")}</div>
+                  </div>
+                  <div>
+                    <div className="text-[var(--muted)] mb-0.5">Total tokens</div>
+                    <div className="text-white font-medium">{(u.tokenInputTotal + u.tokenOutputTotal).toLocaleString("pt-BR")}</div>
+                  </div>
+                  <div>
+                    <div className="text-[var(--muted)] mb-0.5">Custo IA (USD)</div>
+                    <div className={`font-medium ${u.tokenCostUSD > 1 ? "text-[var(--expense)]" : "text-white"}`}>
+                      ${u.tokenCostUSD.toFixed(4)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[var(--muted)] mb-0.5">Custo fixo rateado</div>
+                    <div className="text-white font-medium">
+                      {u.operationalCostShare > 0
+                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(u.operationalCostShare)
+                        : "—"}
+                    </div>
+                  </div>
                 </div>
               </div>
 

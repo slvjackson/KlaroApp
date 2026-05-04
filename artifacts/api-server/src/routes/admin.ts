@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, usersTable, subscriptionsTable, transactionsTable, insightsTable, parsedRecordsTable, rawInputsTable, operationalCostsTable } from "@workspace/db";
-import { eq, gte, count } from "drizzle-orm";
+import { db, usersTable, subscriptionsTable, transactionsTable, insightsTable, parsedRecordsTable, rawInputsTable, operationalCostsTable, tokenUsagesTable } from "@workspace/db";
+import { eq, gte, count, sum } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { requireAdmin } from "../middlewares/admin";
 import { sendPasswordResetEmail } from "../lib/email";
@@ -14,28 +14,71 @@ router.use(requireAuth, requireAdmin);
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
-// GET /admin/users — list all users with subscription data
+// GET /admin/users — list all users with subscription + token usage data
 router.get("/admin/users", async (req, res): Promise<void> => {
-  const users = await db
-    .select({
-      id: usersTable.id,
-      name: usersTable.name,
-      email: usersTable.email,
-      isAdmin: usersTable.isAdmin,
-      status: usersTable.status,
-      createdAt: usersTable.createdAt,
-      emailVerifiedAt: usersTable.emailVerifiedAt,
-      subStatus: subscriptionsTable.status,
-      billingCycle: subscriptionsTable.billingCycle,
-      trialEndsAt: subscriptionsTable.trialEndsAt,
-      currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
-      asaasSubscriptionId: subscriptionsTable.asaasSubscriptionId,
-    })
-    .from(usersTable)
-    .leftJoin(subscriptionsTable, eq(subscriptionsTable.userId, usersTable.id))
-    .orderBy(usersTable.createdAt);
+  const [users, tokenStats, costs, activeSubs] = await Promise.all([
+    db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        isAdmin: usersTable.isAdmin,
+        status: usersTable.status,
+        createdAt: usersTable.createdAt,
+        emailVerifiedAt: usersTable.emailVerifiedAt,
+        subStatus: subscriptionsTable.status,
+        billingCycle: subscriptionsTable.billingCycle,
+        trialEndsAt: subscriptionsTable.trialEndsAt,
+        currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
+        asaasSubscriptionId: subscriptionsTable.asaasSubscriptionId,
+      })
+      .from(usersTable)
+      .leftJoin(subscriptionsTable, eq(subscriptionsTable.userId, usersTable.id))
+      .orderBy(usersTable.createdAt),
 
-  res.json({ users });
+    db
+      .select({
+        userId: tokenUsagesTable.userId,
+        totalInput:  sum(tokenUsagesTable.inputTokens),
+        totalOutput: sum(tokenUsagesTable.outputTokens),
+        callCount:   count(),
+      })
+      .from(tokenUsagesTable)
+      .groupBy(tokenUsagesTable.userId),
+
+    db.select().from(operationalCostsTable),
+
+    db.select({ userId: subscriptionsTable.userId }).from(subscriptionsTable)
+      .where(eq(subscriptionsTable.status, "active")),
+  ]);
+
+  const totalMonthlyCosts = costs.reduce((s, c) => s + Number(c.amountMonthly), 0);
+  const activeCount = activeSubs.length;
+  const costPerUser = activeCount > 0 ? totalMonthlyCosts / activeCount : 0;
+
+  const tokenMap = new Map(
+    tokenStats.map((t) => [t.userId, {
+      inputTokens:  Number(t.totalInput ?? 0),
+      outputTokens: Number(t.totalOutput ?? 0),
+      callCount:    Number(t.callCount ?? 0),
+    }])
+  );
+
+  const enriched = users.map((u) => {
+    const tk = tokenMap.get(u.id) ?? { inputTokens: 0, outputTokens: 0, callCount: 0 };
+    // Estimate token cost: use sonnet pricing as a conservative estimate
+    const tokenCostUSDValue = (tk.inputTokens / 1_000_000) * 3.0 + (tk.outputTokens / 1_000_000) * 15.0;
+    return {
+      ...u,
+      tokenInputTotal:  tk.inputTokens,
+      tokenOutputTotal: tk.outputTokens,
+      tokenCallCount:   tk.callCount,
+      tokenCostUSD:     tokenCostUSDValue,
+      operationalCostShare: costPerUser,
+    };
+  });
+
+  res.json({ users: enriched });
 });
 
 // PATCH /admin/users/:id/status — set user account status
@@ -213,6 +256,8 @@ router.get("/admin/metrics", async (req, res): Promise<void> => {
     (s) => s.status === "cancelled" && s.updatedAt >= thirtyDaysAgo
   ).length;
 
+  // Denominator: paying users who existed at the start of the window
+  // (currently active) + (cancelled during the window, i.e. were active at start)
   const activeAtStart = allSubs.filter(
     (s) =>
       s.status === "active" ||
@@ -220,7 +265,9 @@ router.get("/admin/metrics", async (req, res): Promise<void> => {
   ).length;
 
   const monthlyChurnRate = activeAtStart > 0 ? cancelledLast30 / activeAtStart : 0;
-  const annualChurnRate = 1 - Math.pow(1 - monthlyChurnRate, 12);
+  // Linear annualisation — avoids the compound formula inflating small samples
+  // (e.g. 1 cancellation / 4 users = 25% monthly → 97% compound annual, vs 25%*12 = 300% capped at 100%)
+  const annualChurnRate = Math.min(monthlyChurnRate * 12, 1);
 
   // LTV = ARPU / monthly_churn_rate (if churn > 0)
   const ltv = monthlyChurnRate > 0 ? arpu / monthlyChurnRate : null;

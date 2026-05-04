@@ -5,6 +5,7 @@ import { eq, and, gte, lte } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 import { getSegmentProfile } from "../prompts/builder";
+import { logTokenUsage } from "../lib/token-logger";
 
 const router = Router();
 
@@ -300,13 +301,15 @@ INSTRUÇÕES:
       { role: "user", content: message },
     ];
 
+    const CHAT_MODEL = "claude-sonnet-4-6";
     let response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: CHAT_MODEL,
       max_tokens: 1024,
       system: systemPrompt,
       tools: TOOLS,
       messages,
     });
+    logTokenUsage(userId, "chat", CHAT_MODEL, response.usage.input_tokens, response.usage.output_tokens);
 
     // Agentic loop — execute tools until the model is done
     const debugToolResults: { tool: string; input: Record<string, unknown>; result: string }[] = [];
@@ -327,12 +330,13 @@ INSTRUÇÕES:
       messages.push({ role: "user", content: toolResults });
 
       response = await client.messages.create({
-        model: "claude-sonnet-4-6",
+        model: CHAT_MODEL,
         max_tokens: 1024,
         system: systemPrompt,
         tools: TOOLS,
         messages,
       });
+      logTokenUsage(userId, "chat", CHAT_MODEL, response.usage.input_tokens, response.usage.output_tokens);
     }
 
     const reply = response.content.find((b) => b.type === "text")?.text ?? "";

@@ -60,6 +60,17 @@ pool.query(`CREATE TABLE IF NOT EXISTS operational_costs (
 pool.query("ALTER TABLE insights ADD COLUMN IF NOT EXISTS steps_progress JSON").catch((e) =>
   logger.warn({ err: e }, "Could not add steps_progress column to insights")
 );
+pool.query(`CREATE TABLE IF NOT EXISTS token_usages (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  source TEXT NOT NULL,
+  model TEXT NOT NULL,
+  input_tokens INTEGER NOT NULL,
+  output_tokens INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)`).catch((e) =>
+  logger.warn({ err: e }, "Could not create token_usages table")
+);
 
 app.listen(port, (err) => {
   if (err) {

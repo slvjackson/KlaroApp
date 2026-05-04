@@ -7,6 +7,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "./logger";
 import { buildInsightsPrompt, getSegmentProfile } from "../prompts/builder";
+import { logTokenUsage } from "./token-logger";
 
 export type InsightTone = "positive" | "warning" | "critical" | "neutral";
 
@@ -20,6 +21,7 @@ export interface GeneratedInsight {
 }
 
 export interface InsightBusinessContext {
+  userId?: number;
   businessName?: string;
   segment?: string;
   segmentCustomLabel?: string;
@@ -183,11 +185,13 @@ async function generateWithAI(transactions: Transaction[], ctx?: InsightBusiness
     observacoesAdicionais: ctx?.observacoesAdicionais,
   });
 
+  const INSIGHT_MODEL = "claude-sonnet-4-6";
   const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
+    model: INSIGHT_MODEL,
     max_tokens: 2048,
     messages: [{ role: "user", content: promptText }],
   });
+  if (ctx?.userId) logTokenUsage(ctx.userId, "insight", INSIGHT_MODEL, response.usage.input_tokens, response.usage.output_tokens);
 
   const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "[]";
 
@@ -315,7 +319,7 @@ export async function generateStepsForInsight(insight: {
   title: string;
   description: string;
   recommendation: string;
-}): Promise<string[]> {
+}, userId?: number): Promise<string[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return [
@@ -339,11 +343,13 @@ Crie um plano de ação com exatamente 4 passos concretos e práticos, executáv
 Responda APENAS com um array JSON de 4 strings, sem markdown, sem texto adicional:
 ["Passo 1...", "Passo 2...", "Passo 3...", "Passo 4..."]`;
 
+  const STEPS_MODEL = "claude-haiku-4-5-20251001";
   const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
+    model: STEPS_MODEL,
     max_tokens: 512,
     messages: [{ role: "user", content: prompt }],
   });
+  if (userId) logTokenUsage(userId, "steps", STEPS_MODEL, response.usage.input_tokens, response.usage.output_tokens);
 
   const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "[]";
   const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();

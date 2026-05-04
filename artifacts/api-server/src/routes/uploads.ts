@@ -112,6 +112,7 @@ router.post("/uploads", requireAuth, upload.single("file"), async (req, res): Pr
     .map((t) => ({ description: t.description, type: t.type as "income" | "expense", category: t.category }));
 
   const parseCtx = {
+    userId,
     businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
     segment: bp?.segment as string | undefined,
     segmentCustomLabel: bp?.segmentCustomLabel as string | undefined,
