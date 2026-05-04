@@ -93,7 +93,9 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
 // POST /billing/webhook — Asaas events (no auth required)
 router.post("/billing/webhook", async (req, res): Promise<void> => {
   const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
-  if (expectedToken && req.headers["asaas-access-token"] !== expectedToken) {
+  const receivedToken = req.headers["asaas-access-token"];
+  if (expectedToken && receivedToken !== expectedToken) {
+    logger.warn({ receivedToken, expectedToken }, "[billing/webhook] token mismatch");
     res.status(401).send("unauthorized");
     return;
   }
