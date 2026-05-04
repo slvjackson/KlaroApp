@@ -210,7 +210,7 @@ export default function Upload() {
           onDrop={onDrop}
         >
           <div
-            className={`border-2 border-dashed rounded-2xl p-14 text-center flex flex-col items-center gap-5 transition-colors ${
+            className={`border-2 border-dashed rounded-2xl p-6 sm:p-14 text-center flex flex-col items-center gap-5 transition-colors ${
               isDragging
                 ? "border-[var(--accent)] bg-[var(--accent-soft)]"
                 : "border-[var(--border-2)] hover:border-[var(--border)]"
@@ -247,9 +247,9 @@ export default function Upload() {
         </div>
 
         {/* Supported formats */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {SUPPORTED.map(({ icon: Icon, label }) => (
-            <div key={label} className="glass rounded-xl p-4 flex flex-col items-center gap-2 text-center">
+            <div key={label} className="glass rounded-xl p-4 flex sm:flex-col items-center gap-3 sm:gap-2 sm:text-center">
               <div className="w-9 h-9 rounded-lg bg-white/5 grid place-items-center">
                 <Icon size={16} className="text-[var(--muted)]" />
               </div>

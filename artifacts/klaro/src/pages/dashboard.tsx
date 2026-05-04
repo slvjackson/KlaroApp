@@ -105,7 +105,7 @@ function SummaryCard({ label, value, tone, icon: Icon, delta, sparkPoints, spark
         {loading ? (
           <div className="h-7 w-28 rounded-md bg-white/5 animate-pulse" />
         ) : (
-          <div className={`text-[26px] font-bold tnum tracking-tight leading-none ${valCls}`}>{value}</div>
+          <div className={`text-[20px] sm:text-[26px] font-bold tnum tracking-tight leading-none ${valCls}`}>{value}</div>
         )}
       </div>
 
@@ -144,10 +144,10 @@ function MonthlyChart({
 
   return (
     <div className="glass rounded-2xl p-5">
-      <div className="flex items-start justify-between mb-1">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
         <div>
           <div className="text-[15px] font-semibold text-white">Fluxo Mensal</div>
-          <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex flex-wrap items-center gap-2 mt-0.5">
             <div className="text-[12px] text-[var(--muted)]">Entradas vs. Saídas nos últimos meses</div>
             {hasSelection && (
               <button
@@ -159,7 +159,7 @@ function MonthlyChart({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-4 text-[11.5px]">
+        <div className="flex items-center gap-3 text-[11.5px]">
           <div className="flex items-center gap-1.5 text-[var(--muted)]">
             <span className="w-2 h-2 rounded-full bg-[var(--income)]" />Entradas
           </div>
@@ -377,7 +377,7 @@ export default function Dashboard() {
     <Layout title="Dashboard">
       <div className="space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <SummaryCard
             label="Saldo líquido"
             value={brl(netBalance)}
@@ -418,7 +418,7 @@ export default function Dashboard() {
         </div>
 
         {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Bar chart */}
           <div className="col-span-1 lg:col-span-2">
             {isMonthlyLoading ? (

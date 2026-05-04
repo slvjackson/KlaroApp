@@ -244,28 +244,28 @@ export default function Transactions() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-1 p-0.5 rounded-md bg-[rgba(255,255,255,0.04)] border border-[var(--border)]">
-            {FILTERS.map((f) => (
-              <button key={f.key} onClick={() => setFilter(f.key)}
-                className={`px-2.5 py-1 text-[10.5px] font-semibold rounded-[5px] transition-colors ${
-                  filter === f.key ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)] hover:text-white"
-                }`}>
-                {f.label}
-              </button>
-            ))}
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex gap-1 p-0.5 rounded-md bg-[rgba(255,255,255,0.04)] border border-[var(--border)]">
+              {FILTERS.map((f) => (
+                <button key={f.key} onClick={() => setFilter(f.key)}
+                  className={`px-2.5 py-1 text-[10.5px] font-semibold rounded-[5px] transition-colors ${
+                    filter === f.key ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)] hover:text-white"
+                  }`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <select value={month ?? ""} onChange={(e) => setMonth(e.target.value || null)}
+              className="field px-3 py-1.5 text-[12px] rounded-lg flex-1 sm:flex-none" style={{ minWidth: 0 }}>
+              <option value="">Todos os meses</option>
+              {monthOptions.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+            </select>
           </div>
-
-          <select value={month ?? ""} onChange={(e) => setMonth(e.target.value || null)}
-            className="field px-3 py-1.5 text-[12px] rounded-lg" style={{ width: "auto" }}>
-            <option value="">Todos os meses</option>
-            {monthOptions.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
-          </select>
-
-          <div className="relative flex-1 min-w-[180px]">
+          <div className="relative w-full">
             <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Filtrar por descrição ou categoria…"
-              className="field py-2 text-[12.5px]"
+              className="field py-2 text-[12.5px] w-full"
               style={{ paddingLeft: "2.25rem", paddingRight: "2.25rem" }} />
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
             {search && (
@@ -471,7 +471,7 @@ export default function Transactions() {
 
       {/* FAB */}
       <button onClick={() => { setEditing(null); setDialogOpen(true); }}
-        className="btn-primary fixed bottom-8 right-8 w-14 h-14 rounded-2xl grid place-items-center z-50 shadow-[0_12px_32px_-12px_rgba(106,248,47,0.8)]"
+        className="btn-primary fixed bottom-24 md:bottom-8 right-5 md:right-8 w-14 h-14 rounded-2xl grid place-items-center z-50 shadow-[0_12px_32px_-12px_rgba(106,248,47,0.8)]"
         aria-label="Nova transação">
         <Plus size={22} className="text-white" />
       </button>
