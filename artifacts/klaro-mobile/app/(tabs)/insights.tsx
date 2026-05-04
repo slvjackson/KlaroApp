@@ -369,32 +369,39 @@ export default function InsightsScreen() {
       </View>
 
       {/* Coverage warning */}
-      {coverage?.hasGap && (
-        <View style={[styles.coverageBanner, { backgroundColor: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.3)" }]}>
-          <Feather name="info" size={14} color="#f59e0b" style={{ marginTop: 1 }} />
-          <Text style={[styles.coverageText, { color: "#f59e0b" }]}>
-            <Text style={styles.coverageBold}>Dados insuficientes para o período solicitado. </Text>
-            {coverage.actualDays === 0 ? (
-              <>
-                {"Você pediu "}
-                <Text style={styles.coverageBold}>{PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}</Text>
-                {", mas não há transações registradas nesse intervalo."}
-                {coverage.lastDataDate ? (
-                  <>{" Seus dados mais recentes são de "}<Text style={styles.coverageBold}>{new Date(coverage.lastDataDate + "T00:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</Text>{"."}</>
-                ) : null}
-              </>
-            ) : (
-              <>
-                {"Você pediu "}
-                <Text style={styles.coverageBold}>{PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}</Text>
-                {", mas seus registros cobrem apenas os últimos "}
-                <Text style={styles.coverageBold}>{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</Text>
-                {". Os insights foram gerados com os dados disponíveis."}
-              </>
-            )}
-          </Text>
-        </View>
-      )}
+      {coverage?.hasGap && (() => {
+        const label = PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod;
+        const fmtDate = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+        let message: React.ReactNode;
+
+        if (coverage.actualDays === 0) {
+          message = (
+            <>{"Você pediu "}<Text style={styles.coverageBold}>{label}</Text>{", mas não há transações nesse intervalo."}{coverage.lastDataDate ? <>{" Seus dados mais recentes são de "}<Text style={styles.coverageBold}>{fmtDate(coverage.lastDataDate)}</Text>{"."}</> : null}</>
+          );
+        } else if ((coverage.endGapDays ?? 0) >= 14 && (coverage.startGapDays ?? 0) < 7) {
+          message = (
+            <>{"Você pediu "}<Text style={styles.coverageBold}>{label}</Text>{", mas seus dados mais recentes neste período são de "}<Text style={styles.coverageBold}>{coverage.actualEnd ? fmtDate(coverage.actualEnd) : "?"}</Text>{" — os últimos "}<Text style={styles.coverageBold}>{coverage.endGapDays} dias</Text>{" não têm registros. Insights gerados com os dados disponíveis."}</>
+          );
+        } else if ((coverage.startGapDays ?? 0) >= 7 && (coverage.endGapDays ?? 0) < 14) {
+          message = (
+            <>{"Você pediu "}<Text style={styles.coverageBold}>{label}</Text>{", mas seus registros cobrem apenas "}<Text style={styles.coverageBold}>{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</Text>{" desse período. Insights gerados com os dados disponíveis."}</>
+          );
+        } else {
+          message = (
+            <>{"Você pediu "}<Text style={styles.coverageBold}>{label}</Text>{", mas os dados nesse período vão de "}<Text style={styles.coverageBold}>{coverage.actualStart ? fmtDate(coverage.actualStart) : "?"}</Text>{" a "}<Text style={styles.coverageBold}>{coverage.actualEnd ? fmtDate(coverage.actualEnd) : "?"}</Text>{" ({coverage.actualDays} dias). Insights gerados com os dados disponíveis."}</>
+          );
+        }
+
+        return (
+          <View style={[styles.coverageBanner, { backgroundColor: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.3)" }]}>
+            <Feather name="info" size={14} color="#f59e0b" style={{ marginTop: 1 }} />
+            <Text style={[styles.coverageText, { color: "#f59e0b" }]}>
+              <Text style={styles.coverageBold}>Dados insuficientes para o período solicitado. </Text>
+              {message}
+            </Text>
+          </View>
+        );
+      })()}
 
       {/* Anamnese CTA */}
       {!anamneseCompleted && (

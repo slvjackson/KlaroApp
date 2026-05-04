@@ -210,16 +210,20 @@ export interface GenerateInsightsBody {
 export interface InsightsCoverage {
   requestedPeriod: string;
   requestedDays: number;
+  /** Span (in days) of actual data inside the window (actualEnd - actualStart) */
   actualDays: number;
   requestedStart: string;
   /** @nullable */
   actualStart?: string | null;
   /** @nullable */
   actualEnd?: string | null;
-  /** @nullable — most recent transaction the user has, regardless of the requested window */
+  /** @nullable — most recent transaction overall, may be outside the requested window */
   lastDataDate?: string | null;
+  /** Days between window start and first in-window transaction */
+  startGapDays: number;
+  /** Days between last in-window transaction and today */
+  endGapDays: number;
   hasGap: boolean;
-  gapDays: number;
 }
 
 export interface GenerateInsightsResult {

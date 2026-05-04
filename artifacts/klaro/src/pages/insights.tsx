@@ -400,20 +400,25 @@ export default function Insights() {
             <Info size={15} className="text-[#f59e0b] shrink-0 mt-0.5" />
             <p className="text-[12.5px] text-[#f59e0b] leading-relaxed">
               <span className="font-semibold">Dados insuficientes para o período solicitado. </span>
-              {coverage.actualDays === 0 ? (
-                <>
-                  Você pediu <span className="font-semibold">{PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}</span>, mas não há transações registradas nesse intervalo.
-                  {coverage.lastDataDate && (
-                    <> Seus dados mais recentes são de <span className="font-semibold">{new Date(coverage.lastDataDate + "T00:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</span>.</>
-                  )}
-                </>
-              ) : (
-                <>
-                  Você pediu <span className="font-semibold">{PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}</span>, mas seus registros cobrem apenas os últimos{" "}
-                  <span className="font-semibold">{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</span>.
-                  Os insights foram gerados com os dados disponíveis.
-                </>
-              )}
+              {(() => {
+                const label = PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod;
+                const fmtDate = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+                if (coverage.actualDays === 0) {
+                  // No data at all in the requested window
+                  return <>Você pediu <span className="font-semibold">{label}</span>, mas não há transações registradas nesse intervalo.{coverage.lastDataDate && <> Seus dados mais recentes são de <span className="font-semibold">{fmtDate(coverage.lastDataDate)}</span>.</>}</>;
+                }
+                if (coverage.endGapDays >= 14 && coverage.startGapDays < 7) {
+                  // Data is present but doesn't reach close to today (gap at the end)
+                  return <>Você pediu <span className="font-semibold">{label}</span>, mas seus dados mais recentes neste período são de <span className="font-semibold">{coverage.actualEnd ? fmtDate(coverage.actualEnd) : "?"}</span> — os últimos <span className="font-semibold">{coverage.endGapDays} dias</span> não têm registros. Os insights foram gerados com os dados disponíveis.</>;
+                }
+                if (coverage.startGapDays >= 7 && coverage.endGapDays < 14) {
+                  // Gap at the beginning only
+                  return <>Você pediu <span className="font-semibold">{label}</span>, mas seus registros cobrem apenas <span className="font-semibold">{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</span> desse período. Os insights foram gerados com os dados disponíveis.</>;
+                }
+                // Both gaps
+                return <>Você pediu <span className="font-semibold">{label}</span>, mas seus dados nesse período vão de <span className="font-semibold">{coverage.actualStart ? fmtDate(coverage.actualStart) : "?"}</span> a <span className="font-semibold">{coverage.actualEnd ? fmtDate(coverage.actualEnd) : "?"}</span> ({coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}). Os insights foram gerados com os dados disponíveis.</>;
+              })()}
             </p>
           </div>
         )}

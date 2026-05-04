@@ -185,26 +185,39 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
     const periodLabel = computePeriodLabel(effectivePeriod, transactions);
 
     // ── Coverage metadata ────────────────────────────────────────────────────
-    // Detects when the user has less data than the requested period.
-    // Gaps IN the middle of the period are intentionally ignored (per spec).
+    // Two independent gap types are checked:
+    //   startGap: data begins N days AFTER the window opened
+    //   endGap:   most recent data ends N days BEFORE today (recent period is empty)
     const actualStart = transactions[0]?.date ?? null;
     const actualEnd   = transactions[transactions.length - 1]?.date ?? null;
-    // Most recent transaction the user has overall (used in "no data in window" message)
     const lastDataDate = rawTransactions[rawTransactions.length - 1]?.date ?? null;
+
     const requestedDays = Math.round(
       (anchor.getTime() - new Date(requestedStart + "T00:00:00Z").getTime()) / 86_400_000
     );
-    const actualDays = actualStart
+
+    // actualDays = span of real data inside the window (end − start), not "start to today"
+    const actualDays = actualStart && actualEnd
       ? Math.round(
-          (anchor.getTime() - new Date(actualStart + "T00:00:00Z").getTime()) / 86_400_000
+          (new Date(actualEnd + "T00:00:00Z").getTime() - new Date(actualStart + "T00:00:00Z").getTime()) / 86_400_000
         ) + 1
       : 0;
-    // gapDays = how many days after the requested window start the first transaction falls
-    const gapDays = actualStart
+
+    // startGapDays: how many days the window opened before the first in-window transaction
+    const startGapDays = actualStart
       ? Math.round(
           (new Date(actualStart + "T00:00:00Z").getTime() - new Date(requestedStart + "T00:00:00Z").getTime()) / 86_400_000
         )
-      : requestedDays; // no data in window → gap equals the full requested period
+      : requestedDays;
+
+    // endGapDays: how many days before today the last in-window transaction falls
+    // e.g. user has Feb data but not Mar–May → endGapDays ≈ 64
+    const endGapDays = actualEnd
+      ? Math.round(
+          (anchor.getTime() - new Date(actualEnd + "T00:00:00Z").getTime()) / 86_400_000
+        )
+      : requestedDays;
+
     const coverage = {
       requestedPeriod: effectivePeriod,
       requestedDays,
@@ -212,9 +225,10 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
       requestedStart,
       actualStart,
       actualEnd,
-      lastDataDate,    // most recent transaction overall, may be outside the requested window
-      hasGap: gapDays >= 7,
-      gapDays,
+      lastDataDate,
+      startGapDays,
+      endGapDays,
+      hasGap: startGapDays >= 7 || endGapDays >= 14,
     };
 
     const bp = userRow?.businessProfile as Record<string, unknown> | null;
