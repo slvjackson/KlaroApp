@@ -726,6 +726,16 @@ export default function ProfileScreen() {
             <Feather name="chevron-right" size={16} color={colors.mutedForeground} style={{ marginLeft: "auto" }} />
           </Pressable>
 
+          {/* Subscription */}
+          <Pressable
+            onPress={() => router.push("/billing")}
+            style={({ pressed }) => [styles.accountRow, { borderBottomWidth: 1, borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Feather name="credit-card" size={18} color={colors.foreground} />
+            <Text style={[styles.accountRowText, { color: colors.foreground }]}>Minha assinatura</Text>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} style={{ marginLeft: "auto" }} />
+          </Pressable>
+
           {/* Logout */}
           <Pressable
             onPress={handleLogout}

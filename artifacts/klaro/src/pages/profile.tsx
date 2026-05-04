@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
-import { useGetMe } from "@workspace/api-client-react";
+import { useGetMe, useGetBillingStatus } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
-import { Loader2, CheckCircle2, AlertCircle, Lock, Trash2, X, Sparkles, Pencil } from "lucide-react";
-import { Link } from "wouter";
+import { Loader2, CheckCircle2, AlertCircle, Lock, Trash2, X, Sparkles, Pencil, CreditCard } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { AnamneseCta } from "@/components/anamnese-cta";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
@@ -133,7 +133,9 @@ function GlassDialog({ open, onClose, title, children }: { open: boolean; onClos
 export default function Profile() {
   const { isLoading: isAuthLoading } = useRequireAuth();
   const { data: user, refetch } = useGetMe();
+  const { data: billing } = useGetBillingStatus({ query: { enabled: !!user } });
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
 
@@ -500,6 +502,54 @@ export default function Profile() {
             </div>
           )}
         </div>
+
+        {/* Subscription */}
+        <GlassSection title="Assinatura">
+          {billing ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <CreditCard size={15} className="text-[var(--muted)] shrink-0" />
+                <div>
+                  {billing.status === "active" && (
+                    <>
+                      <span className="text-[13px] font-semibold text-white">Plano ativo</span>
+                      <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">
+                        {billing.billingCycle === "monthly" ? "Mensal" : billing.billingCycle === "semiannual" ? "Semestral" : "Anual"}
+                      </span>
+                    </>
+                  )}
+                  {billing.status === "trial" && (
+                    <>
+                      <span className="text-[13px] font-semibold text-white">Período de teste</span>
+                      <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400">
+                        {(billing.trialDaysLeft ?? 0) > 0 ? `${billing.trialDaysLeft} dias restantes` : "Expira hoje"}
+                      </span>
+                    </>
+                  )}
+                  {(billing.status === "cancelled" || billing.status === "expired" || billing.status === "overdue") && (
+                    <span className="text-[13px] font-semibold text-[var(--expense)]">
+                      {billing.status === "cancelled" ? "Cancelada" : billing.status === "overdue" ? "Pagamento pendente" : "Expirada"}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => navigate("/billing")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:text-white hover:border-[var(--border-2)] transition-colors shrink-0"
+              >
+                Gerenciar
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate("/billing")}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.02)] text-[13px] text-white hover:border-[var(--border-2)] transition-colors"
+            >
+              <CreditCard size={14} className="text-[var(--muted)]" />
+              Ver planos
+            </button>
+          )}
+        </GlassSection>
 
         {/* Security */}
         <GlassSection title="Segurança">
