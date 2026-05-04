@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Lightbulb, RefreshCw, AlertTriangle, AlertOctagon, TrendingUp,
   Upload, Trash2, Trophy, Clock, CheckCircle2, Circle, Info,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import type { InsightsCoverage } from "@workspace/api-client-react";
 import { Link, useLocation } from "wouter";
@@ -253,14 +254,27 @@ export default function Insights() {
   const [mission, setMission] = useState<Insight | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
   const [coverage, setCoverage] = useState<InsightsCoverage | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
   const anamneseCompleted = !!bp?.anamneseCompleted;
 
   useEffect(() => {
     if (!isLoading && rawInsights) {
       setQueue((rawInsights as Insight[]).filter((i) => !i.pinnedAt));
+      setCurrentIndex(0);
     }
   }, [rawInsights, isLoading]);
+
+  // Keyboard navigation for desktop
+  useEffect(() => {
+    if (queue.length === 0) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "ArrowRight") setCurrentIndex((i) => Math.min(queue.length - 1, i + 1));
+      if (e.key === "ArrowLeft")  setCurrentIndex((i) => Math.max(0, i - 1));
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [queue.length]);
 
   const handleGenerate = () => {
     _generationStartedAt = Date.now();
@@ -281,7 +295,11 @@ export default function Insights() {
 
   const handleArchive = (id: number) => {
     archiveInsight.mutate(id);
-    setQueue((prev) => prev.filter((i) => i.id !== id));
+    setQueue((prev) => {
+      const next = prev.filter((i) => i.id !== id);
+      setCurrentIndex((ci) => Math.min(ci, Math.max(0, next.length - 1)));
+      return next;
+    });
   };
 
   const handlePin = (item: Insight) => {
@@ -299,7 +317,7 @@ export default function Insights() {
 
   return (
     <Layout title="Insights">
-      <div className="relative space-y-5 max-w-2xl min-h-[400px]">
+      <div className="relative space-y-5 max-w-3xl min-h-[400px]">
         {generateInsights.isPending && _generationStartedAt !== null && (
           <GeneratingInsightsOverlay startedAt={_generationStartedAt} />
         )}
@@ -326,20 +344,22 @@ export default function Insights() {
                   key={p.key}
                   onClick={() => setSelectedPeriod(p.key)}
                   disabled={generateInsights.isPending}
-                  className={`relative flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all disabled:pointer-events-none ${
+                  className={`flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all disabled:pointer-events-none ${
                     selected
                       ? "border-[var(--accent)] bg-[var(--accent-soft)]"
                       : "border-[var(--border)] bg-[rgba(255,255,255,0.02)] hover:border-[var(--border-2)]"
                   }`}
                 >
-                  {p.recommended && (
-                    <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wide text-[#90f048] bg-[var(--accent-soft)] px-1.5 py-0.5 rounded-full border border-[rgba(106,248,47,0.3)]">
-                      Recomendado
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`text-[14px] font-bold ${selected ? "text-[#90f048]" : "text-white"}`}>
+                      {p.label}
                     </span>
-                  )}
-                  <span className={`text-[14px] font-bold ${selected ? "text-[#90f048]" : "text-white"}`}>
-                    {p.label}
-                  </span>
+                    {p.recommended && (
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-[#90f048] bg-[rgba(106,248,47,0.12)] px-1.5 py-0.5 rounded-full border border-[rgba(106,248,47,0.3)]">
+                        Recomendado
+                      </span>
+                    )}
+                  </div>
                   <span className={`text-[11px] font-medium ${selected ? "text-[#90f048]/80" : "text-[var(--muted)]"}`}>
                     {p.range}
                   </span>
@@ -377,10 +397,7 @@ export default function Insights() {
         <AnamneseCta completed={anamneseCompleted} />
 
         {isLoading ? (
-          <div className="flex flex-col gap-4">
-            <div className="glass rounded-2xl p-5 animate-pulse h-40" />
-            <div className="glass rounded-2xl p-5 animate-pulse h-40" />
-          </div>
+          <div className="glass rounded-2xl p-5 animate-pulse h-52" />
         ) : queue.length === 0 ? (
           <div className="glass rounded-2xl p-12 flex flex-col items-center gap-4 text-center">
             {attempted ? (
@@ -429,15 +446,72 @@ export default function Insights() {
             )}
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
-            {queue.map((insight) => (
-              <InsightCard
-                key={insight.id}
-                insight={insight}
-                onArchive={() => handleArchive(insight.id)}
-                onPin={() => handlePin(insight)}
-              />
-            ))}
+          // ── Deck view ──────────────────────────────────────────────────────
+          <div>
+            {/* Stacked layers behind the active card */}
+            <div className="relative pb-2">
+              {queue.length > 2 && (
+                <div
+                  className="absolute inset-x-6 top-2 bottom-0 rounded-2xl border border-[var(--border)]"
+                  style={{ background: "var(--card)", opacity: 0.3, zIndex: 0 }}
+                />
+              )}
+              {queue.length > 1 && (
+                <div
+                  className="absolute inset-x-3 top-1 bottom-0 rounded-2xl border border-[var(--border)]"
+                  style={{ background: "var(--card)", opacity: 0.6, zIndex: 1 }}
+                />
+              )}
+              <div key={currentIndex} className="relative" style={{ zIndex: 2 }}>
+                <InsightCard
+                  insight={queue[currentIndex]!}
+                  onArchive={() => handleArchive(queue[currentIndex]!.id)}
+                  onPin={() => handlePin(queue[currentIndex]!)}
+                />
+              </div>
+            </div>
+
+            {/* Navigation row */}
+            <div className="flex items-center justify-between mt-4 px-1">
+              <button
+                onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                disabled={currentIndex === 0}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-[12.5px] text-[var(--muted)] hover:text-white disabled:opacity-20 disabled:pointer-events-none transition-colors"
+              >
+                <ChevronLeft size={15} /> Anterior
+              </button>
+
+              {/* Dots */}
+              <div className="flex items-center gap-1.5">
+                {queue.slice(0, 8).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentIndex(i)}
+                    className="rounded-full transition-all duration-200"
+                    style={{
+                      width: i === currentIndex ? 16 : 8,
+                      height: 8,
+                      background: i === currentIndex ? "var(--accent)" : "var(--border-2)",
+                    }}
+                  />
+                ))}
+                {queue.length > 8 && (
+                  <span className="text-[11px] text-[var(--muted)] ml-1">+{queue.length - 8}</span>
+                )}
+              </div>
+
+              <button
+                onClick={() => setCurrentIndex((i) => Math.min(queue.length - 1, i + 1))}
+                disabled={currentIndex === queue.length - 1}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-[12.5px] text-[var(--muted)] hover:text-white disabled:opacity-20 disabled:pointer-events-none transition-colors"
+              >
+                Próximo <ChevronRight size={15} />
+              </button>
+            </div>
+
+            <p className="text-center text-[11px] mt-1.5 opacity-40" style={{ color: "var(--muted)" }}>
+              {currentIndex + 1} de {queue.length} insights · use ← → para navegar
+            </p>
           </div>
         )}
       </div>
