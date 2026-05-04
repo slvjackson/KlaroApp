@@ -101,6 +101,12 @@ export async function createAsaasSubscription(
   customerId: string,
   billingCycle: BillingCycle,
 ): Promise<{ asaasSubscriptionId: string; paymentUrl: string }> {
+  const MAX_INSTALLMENTS: Record<BillingCycle, number> = {
+    monthly:    1,
+    semiannual: 3,
+    annual:     12,
+  };
+
   const sub = await asaasReq<AsaasSubscription>("POST", "/subscriptions", {
     customer: customerId,
     billingType: "UNDEFINED",
@@ -108,6 +114,7 @@ export async function createAsaasSubscription(
     nextDueDate: nextDueDateStr(),
     cycle: CYCLE_MAP[billingCycle],
     description: `Klaro Pro — ${LABEL_MAP[billingCycle]}`,
+    maxInstallmentCount: MAX_INSTALLMENTS[billingCycle],
   });
 
   // Retrieve the first pending payment to get the invoice URL
