@@ -139,7 +139,7 @@ export default function Billing() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-2">
             <Zap size={28} className="text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Klaro Pro</h1>
+          <h1 className="text-2xl font-bold text-foreground">Assine Klaro</h1>
           <p className="text-[14px] text-muted-foreground">
             Controle financeiro completo com inteligência artificial para o seu negócio.
           </p>

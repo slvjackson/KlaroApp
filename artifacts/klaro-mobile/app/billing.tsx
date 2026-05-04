@@ -186,7 +186,7 @@ export default function BillingScreen() {
         <View style={[styles.iconWrap, { backgroundColor: `${colors.primary}1a` }]}>
           <Feather name="zap" size={28} color={colors.primary} />
         </View>
-        <Text style={[styles.title, { color: colors.foreground }]}>Klaro Pro</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Assine Klaro</Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           Controle financeiro com inteligência artificial para o seu negócio.
         </Text>
