@@ -7,8 +7,8 @@ import {
 } from "@workspace/api-client-react";
 import type { GenerateInsightsBodyPeriod } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -30,6 +30,7 @@ import Animated, {
   Extrapolation,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GeneratingInsightsOverlay } from "@/components/GeneratingInsightsOverlay";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -258,6 +259,13 @@ export default function InsightsScreen() {
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
 
+  // Refetch whenever the screen comes into focus (handles navigate-away-and-back)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
+
   // Auto-check milestones on mount (silent)
   useEffect(() => {
     checkMilestonesMutation
@@ -285,6 +293,8 @@ export default function InsightsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {generateMutation.isPending && <GeneratingInsightsOverlay />}
+
       {/* Header */}
       <View
         style={[

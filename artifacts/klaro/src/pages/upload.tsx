@@ -13,7 +13,7 @@ const UPLOAD_PHASES = [
   { after: 4,  icon: Brain,         title: "Analisando com IA…",     sub: "A IA está lendo e identificando as transações." },
   { after: 15, icon: Sparkles,      title: "Extraindo transações…",  sub: "Arquivos grandes podem levar alguns instantes." },
   { after: 35, icon: Sparkles,      title: "Quase lá…",              sub: "Finalizando a extração. Obrigado pela paciência!" },
-  { after: 60, icon: CheckCircle2,  title: "Ainda processando…",     sub: "Documento extenso. Continue aguardando." },
+  { after: 60, icon: CheckCircle2,  title: "Finalizando últimos detalhes…",     sub: "Falta pouco para você entrar em um novo nível de clareza no seu negócio." },
 ];
 
 // ─── Overlay (also exported for App.tsx to render globally) ────────────────────

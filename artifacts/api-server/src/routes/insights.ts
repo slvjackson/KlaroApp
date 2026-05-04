@@ -187,12 +187,6 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
 
     const bp = userRow?.businessProfile as Record<string, unknown> | null;
 
-    // Archive existing non-pinned insights (soft delete) before replacing
-    await db
-      .update(insightsTable)
-      .set({ archivedAt: new Date() })
-      .where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt), isNull(insightsTable.pinnedAt)));
-
     const generated = await generateInsights(transactions, {
       businessName: (bp?.businessName as string | undefined) ?? userRow?.name,
       segment: bp?.segment as string | undefined,
@@ -222,6 +216,12 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
       res.json([]);
       return;
     }
+
+    // Archive only after successful generation — prevents data loss if the request is cancelled mid-flight
+    await db
+      .update(insightsTable)
+      .set({ archivedAt: new Date() })
+      .where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt), isNull(insightsTable.pinnedAt)));
 
     const inserted = await db
       .insert(insightsTable)
