@@ -35,6 +35,8 @@ export interface User {
   email: string;
   emailVerifiedAt?: string | null;
   createdAt: string;
+  isAdmin?: boolean;
+  status?: string;
 }
 
 export interface AuthResponse {

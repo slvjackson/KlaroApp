@@ -3,7 +3,39 @@ import { Link, useLocation } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { KlaroMark } from "@/components/KlaroMark";
-import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Shield, LayoutDashboard } from "lucide-react";
+
+function AdminModal({ onGoApp, onGoAdmin }: { onGoApp: () => void; onGoAdmin: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="glass-strong rounded-2xl p-7 w-full max-w-[340px] space-y-5">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-10 h-10 rounded-xl bg-[rgba(106,248,47,0.1)] flex items-center justify-center">
+            <Shield size={20} className="text-[var(--accent)]" />
+          </div>
+          <h2 className="text-[17px] font-bold text-white">Bem-vindo, Admin</h2>
+          <p className="text-[12.5px] text-[var(--muted)] text-center">Para onde você quer ir?</p>
+        </div>
+        <div className="space-y-2">
+          <button
+            onClick={onGoAdmin}
+            className="w-full flex items-center justify-center gap-2 btn-primary py-2.5 rounded-xl text-[13.5px] font-semibold"
+          >
+            <Shield size={14} />
+            Painel Admin
+          </button>
+          <button
+            onClick={onGoApp}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13.5px] font-medium border border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:text-white hover:border-[rgba(255,255,255,0.25)] transition-colors"
+          >
+            <LayoutDashboard size={14} />
+            Ir para o App
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -14,6 +46,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [showAdminModal, setShowAdminModal] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,13 +55,19 @@ export default function Login() {
     login.mutate(
       { data: { email: email.trim(), password } },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-          setLocation("/dashboard");
+          if ((data as any)?.user?.isAdmin) {
+            setShowAdminModal(true);
+          } else {
+            setLocation("/dashboard");
+          }
         },
         onError: (err: any) => {
           const msg = err?.response?.data?.error ?? err?.message ?? "";
-          if (msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("senha") || msg.toLowerCase().includes("email")) {
+          if (msg.toLowerCase().includes("bloqueada")) {
+            setServerError(msg);
+          } else if (msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("senha") || msg.toLowerCase().includes("email")) {
             setServerError("E-mail ou senha incorretos. Tente novamente.");
           } else {
             setServerError("Erro ao fazer login. Tente novamente em instantes.");
@@ -39,6 +78,13 @@ export default function Login() {
   }
 
   return (
+    <>
+    {showAdminModal && (
+      <AdminModal
+        onGoApp={() => { setShowAdminModal(false); setLocation("/dashboard"); }}
+        onGoAdmin={() => { setShowAdminModal(false); setLocation("/admin"); }}
+      />
+    )}
     <div
       className="min-h-screen flex items-center justify-center p-4"
       style={{
@@ -130,5 +176,6 @@ export default function Login() {
         </div>
       </div>
     </div>
+    </>
   );
 }

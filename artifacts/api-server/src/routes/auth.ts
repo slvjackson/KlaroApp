@@ -88,6 +88,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
+  if (user.status === "blocked") {
+    res.status(403).json({ error: "Conta bloqueada. Entre em contato com o suporte." });
+    return;
+  }
+
   req.session.userId = user.id;
 
   const { passwordHash: _, ...safeUser } = user;
@@ -114,6 +119,11 @@ router.post("/auth/token", async (req, res): Promise<void> => {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     res.status(401).json({ error: "Email ou senha inválidos." });
+    return;
+  }
+
+  if (user.status === "blocked") {
+    res.status(403).json({ error: "Conta bloqueada. Entre em contato com o suporte." });
     return;
   }
 
@@ -265,7 +275,7 @@ router.post("/auth/logout", (req, res): void => {
 
 router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
   const [user] = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt })
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt, isAdmin: usersTable.isAdmin, status: usersTable.status })
     .from(usersTable)
     .where(eq(usersTable.id, req.session.userId!));
 

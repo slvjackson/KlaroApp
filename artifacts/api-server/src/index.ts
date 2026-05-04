@@ -40,6 +40,26 @@ pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token TEXT
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ").catch((e) =>
   logger.warn({ err: e }, "Could not add password_reset_expires_at column to users")
 );
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false").catch((e) =>
+  logger.warn({ err: e }, "Could not add is_admin column to users")
+);
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'").catch((e) =>
+  logger.warn({ err: e }, "Could not add status column to users")
+);
+pool.query(`CREATE TABLE IF NOT EXISTS operational_costs (
+  id SERIAL PRIMARY KEY,
+  category TEXT NOT NULL,
+  name TEXT NOT NULL,
+  amount_monthly NUMERIC(12,2) NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)`).catch((e) =>
+  logger.warn({ err: e }, "Could not create operational_costs table")
+);
+pool.query("ALTER TABLE insights ADD COLUMN IF NOT EXISTS steps_progress JSON").catch((e) =>
+  logger.warn({ err: e }, "Could not add steps_progress column to insights")
+);
 
 app.listen(port, (err) => {
   if (err) {

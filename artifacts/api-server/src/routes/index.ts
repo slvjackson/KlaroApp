@@ -8,6 +8,7 @@ import insightsRouter from "./insights";
 import dashboardRouter from "./dashboard";
 import chatRouter from "./chat";
 import billingRouter from "./billing";
+import adminRouter from "./admin";
 import { requireAuth } from "../middlewares/auth";
 import { requireSubscription } from "../middlewares/subscription";
 
@@ -17,6 +18,9 @@ const router: IRouter = Router();
 router.use(healthRouter);
 router.use(authRouter);
 router.use(billingRouter);
+
+// Admin routes — auth + admin required (no subscription gate)
+router.use(adminRouter);
 
 // Protected routes — auth + active subscription required
 const appRouter = Router();

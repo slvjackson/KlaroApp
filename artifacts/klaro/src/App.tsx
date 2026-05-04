@@ -22,6 +22,7 @@ import Chat from "@/pages/chat";
 import Anamnese from "@/pages/anamnese";
 import Missions from "@/pages/missions";
 import Billing from "@/pages/billing";
+import Admin from "@/pages/admin";
 import { GlobalUploadOverlay } from "@/pages/upload";
 import VerifyEmail from "@/pages/verify-email";
 import ForgotPassword from "@/pages/forgot-password";
@@ -30,7 +31,7 @@ import ResetPassword from "@/pages/reset-password";
 const queryClient = new QueryClient();
 
 // Public paths that never need subscription check
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/billing"]);
+const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/billing", "/admin"]);
 
 const BLOCKED_STATUSES = new Set(["expired", "cancelled", "overdue"]);
 
@@ -75,6 +76,7 @@ function Router() {
       <Route path="/chat" component={Chat} />
       <Route path="/anamnese" component={Anamnese} />
       <Route path="/missions" component={Missions} />
+      <Route path="/admin" component={Admin} />
       <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
