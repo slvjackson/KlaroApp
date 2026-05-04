@@ -78,16 +78,7 @@ function baseHtml(content: string) {
 }
 
 function btn(url: string, label: string) {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-    <tr>
-      <td style="border-radius:12px;background:linear-gradient(180deg,#6af82f,#4de020);">
-        <a href="${url}" target="_blank" rel="noopener noreferrer"
-          style="display:inline-block;padding:13px 28px;font-family:'Inter',ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:700;color:#09090b;text-decoration:none;letter-spacing:-0.01em;border-radius:12px;">
-          ${label}
-        </a>
-      </td>
-    </tr>
-  </table>`;
+  return `<a href="${url}" target="_blank" style="display:inline-block;background:#6af82f;color:#09090b;font-size:14px;font-weight:700;text-decoration:none;padding:13px 32px;border-radius:12px;">${label}</a>`;
 }
 
 function verificationHtml(name: string, url: string) {
@@ -103,7 +94,7 @@ function verificationHtml(name: string, url: string) {
     </div>
     <p style="margin:24px 0 0;font-size:12px;color:#52525b;line-height:1.6;text-align:center;">
       Este link é válido por 24 horas.<br/>
-      Ou copie o link: <span style="color:#6af82f;">${url}</span>
+      Ou clique aqui: <a href="${url}" target="_blank" style="color:#6af82f;">${url}</a>
     </p>
   `);
 }
