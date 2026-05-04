@@ -207,6 +207,24 @@ export interface GenerateInsightsBody {
   period?: GenerateInsightsBodyPeriod;
 }
 
+export interface InsightsCoverage {
+  requestedPeriod: string;
+  requestedDays: number;
+  actualDays: number;
+  requestedStart: string;
+  /** @nullable */
+  actualStart?: string | null;
+  /** @nullable */
+  actualEnd?: string | null;
+  hasGap: boolean;
+  gapDays: number;
+}
+
+export interface GenerateInsightsResult {
+  insights: Insight[];
+  coverage: InsightsCoverage;
+}
+
 export interface MilestoneCheckResult {
   triggered: boolean;
   reason?: string;

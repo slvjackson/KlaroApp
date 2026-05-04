@@ -13,14 +13,55 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Lightbulb, RefreshCw, AlertTriangle, AlertOctagon, TrendingUp,
-  Upload, Trash2, Trophy, Clock, CheckCircle2, Circle,
+  Upload, Trash2, Trophy, Clock, CheckCircle2, Circle, Info,
 } from "lucide-react";
+import type { InsightsCoverage } from "@workspace/api-client-react";
 import { Link, useLocation } from "wouter";
 import { AnamneseCta } from "@/components/anamnese-cta";
 import { GeneratingInsightsOverlay } from "@/components/generating-insights-overlay";
 
 // Module-level: sobrevive remounts durante a mesma sessão
 let _generationStartedAt: number | null = null;
+
+// ─── Period options ───────────────────────────────────────────────────────────
+
+import type { GenerateInsightsBodyPeriod } from "@workspace/api-client-react";
+
+type Period = GenerateInsightsBodyPeriod;
+
+const PERIODS: {
+  key: Period;
+  label: string;
+  range: string;
+  description: string;
+  recommended?: boolean;
+}[] = [
+  {
+    key: "30d",
+    label: "30 dias",
+    range: "Último mês",
+    description: "Foco nas movimentações mais recentes. Bom para ajustes rápidos no caixa.",
+  },
+  {
+    key: "3m",
+    label: "3 meses",
+    range: "Último trimestre",
+    description: "Equilibra detalhes e tendências. Ideal para a maioria dos negócios.",
+    recommended: true,
+  },
+  {
+    key: "6m",
+    label: "6 meses",
+    range: "Último semestre",
+    description: "Identifica sazonalidades e ciclos. Útil para planejar estoques e campanhas.",
+  },
+  {
+    key: "12m",
+    label: "12 meses",
+    range: "Último ano",
+    description: "Visão completa do ciclo anual. Melhor para planejamento e metas anuais.",
+  },
+];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -210,6 +251,8 @@ export default function Insights() {
   const [queue, setQueue] = useState<Insight[]>([]);
   const [attempted, setAttempted] = useState(false);
   const [mission, setMission] = useState<Insight | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
+  const [coverage, setCoverage] = useState<InsightsCoverage | null>(null);
   const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
   const anamneseCompleted = !!bp?.anamneseCompleted;
 
@@ -221,11 +264,12 @@ export default function Insights() {
 
   const handleGenerate = () => {
     _generationStartedAt = Date.now();
-    generateInsights.mutate({}, {
-      onSuccess: (data: unknown) => {
+    generateInsights.mutate({ period: selectedPeriod }, {
+      onSuccess: (data) => {
         _generationStartedAt = null;
         queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
-        if (Array.isArray(data)) setQueue((data as Insight[]).filter((i) => !i.pinnedAt));
+        setCoverage(data.coverage ?? null);
+        setQueue((data.insights ?? []).filter((i) => !i.pinnedAt));
         setAttempted(true);
       },
       onError: () => {
@@ -259,20 +303,76 @@ export default function Insights() {
         {generateInsights.isPending && _generationStartedAt !== null && (
           <GeneratingInsightsOverlay startedAt={_generationStartedAt} />
         )}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+        {/* Header */}
+        <div>
+          <h1 className="text-[22px] font-bold tracking-tight text-white">Insights</h1>
+          <p className="text-[12.5px] text-[var(--muted)] mt-1">Análises automáticas sobre a saúde do seu negócio.</p>
+        </div>
+
+        {/* Period selector */}
+        <div className="glass rounded-2xl p-5 flex flex-col gap-4 border border-[var(--border)]">
           <div>
-            <h1 className="text-[22px] font-bold tracking-tight text-white">Insights</h1>
-            <p className="text-[12.5px] text-[var(--muted)] mt-1">Análises automáticas sobre a saúde do seu negócio.</p>
+            <p className="text-[13.5px] font-semibold text-white">Qual período a IA deve analisar?</p>
+            <p className="text-[12px] text-[var(--muted)] mt-1 leading-relaxed">
+              A IA vai usar as transações desse período como fonte de dados para identificar padrões e gerar recomendações para o seu negócio.
+            </p>
           </div>
+
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {PERIODS.map((p) => {
+              const selected = selectedPeriod === p.key;
+              return (
+                <button
+                  key={p.key}
+                  onClick={() => setSelectedPeriod(p.key)}
+                  disabled={generateInsights.isPending}
+                  className={`relative flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all disabled:pointer-events-none ${
+                    selected
+                      ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+                      : "border-[var(--border)] bg-[rgba(255,255,255,0.02)] hover:border-[var(--border-2)]"
+                  }`}
+                >
+                  {p.recommended && (
+                    <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wide text-[#90f048] bg-[var(--accent-soft)] px-1.5 py-0.5 rounded-full border border-[rgba(106,248,47,0.3)]">
+                      Recomendado
+                    </span>
+                  )}
+                  <span className={`text-[14px] font-bold ${selected ? "text-[#90f048]" : "text-white"}`}>
+                    {p.label}
+                  </span>
+                  <span className={`text-[11px] font-medium ${selected ? "text-[#90f048]/80" : "text-[var(--muted)]"}`}>
+                    {p.range}
+                  </span>
+                  <span className="text-[11px] text-[var(--muted)] leading-snug mt-0.5">
+                    {p.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
           <button
             onClick={handleGenerate}
             disabled={generateInsights.isPending}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.02)] text-[12.5px] text-[var(--muted)] hover:text-white hover:border-[var(--border-2)] transition-colors disabled:opacity-50"
+            className="btn-primary w-full py-3 rounded-xl text-[13.5px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <RefreshCw size={13} className={generateInsights.isPending ? "animate-spin" : ""} />
-            {generateInsights.isPending ? "Analisando…" : "Gerar novos insights"}
+            <RefreshCw size={14} className={generateInsights.isPending ? "animate-spin" : ""} />
+            {generateInsights.isPending ? "Analisando…" : "Gerar insights"}
           </button>
         </div>
+
+        {/* Coverage warning */}
+        {coverage?.hasGap && (
+          <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.07)]">
+            <Info size={15} className="text-[#f59e0b] shrink-0 mt-0.5" />
+            <p className="text-[12.5px] text-[#f59e0b] leading-relaxed">
+              <span className="font-semibold">Dados insuficientes para o período solicitado.</span>{" "}
+              Você pediu uma análise de <span className="font-semibold">{PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}</span>, mas seus registros mais antigos têm{" "}
+              <span className="font-semibold">{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</span> de histórico.
+              Os insights abaixo foram gerados com os dados disponíveis.
+            </p>
+          </div>
+        )}
 
         <AnamneseCta completed={anamneseCompleted} />
 

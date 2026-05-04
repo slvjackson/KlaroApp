@@ -25,6 +25,7 @@ import type {
   DashboardSummary,
   ErrorResponse,
   GenerateInsightsBody,
+  GenerateInsightsResult,
   HealthStatus,
   Insight,
   ListParsedRecordsParams,
@@ -1483,8 +1484,8 @@ export const getGenerateInsightsUrl = () => {
 export const generateInsights = async (
   body: GenerateInsightsBody,
   options?: RequestInit,
-): Promise<Insight[]> => {
-  return customFetch<Insight[]>(getGenerateInsightsUrl(), {
+): Promise<GenerateInsightsResult> => {
+  return customFetch<GenerateInsightsResult>(getGenerateInsightsUrl(), {
     ...options,
     method: "POST",
     body: JSON.stringify(body),

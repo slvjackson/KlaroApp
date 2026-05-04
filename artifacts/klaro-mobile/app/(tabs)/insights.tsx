@@ -8,7 +8,7 @@ import {
   useGenerateInsights,
   useListInsights,
 } from "@workspace/api-client-react";
-import type { GenerateInsightsBodyPeriod } from "@workspace/api-client-react";
+import type { GenerateInsightsBodyPeriod, InsightsCoverage } from "@workspace/api-client-react";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -254,6 +254,7 @@ export default function InsightsScreen() {
   const { user } = useAuth();
   const anamneseCompleted = !!user?.businessProfile?.anamneseCompleted;
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
+  const [coverage, setCoverage] = useState<InsightsCoverage | null>(null);
 
   const { data: insights, isLoading, refetch } = useListInsights();
   const generateMutation = useGenerateInsights();
@@ -286,7 +287,8 @@ export default function InsightsScreen() {
     _generationStartedAt = Date.now();
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await generateMutation.mutateAsync({ period: selectedPeriod });
+      const result = await generateMutation.mutateAsync({ period: selectedPeriod });
+      setCoverage(result.coverage?.hasGap ? result.coverage : null);
       await refetch();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } finally {
@@ -347,11 +349,32 @@ export default function InsightsScreen() {
       </View>
 
       {/* Period selector */}
-      <View style={[styles.periodRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-        {PERIODS.map((p) => (
-          <PeriodChip key={p.key} label={p.label} selected={selectedPeriod === p.key} onPress={() => setSelectedPeriod(p.key)} />
-        ))}
+      <View style={[styles.periodSection, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+        <Text style={[styles.periodLabel, { color: colors.mutedForeground }]}>
+          Qual período a IA deve analisar?
+        </Text>
+        <View style={styles.periodRow}>
+          {PERIODS.map((p) => (
+            <PeriodChip key={p.key} label={p.label} selected={selectedPeriod === p.key} onPress={() => setSelectedPeriod(p.key)} />
+          ))}
+        </View>
+        <Text style={[styles.periodHint, { color: colors.mutedForeground }]}>
+          A IA vai usar as transações desse período como fonte de dados para gerar seus insights.
+        </Text>
       </View>
+
+      {/* Coverage warning */}
+      {coverage?.hasGap && (
+        <View style={[styles.coverageBanner, { backgroundColor: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.3)" }]}>
+          <Feather name="info" size={14} color="#f59e0b" style={{ marginTop: 1 }} />
+          <Text style={[styles.coverageText, { color: "#f59e0b" }]}>
+            <Text style={styles.coverageBold}>Dados insuficientes para o período solicitado. </Text>
+            Você pediu {PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}, mas seus registros cobrem apenas{" "}
+            <Text style={styles.coverageBold}>{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</Text>.
+            Os insights foram gerados com os dados disponíveis.
+          </Text>
+        </View>
+      )}
 
       {/* Anamnese CTA */}
       {!anamneseCompleted && (
@@ -460,11 +483,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  periodSection: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 14,
+    gap: 8,
+  },
+  periodLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   periodRow: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    flexWrap: "wrap",
     gap: 8,
+  },
+  periodHint: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 17,
+    opacity: 0.7,
   },
   chip: {
     paddingHorizontal: 14,
@@ -559,6 +599,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Inter_600SemiBold",
     color: "#fff",
+  },
+  // coverage warning
+  coverageBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginHorizontal: 20,
+    marginTop: 10,
+    padding: 13,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  coverageText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 17,
+  },
+  coverageBold: {
+    fontFamily: "Inter_600SemiBold",
   },
   // anamnese banner
   anamneseBanner: {

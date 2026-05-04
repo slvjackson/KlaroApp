@@ -181,9 +181,39 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
     const anchor = rawTransactions.length > 0
       ? new Date(rawTransactions[rawTransactions.length - 1]!.date + "T00:00:00Z")
       : new Date();
-    const startDate = getPeriodStartDate(effectivePeriod, anchor);
-    const transactions = rawTransactions.filter((t) => t.date && t.date >= startDate);
+    const requestedStart = getPeriodStartDate(effectivePeriod, anchor);
+    const transactions = rawTransactions.filter((t) => t.date && t.date >= requestedStart);
     const periodLabel = computePeriodLabel(effectivePeriod, transactions);
+
+    // ── Coverage metadata ────────────────────────────────────────────────────
+    // Detects when the user has less data than the requested period.
+    // Gaps IN the middle of the period are intentionally ignored (per spec).
+    const actualStart = transactions[0]?.date ?? null;
+    const actualEnd   = transactions[transactions.length - 1]?.date ?? null;
+    const requestedDays = Math.round(
+      (anchor.getTime() - new Date(requestedStart + "T00:00:00Z").getTime()) / 86_400_000
+    );
+    const actualDays = actualStart
+      ? Math.round(
+          (anchor.getTime() - new Date(actualStart + "T00:00:00Z").getTime()) / 86_400_000
+        ) + 1
+      : 0;
+    // hasGap = data starts more than 7 days after the requested window opened
+    const gapDays = actualStart
+      ? Math.round(
+          (new Date(actualStart + "T00:00:00Z").getTime() - new Date(requestedStart + "T00:00:00Z").getTime()) / 86_400_000
+        )
+      : 0;
+    const coverage = {
+      requestedPeriod: effectivePeriod,
+      requestedDays,
+      actualDays,
+      requestedStart,
+      actualStart,
+      actualEnd,
+      hasGap: gapDays >= 7,
+      gapDays,
+    };
 
     const bp = userRow?.businessProfile as Record<string, unknown> | null;
 
@@ -213,7 +243,7 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
     });
 
     if (generated.length === 0) {
-      res.json([]);
+      res.json({ insights: [], coverage });
       return;
     }
 
@@ -238,7 +268,7 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
       )
       .returning();
 
-    res.json(inserted);
+    res.json({ insights: inserted, coverage });
   } catch (err) {
     console.error("[insights/generate] error:", err);
     res.status(500).json({ error: "Erro ao gerar insights. Tente novamente." });
