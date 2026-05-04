@@ -49,6 +49,7 @@ function RootLayoutNav() {
       />
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="billing" options={{ headerShown: false }} />
+      <Stack.Screen name="trial-welcome" options={{ headerShown: false }} />
     </Stack>
   );
 }

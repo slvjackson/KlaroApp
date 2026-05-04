@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChatProvider } from "@/contexts/chat-context";
 import { UploadProvider, useUploadContext } from "@/contexts/upload-context";
 import { useGetMe, useGetBillingStatus } from "@workspace/api-client-react";
+import { TrialWelcomeModal } from "@/components/trial-welcome-modal";
 import NotFound from "@/pages/not-found";
 
 import Home from "@/pages/home";
@@ -84,10 +85,13 @@ function Router() {
 
 function AppInner() {
   const { uploading, uploadingFileName, cancel } = useUploadContext();
+  const { data: user } = useGetMe({ query: { retry: false } });
+  const { data: billing } = useGetBillingStatus({ query: { enabled: !!user, retry: false } });
   return (
     <SubscriptionGuard>
       <Router />
       {uploading && <GlobalUploadOverlay fileName={uploadingFileName} onCancel={cancel} />}
+      {billing && <TrialWelcomeModal billing={billing} />}
     </SubscriptionGuard>
   );
 }
