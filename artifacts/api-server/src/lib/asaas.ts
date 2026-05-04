@@ -43,9 +43,9 @@ interface AsaasList<T> {
 }
 
 const CYCLE_MAP: Record<BillingCycle, string> = {
-  monthly:   "MONTHLY",
-  semiannual: "SEMIANNUAL",
-  annual:    "YEARLY",
+  monthly:    "MONTHLY",
+  semiannual: "SEMIANNUALLY",
+  annual:     "YEARLY",
 };
 
 // Monthly price per cycle in BRL
