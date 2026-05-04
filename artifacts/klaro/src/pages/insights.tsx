@@ -266,6 +266,7 @@ export default function Insights() {
   const [mission, setMission] = useState<Insight | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
   const [coverage, setCoverage] = useState<InsightsCoverage | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
   const genStartedAt = useGenStartedAt();
   const [currentIndex, setCurrentIndex] = useState(0);
   const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
@@ -291,6 +292,7 @@ export default function Insights() {
 
   const handleGenerate = () => {
     genStart();
+    setGenError(null);
     generateInsights.mutate({ period: selectedPeriod }, {
       onSuccess: (data) => {
         genEnd();
@@ -301,6 +303,7 @@ export default function Insights() {
       },
       onError: () => {
         genEnd();
+        setGenError("Erro ao gerar insights. Verifique sua conexão e tente novamente.");
         setAttempted(true);
       },
     });
@@ -420,6 +423,15 @@ export default function Insights() {
                 return <>Você pediu <span className="font-semibold">{label}</span>, mas seus dados nesse período vão de <span className="font-semibold">{coverage.actualStart ? fmtDate(coverage.actualStart) : "?"}</span> a <span className="font-semibold">{coverage.actualEnd ? fmtDate(coverage.actualEnd) : "?"}</span> ({coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}). Os insights foram gerados com os dados disponíveis.</>;
               })()}
             </p>
+          </div>
+        )}
+
+        {/* Generation error */}
+        {genError && (
+          <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-red-300/40 bg-red-500/8 dark:bg-red-950/20">
+            <AlertTriangle size={15} className="text-red-500 shrink-0 mt-0.5" />
+            <p className="text-[12.5px] text-red-600 dark:text-red-400 leading-relaxed flex-1">{genError}</p>
+            <button onClick={() => setGenError(null)} className="text-red-400 hover:text-red-600 text-base leading-none ml-1">×</button>
           </div>
         )}
 

@@ -253,6 +253,7 @@ export default function InsightsScreen() {
   const anamneseCompleted = !!user?.businessProfile?.anamneseCompleted;
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
   const [coverage, setCoverage] = useState<InsightsCoverage | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
   const genStartedAt = useInsightGenStartedAt();
 
   const { data: insights, isLoading, refetch } = useListInsights();
@@ -284,6 +285,7 @@ export default function InsightsScreen() {
 
   async function handleGenerate() {
     insightGenStart();
+    setGenError(null);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     generateMutation.mutate(
       { period: selectedPeriod },
@@ -296,6 +298,8 @@ export default function InsightsScreen() {
         },
         onError: () => {
           insightGenEnd();
+          setGenError("Erro ao gerar insights. Verifique sua conexão e tente novamente.");
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         },
       }
     );
@@ -402,6 +406,17 @@ export default function InsightsScreen() {
           </View>
         );
       })()}
+
+      {/* Generation error */}
+      {genError && (
+        <View style={[styles.coverageBanner, { backgroundColor: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.3)" }]}>
+          <Feather name="alert-triangle" size={14} color="#ef4444" style={{ marginTop: 1 }} />
+          <Text style={[styles.coverageText, { color: "#ef4444", flex: 1 }]}>{genError}</Text>
+          <Pressable onPress={() => setGenError(null)} hitSlop={8}>
+            <Feather name="x" size={14} color="#ef4444" />
+          </Pressable>
+        </View>
+      )}
 
       {/* Anamnese CTA */}
       {!anamneseCompleted && (
