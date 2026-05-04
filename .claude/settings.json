@@ -219,7 +219,14 @@
       "Bash(grep -E \"package\\\\.json$\")",
       "Bash(grep \"\\\\.ts$\")",
       "Bash(node ./build.mjs)",
-      "Bash(curl -s -X GET 'https://sandbox.asaas.com/api/v3/customers?limit=1' -H 'access_token: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjkzNDc4ZDgyLTAyMzItNDFjMS04YzBkLTI2MTNkODJmMTM5YTo6JGFhY2hfZjM4ODNmZDQtMjAxMS00YjI2LTkyMjAtNGE2YWNiNDY0MDcx')"
+      "Bash(curl -s -X GET 'https://sandbox.asaas.com/api/v3/customers?limit=1' -H 'access_token: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjkzNDc4ZDgyLTAyMzItNDFjMS04YzBkLTI2MTNkODJmMTM5YTo6JGFhY2hfZjM4ODNmZDQtMjAxMS00YjI2LTkyMjAtNGE2YWNiNDY0MDcx')",
+      "Bash(curl -s http://localhost:3001/api/billing/status)",
+      "Bash(curl -s https://workspaceapi-server-production-a4f2.up.railway.app/api/healthz)",
+      "Bash(curl -s https://workspaceapi-server-production-a4f2.up.railway.app/api/billing/status)",
+      "Bash(node --env-file=/Users/jackson.alberto/Documents/KlaroApp/artifacts/api-server/.env -e ' *)",
+      "Bash(curl -s -X POST https://sandbox.asaas.com/api/v3/customers -H 'access_token: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjkzNDc4ZDgyLTAyMzItNDFjMS04YzBkLTI2MTNkODJmMTM5YTo6JGFhY2hfZjM4ODNmZDQtMjAxMS00YjI2LTkyMjAtNGE2YWNiNDY0MDcx' -H 'Content-Type: application/json' -d '{\"name\":\"Teste Klaro\",\"email\":\"teste@klaro.com\",\"externalReference\":\"klaro_test\"}')",
+      "Bash(date -v+1d '+%Y-%m-%d')",
+      "Bash(curl -s -X POST https://sandbox.asaas.com/api/v3/subscriptions -H 'access_token: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjkzNDc4ZDgyLTAyMzItNDFjMS04YzBkLTI2MTNkODJmMTM5YTo6JGFhY2hfZjM4ODNmZDQtMjAxMS00YjI2LTkyMjAtNGE2YWNiNDY0MDcx' -H 'Content-Type: application/json' -d '{\"customer\":\"cus_000007901799\",\"billingType\":\"PIX\",\"value\":149,\"nextDueDate\":\"__TRACKED_VAR__\",\"cycle\":\"MONTHLY\",\"description\":\"Klaro Pro — Mensal\"}')"
     ],
     "additionalDirectories": [
       "/tmp"

@@ -42,10 +42,16 @@ router.get("/billing/status", requireAuth, async (req, res): Promise<void> => {
 // POST /billing/subscribe — create Asaas subscription and return payment URL
 router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
-  const { billingCycle } = req.body as { billingCycle?: BillingCycle };
+  const { billingCycle, cpfCnpj } = req.body as { billingCycle?: BillingCycle; cpfCnpj?: string };
 
   if (!billingCycle || !BILLING_CYCLES.includes(billingCycle)) {
     res.status(400).json({ error: "billingCycle inválido. Use: monthly, semiannual ou annual." });
+    return;
+  }
+
+  const cpfCnpjClean = cpfCnpj?.replace(/\D/g, "") || undefined;
+  if (!cpfCnpjClean || (cpfCnpjClean.length !== 11 && cpfCnpjClean.length !== 14)) {
+    res.status(400).json({ error: "CPF ou CNPJ inválido." });
     return;
   }
 
@@ -64,6 +70,7 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
       user.name,
       user.email,
       `klaro_${userId}`,
+      cpfCnpjClean,
     );
 
     const { asaasSubscriptionId, paymentUrl } = await createAsaasSubscription(

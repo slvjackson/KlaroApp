@@ -84,13 +84,31 @@ export default function Billing() {
   const cancelMutation = useCancelSubscription();
 
   const [selectedCycle, setSelectedCycle] = useState<BillingCycle>("annual");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
+  function formatCpfCnpj(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 14);
+    if (digits.length <= 11) {
+      return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, (_, a, b, c, d) =>
+        d ? `${a}.${b}.${c}-${d}` : c ? `${a}.${b}.${c}` : b ? `${a}.${b}` : a
+      );
+    }
+    return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, (_, a, b, c, d, e) =>
+      e ? `${a}.${b}.${c}/${d}-${e}` : d ? `${a}.${b}.${c}/${d}` : c ? `${a}.${b}.${c}` : b ? `${a}.${b}` : a
+    );
+  }
+
   const handleSubscribe = () => {
+    const digits = cpfCnpj.replace(/\D/g, "");
+    if (digits.length !== 11 && digits.length !== 14) {
+      setError("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.");
+      return;
+    }
     setError(null);
     subscribeMutation.mutate(
-      { data: { billingCycle: selectedCycle } },
+      { data: { billingCycle: selectedCycle, cpfCnpj: digits } },
       {
         onSuccess: ({ paymentUrl }) => {
           window.open(paymentUrl, "_blank", "noopener");
@@ -191,6 +209,18 @@ export default function Billing() {
                   </button>
                 );
               })}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-muted-foreground">CPF ou CNPJ</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="000.000.000-00"
+                value={cpfCnpj}
+                onChange={(e) => setCpfCnpj(formatCpfCnpj(e.target.value))}
+                className="w-full px-4 py-3 rounded-xl border border-border bg-background text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+              />
             </div>
 
             <button

@@ -71,18 +71,28 @@ export async function findOrCreateAsaasCustomer(
   name: string,
   email: string,
   externalRef: string,
+  cpfCnpj?: string,
 ): Promise<string> {
   const list = await asaasReq<AsaasList<AsaasCustomer>>(
     "GET",
     `/customers?email=${encodeURIComponent(email)}&limit=1`,
   );
-  if (list.data.length > 0) return list.data[0]!.id;
+
+  if (list.data.length > 0) {
+    const existing = list.data[0]!;
+    // Update CPF/CNPJ if provided and not already set
+    if (cpfCnpj) {
+      await asaasReq("PUT", `/customers/${existing.id}`, { cpfCnpj });
+    }
+    return existing.id;
+  }
 
   const customer = await asaasReq<AsaasCustomer>("POST", "/customers", {
     name,
     email,
     externalReference: externalRef,
     notificationDisabled: false,
+    ...(cpfCnpj ? { cpfCnpj } : {}),
   });
   return customer.id;
 }

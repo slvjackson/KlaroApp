@@ -16,6 +16,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -112,10 +113,28 @@ export default function BillingScreen() {
   const cancelMutation = useCancelSubscription();
 
   const [selectedCycle, setSelectedCycle] = useState<BillingCycle>("annual");
+  const [cpfCnpj, setCpfCnpj] = useState("");
+
+  function formatCpfCnpj(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 14);
+    if (digits.length <= 11) {
+      return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, (_, a, b, c, d) =>
+        d ? `${a}.${b}.${c}-${d}` : c ? `${a}.${b}.${c}` : b ? `${a}.${b}` : a
+      );
+    }
+    return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, (_, a, b, c, d, e) =>
+      e ? `${a}.${b}.${c}/${d}-${e}` : d ? `${a}.${b}.${c}/${d}` : c ? `${a}.${b}.${c}` : b ? `${a}.${b}` : a
+    );
+  }
 
   const handleSubscribe = () => {
+    const digits = cpfCnpj.replace(/\D/g, "");
+    if (digits.length !== 11 && digits.length !== 14) {
+      Alert.alert("CPF/CNPJ inválido", "Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.");
+      return;
+    }
     subscribeMutation.mutate(
-      { data: { billingCycle: selectedCycle } },
+      { data: { billingCycle: selectedCycle, cpfCnpj: digits } },
       {
         onSuccess: ({ paymentUrl }) => {
           if (paymentUrl) {
@@ -234,6 +253,18 @@ export default function BillingScreen() {
             );
           })}
 
+          <View style={styles.cpfWrap}>
+            <Text style={[styles.cpfLabel, { color: colors.mutedForeground }]}>CPF ou CNPJ</Text>
+            <TextInput
+              value={cpfCnpj}
+              onChangeText={(t) => setCpfCnpj(formatCpfCnpj(t))}
+              placeholder="000.000.000-00"
+              placeholderTextColor={`${colors.mutedForeground}60`}
+              keyboardType="numeric"
+              style={[styles.cpfInput, { borderColor: colors.border, backgroundColor: colors.background, color: colors.foreground }]}
+            />
+          </View>
+
           <Pressable
             onPress={handleSubscribe}
             disabled={subscribeMutation.isPending}
@@ -301,6 +332,9 @@ const styles = StyleSheet.create({
   radioDot:     { width: 8, height: 8, borderRadius: 4 },
   badge:        { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   badgeText:    { fontSize: 9, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5 },
+  cpfWrap:      { gap: 6 },
+  cpfLabel:     { fontSize: 12, fontFamily: "Inter_500Medium" },
+  cpfInput:     { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular" },
   ctaBtn:       { paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   ctaBtnText:   { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   disclaimer:   { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center" },

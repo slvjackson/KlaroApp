@@ -337,6 +337,7 @@ export interface BillingStatus {
 
 export interface SubscribeBody {
   billingCycle: BillingCycle;
+  cpfCnpj: string;
 }
 
 export interface SubscribeResult {
