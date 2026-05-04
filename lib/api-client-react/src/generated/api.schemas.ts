@@ -216,6 +216,8 @@ export interface InsightsCoverage {
   actualStart?: string | null;
   /** @nullable */
   actualEnd?: string | null;
+  /** @nullable — most recent transaction the user has, regardless of the requested window */
+  lastDataDate?: string | null;
   hasGap: boolean;
   gapDays: number;
 }

@@ -178,9 +178,8 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
     ]);
 
     const effectivePeriod = period ?? "3m";
-    const anchor = rawTransactions.length > 0
-      ? new Date(rawTransactions[rawTransactions.length - 1]!.date + "T00:00:00Z")
-      : new Date();
+    // Anchor is always today — periods are relative to now, not to the last transaction date
+    const anchor = new Date();
     const requestedStart = getPeriodStartDate(effectivePeriod, anchor);
     const transactions = rawTransactions.filter((t) => t.date && t.date >= requestedStart);
     const periodLabel = computePeriodLabel(effectivePeriod, transactions);
@@ -190,6 +189,8 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
     // Gaps IN the middle of the period are intentionally ignored (per spec).
     const actualStart = transactions[0]?.date ?? null;
     const actualEnd   = transactions[transactions.length - 1]?.date ?? null;
+    // Most recent transaction the user has overall (used in "no data in window" message)
+    const lastDataDate = rawTransactions[rawTransactions.length - 1]?.date ?? null;
     const requestedDays = Math.round(
       (anchor.getTime() - new Date(requestedStart + "T00:00:00Z").getTime()) / 86_400_000
     );
@@ -198,12 +199,12 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
           (anchor.getTime() - new Date(actualStart + "T00:00:00Z").getTime()) / 86_400_000
         ) + 1
       : 0;
-    // hasGap = data starts more than 7 days after the requested window opened
+    // gapDays = how many days after the requested window start the first transaction falls
     const gapDays = actualStart
       ? Math.round(
           (new Date(actualStart + "T00:00:00Z").getTime() - new Date(requestedStart + "T00:00:00Z").getTime()) / 86_400_000
         )
-      : 0;
+      : requestedDays; // no data in window → gap equals the full requested period
     const coverage = {
       requestedPeriod: effectivePeriod,
       requestedDays,
@@ -211,6 +212,7 @@ router.post("/insights/generate", requireAuth, async (req, res): Promise<void> =
       requestedStart,
       actualStart,
       actualEnd,
+      lastDataDate,    // most recent transaction overall, may be outside the requested window
       hasGap: gapDays >= 7,
       gapDays,
     };

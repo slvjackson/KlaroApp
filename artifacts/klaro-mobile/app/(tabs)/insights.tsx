@@ -369,9 +369,24 @@ export default function InsightsScreen() {
           <Feather name="info" size={14} color="#f59e0b" style={{ marginTop: 1 }} />
           <Text style={[styles.coverageText, { color: "#f59e0b" }]}>
             <Text style={styles.coverageBold}>Dados insuficientes para o período solicitado. </Text>
-            Você pediu {PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}, mas seus registros cobrem apenas{" "}
-            <Text style={styles.coverageBold}>{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</Text>.
-            Os insights foram gerados com os dados disponíveis.
+            {coverage.actualDays === 0 ? (
+              <>
+                {"Você pediu "}
+                <Text style={styles.coverageBold}>{PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}</Text>
+                {", mas não há transações registradas nesse intervalo."}
+                {coverage.lastDataDate ? (
+                  <>{" Seus dados mais recentes são de "}<Text style={styles.coverageBold}>{new Date(coverage.lastDataDate + "T00:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</Text>{"."}</>
+                ) : null}
+              </>
+            ) : (
+              <>
+                {"Você pediu "}
+                <Text style={styles.coverageBold}>{PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}</Text>
+                {", mas seus registros cobrem apenas os últimos "}
+                <Text style={styles.coverageBold}>{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</Text>
+                {". Os insights foram gerados com os dados disponíveis."}
+              </>
+            )}
           </Text>
         </View>
       )}

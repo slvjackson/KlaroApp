@@ -386,10 +386,21 @@ export default function Insights() {
           <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.07)]">
             <Info size={15} className="text-[#f59e0b] shrink-0 mt-0.5" />
             <p className="text-[12.5px] text-[#f59e0b] leading-relaxed">
-              <span className="font-semibold">Dados insuficientes para o período solicitado.</span>{" "}
-              Você pediu uma análise de <span className="font-semibold">{PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}</span>, mas seus registros mais antigos têm{" "}
-              <span className="font-semibold">{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</span> de histórico.
-              Os insights abaixo foram gerados com os dados disponíveis.
+              <span className="font-semibold">Dados insuficientes para o período solicitado. </span>
+              {coverage.actualDays === 0 ? (
+                <>
+                  Você pediu <span className="font-semibold">{PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}</span>, mas não há transações registradas nesse intervalo.
+                  {coverage.lastDataDate && (
+                    <> Seus dados mais recentes são de <span className="font-semibold">{new Date(coverage.lastDataDate + "T00:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</span>.</>
+                  )}
+                </>
+              ) : (
+                <>
+                  Você pediu <span className="font-semibold">{PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod}</span>, mas seus registros cobrem apenas os últimos{" "}
+                  <span className="font-semibold">{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</span>.
+                  Os insights foram gerados com os dados disponíveis.
+                </>
+              )}
             </p>
           </div>
         )}
