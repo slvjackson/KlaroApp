@@ -1,9 +1,11 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { useEffect } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChatProvider } from "@/contexts/chat-context";
 import { UploadProvider, useUploadContext } from "@/contexts/upload-context";
+import { useGetMe, useGetBillingStatus } from "@workspace/api-client-react";
 import NotFound from "@/pages/not-found";
 
 import Home from "@/pages/home";
@@ -18,6 +20,7 @@ import Profile from "@/pages/profile";
 import Chat from "@/pages/chat";
 import Anamnese from "@/pages/anamnese";
 import Missions from "@/pages/missions";
+import Billing from "@/pages/billing";
 import { GlobalUploadOverlay } from "@/pages/upload";
 import VerifyEmail from "@/pages/verify-email";
 import ForgotPassword from "@/pages/forgot-password";
@@ -25,12 +28,43 @@ import ResetPassword from "@/pages/reset-password";
 
 const queryClient = new QueryClient();
 
+// Public paths that never need subscription check
+const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/billing"]);
+
+const BLOCKED_STATUSES = new Set(["expired", "cancelled", "overdue"]);
+
+function SubscriptionGuard({ children }: { children: React.ReactNode }) {
+  const [location, setLocation] = useLocation();
+  const { data: user, isLoading: authLoading } = useGetMe({ query: { retry: false } });
+  const { data: billing, isLoading: billingLoading } = useGetBillingStatus({
+    query: {
+      enabled: !!user,
+      retry: false,
+    },
+  });
+
+  useEffect(() => {
+    if (PUBLIC_PATHS.has(location)) return;
+    if (!user || authLoading || billingLoading) return;
+    if (!billing) return;
+
+    const isBlocked =
+      BLOCKED_STATUSES.has(billing.status) ||
+      (billing.status === "trial" && (billing.trialDaysLeft ?? 0) <= 0);
+
+    if (isBlocked) setLocation("/billing");
+  }, [user, authLoading, billing, billingLoading, location, setLocation]);
+
+  return <>{children}</>;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
+      <Route path="/billing" component={Billing} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/upload" component={Upload} />
       <Route path="/review/:id" component={Review} />
@@ -51,10 +85,10 @@ function Router() {
 function AppInner() {
   const { uploading, uploadingFileName, cancel } = useUploadContext();
   return (
-    <>
+    <SubscriptionGuard>
       <Router />
       {uploading && <GlobalUploadOverlay fileName={uploadingFileName} onCancel={cancel} />}
-    </>
+    </SubscriptionGuard>
   );
 }
 

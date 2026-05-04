@@ -302,3 +302,43 @@ export type ListTransactionsParams = {
    */
   type?: string | null;
 };
+
+export type SubscriptionStatus =
+  (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
+
+export const SubscriptionStatus = {
+  trial:     "trial",
+  active:    "active",
+  overdue:   "overdue",
+  cancelled: "cancelled",
+  expired:   "expired",
+} as const;
+
+export type BillingCycle =
+  (typeof BillingCycle)[keyof typeof BillingCycle];
+
+export const BillingCycle = {
+  monthly:   "monthly",
+  semiannual: "semiannual",
+  annual:    "annual",
+} as const;
+
+export interface BillingStatus {
+  status: SubscriptionStatus;
+  /** @nullable */
+  billingCycle?: BillingCycle | null;
+  /** @nullable */
+  trialEndsAt?: string | null;
+  /** @nullable */
+  trialDaysLeft?: number | null;
+  /** @nullable */
+  currentPeriodEnd?: string | null;
+}
+
+export interface SubscribeBody {
+  billingCycle: BillingCycle;
+}
+
+export interface SubscribeResult {
+  paymentUrl: string;
+}

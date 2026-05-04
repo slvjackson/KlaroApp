@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, subscriptionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { SignupBody, LoginBody } from "@workspace/api-zod";
 import { requireAuth, signJwt } from "../middlewares/auth";
@@ -56,6 +56,10 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
     .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, createdAt: usersTable.createdAt });
 
   await issueVerificationEmail(user.id, user.email, user.name);
+
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+  await db.insert(subscriptionsTable).values({ userId: user.id, status: "trial", trialEndsAt });
 
   req.session.userId = user.id;
   res.status(201).json({ user, message: "Conta criada com sucesso! Verifique seu e-mail." });
@@ -143,6 +147,10 @@ router.post("/auth/token/signup", async (req, res): Promise<void> => {
     .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt });
 
   await issueVerificationEmail(user.id, user.email, user.name);
+
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+  await db.insert(subscriptionsTable).values({ userId: user.id, status: "trial", trialEndsAt });
 
   const token = signJwt(user.id);
   res.status(201).json({ token, user, message: "Conta criada com sucesso! Verifique seu e-mail." });

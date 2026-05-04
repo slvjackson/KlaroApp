@@ -18,6 +18,7 @@ import type {
 
 import type {
   AuthResponse,
+  BillingStatus,
   CategoryBreakdown,
   ConfirmParsedRecordsBody,
   ConfirmResult,
@@ -38,6 +39,8 @@ import type {
   RawInput,
   RawInputDetail,
   SignupBody,
+  SubscribeBody,
+  SubscribeResult,
   Transaction,
   UpdateParsedRecordBody,
   UploadFileBody,
@@ -2081,5 +2084,87 @@ export const usePatchInsightProgress = <TError = unknown, TContext = unknown>(
     mutationFn: ({ id, stepsProgress }) => patchInsightProgress(id, stepsProgress, requestOptions ?? requestOptions_),
     mutationKey,
     ...mutationOptions_,
+  });
+};
+
+// ─── Billing ──────────────────────────────────────────────────────────────────
+
+export const getBillingStatusUrl = () => `/api/billing/status`;
+
+export const getBillingStatus = async (options?: RequestInit): Promise<BillingStatus> =>
+  customFetch<BillingStatus>(getBillingStatusUrl(), { ...options, method: "GET" });
+
+export const getBillingStatusQueryKey = () => [`/api/billing/status`] as const;
+
+export const getBillingStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBillingStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getBillingStatus>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getBillingStatusQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBillingStatus>>> = ({ signal }) =>
+    getBillingStatus({ signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export function useGetBillingStatus<
+  TData = Awaited<ReturnType<typeof getBillingStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getBillingStatus>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getBillingStatusQueryOptions(options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const subscribeUrl = () => `/api/billing/subscribe`;
+
+export const subscribe = async (subscribeBody: SubscribeBody, options?: RequestInit): Promise<SubscribeResult> =>
+  customFetch<SubscribeResult>(subscribeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(subscribeBody),
+  });
+
+export const useSubscribe = <TError = ErrorType<ErrorResponse>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof subscribe>>, TError, { data: BodyType<SubscribeBody> }, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseMutationResult<Awaited<ReturnType<typeof subscribe>>, TError, { data: BodyType<SubscribeBody> }, TContext> => {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  return useMutation({
+    mutationFn: ({ data }) => subscribe(data, requestOptions),
+    mutationKey: ["subscribe"],
+    ...mutationOptions,
+  });
+};
+
+export const cancelSubscriptionUrl = () => `/api/billing/subscription`;
+
+export const cancelSubscription = async (options?: RequestInit): Promise<MessageResponse> =>
+  customFetch<MessageResponse>(cancelSubscriptionUrl(), { ...options, method: "DELETE" });
+
+export const useCancelSubscription = <TError = ErrorType<ErrorResponse>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof cancelSubscription>>, TError, void, TContext>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseMutationResult<Awaited<ReturnType<typeof cancelSubscription>>, TError, void, TContext> => {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  return useMutation({
+    mutationFn: () => cancelSubscription(requestOptions),
+    mutationKey: ["cancelSubscription"],
+    ...mutationOptions,
   });
 };

@@ -215,7 +215,11 @@
       "Bash(pnpm exec *)",
       "Bash(pkill -f metro)",
       "Bash(echo \"Metro PID=$!\")",
-      "Bash(pnpm add *)"
+      "Bash(pnpm add *)",
+      "Bash(grep -E \"package\\\\.json$\")",
+      "Bash(grep \"\\\\.ts$\")",
+      "Bash(node ./build.mjs)",
+      "Bash(curl -s -X GET 'https://sandbox.asaas.com/api/v3/customers?limit=1' -H 'access_token: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjkzNDc4ZDgyLTAyMzItNDFjMS04YzBkLTI2MTNkODJmMTM5YTo6JGFhY2hfZjM4ODNmZDQtMjAxMS00YjI2LTkyMjAtNGE2YWNiNDY0MDcx')"
     ],
     "additionalDirectories": [
       "/tmp"
