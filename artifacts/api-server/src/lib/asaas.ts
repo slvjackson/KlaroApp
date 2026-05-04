@@ -103,7 +103,7 @@ export async function createAsaasSubscription(
 ): Promise<{ asaasSubscriptionId: string; paymentUrl: string }> {
   const sub = await asaasReq<AsaasSubscription>("POST", "/subscriptions", {
     customer: customerId,
-    billingType: "PIX",
+    billingType: "UNDEFINED",
     value: PRICE_MAP[billingCycle],
     nextDueDate: nextDueDateStr(),
     cycle: CYCLE_MAP[billingCycle],
