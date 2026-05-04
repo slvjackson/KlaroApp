@@ -17,6 +17,10 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AnamneseCta } from "@/components/anamnese-cta";
+import { GeneratingInsightsOverlay } from "@/components/generating-insights-overlay";
+
+// Module-level: sobrevive remounts durante a mesma sessão
+let _generationStartedAt: number | null = null;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -216,13 +220,18 @@ export default function Insights() {
   }, [rawInsights, isLoading]);
 
   const handleGenerate = () => {
+    _generationStartedAt = Date.now();
     generateInsights.mutate({}, {
       onSuccess: (data: unknown) => {
+        _generationStartedAt = null;
         queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
         if (Array.isArray(data)) setQueue((data as Insight[]).filter((i) => !i.pinnedAt));
         setAttempted(true);
       },
-      onError: () => setAttempted(true),
+      onError: () => {
+        _generationStartedAt = null;
+        setAttempted(true);
+      },
     });
   };
 
@@ -246,7 +255,10 @@ export default function Insights() {
 
   return (
     <Layout title="Insights">
-      <div className="space-y-5 max-w-2xl">
+      <div className="relative space-y-5 max-w-2xl min-h-[400px]">
+        {generateInsights.isPending && _generationStartedAt !== null && (
+          <GeneratingInsightsOverlay startedAt={_generationStartedAt} />
+        )}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-[22px] font-bold tracking-tight text-white">Insights</h1>

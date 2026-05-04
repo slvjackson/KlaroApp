@@ -1,3 +1,6 @@
+// Module-level: survives component remounts within the same JS session
+let _generationStartedAt: number | null = null;
+
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   useArchiveInsight,
@@ -280,10 +283,15 @@ export default function InsightsScreen() {
   }, []);
 
   async function handleGenerate() {
+    _generationStartedAt = Date.now();
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await generateMutation.mutateAsync({ period: selectedPeriod });
-    await refetch();
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      await generateMutation.mutateAsync({ period: selectedPeriod });
+      await refetch();
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } finally {
+      _generationStartedAt = null;
+    }
   }
 
   async function handleArchive(id: number) {
@@ -293,7 +301,9 @@ export default function InsightsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {generateMutation.isPending && <GeneratingInsightsOverlay />}
+      {generateMutation.isPending && _generationStartedAt !== null && (
+        <GeneratingInsightsOverlay startedAt={_generationStartedAt} />
+      )}
 
       {/* Header */}
       <View
