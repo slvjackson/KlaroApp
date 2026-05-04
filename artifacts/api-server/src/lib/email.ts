@@ -78,7 +78,16 @@ function baseHtml(content: string) {
 }
 
 function btn(url: string, label: string) {
-  return `<a href="${url}" style="display:inline-block;background:linear-gradient(180deg,#6af82f,#4de020);color:#09090b;font-size:14px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:12px;letter-spacing:-0.01em;">${label}</a>`;
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+    <tr>
+      <td style="border-radius:12px;background:linear-gradient(180deg,#6af82f,#4de020);">
+        <a href="${url}" target="_blank" rel="noopener noreferrer"
+          style="display:inline-block;padding:13px 28px;font-family:'Inter',ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:700;color:#09090b;text-decoration:none;letter-spacing:-0.01em;border-radius:12px;">
+          ${label}
+        </a>
+      </td>
+    </tr>
+  </table>`;
 }
 
 function verificationHtml(name: string, url: string) {
