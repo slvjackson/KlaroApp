@@ -4,14 +4,14 @@ import { useGetBillingStatus, useSubscribe, useCancelSubscription } from "@works
 import type { BillingCycle } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getBillingStatusQueryKey } from "@workspace/api-client-react";
-import { CheckCircle2, Zap, AlertTriangle, Clock, XCircle, Loader2, ArrowLeft } from "lucide-react";
+import { CheckCircle2, Zap, AlertTriangle, Clock, XCircle, Loader2, ArrowLeft, CreditCard, QrCode, Copy, Check } from "lucide-react";
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
 const PLANS: { cycle: BillingCycle; label: string; period: string; monthly: number; total: number; badge?: string }[] = [
-  { cycle: "monthly",    label: "Mensal",    period: "por mês",     monthly: 149,  total: 149  },
-  { cycle: "semiannual", label: "Semestral", period: "por semestre", monthly: 129, total: 774,  badge: "Economize R$120" },
-  { cycle: "annual",     label: "Anual",     period: "por ano",      monthly: 99,  total: 1188, badge: "Mais popular" },
+  { cycle: "monthly",    label: "Mensal",    period: "por mês",      monthly: 149,  total: 149  },
+  { cycle: "semiannual", label: "Semestral", period: "por semestre", monthly: 129,  total: 774,  badge: "Economize R$120" },
+  { cycle: "annual",     label: "Anual",     period: "por ano",      monthly: 99,   total: 1188, badge: "Mais popular" },
 ];
 
 const FEATURES = [
@@ -22,6 +22,29 @@ const FEATURES = [
   "Dashboard com tendências e categorias",
   "Suporte por WhatsApp",
 ];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatCardNumber(v: string) {
+  return v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
+}
+
+function formatExpiry(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 4);
+  return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+}
+
+function formatCpfCnpj(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 11) {
+    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, (_, a, b, c, d) =>
+      d ? `${a}.${b}.${c}-${d}` : c ? `${a}.${b}.${c}` : b ? `${a}.${b}` : a
+    );
+  }
+  return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, (_, a, b, c, d, e) =>
+    e ? `${a}.${b}.${c}/${d}-${e}` : d ? `${a}.${b}.${c}/${d}` : c ? `${a}.${b}.${c}` : b ? `${a}.${b}` : a
+  );
+}
 
 // ─── Status banner ────────────────────────────────────────────────────────────
 
@@ -76,44 +99,99 @@ function StatusBanner({ status, trialDaysLeft, currentPeriodEnd, billingCycle }:
   );
 }
 
+// ─── PIX Result ───────────────────────────────────────────────────────────────
+
+function PixResult({ qrCode, payload, expiresAt }: { qrCode: string; payload: string; expiresAt: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const expires = new Date(expiresAt).toLocaleString("pt-BR", {
+    day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+  });
+
+  const copy = () => {
+    navigator.clipboard.writeText(payload);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="glass rounded-2xl p-6 space-y-4 text-center">
+      <div className="flex items-center justify-center gap-2">
+        <QrCode size={16} className="text-primary" />
+        <p className="text-[13px] font-semibold text-foreground">Pague via PIX</p>
+      </div>
+      <img
+        src={`data:image/png;base64,${qrCode}`}
+        alt="QR Code PIX"
+        className="mx-auto w-48 h-48 rounded-xl"
+      />
+      <p className="text-[11px] text-muted-foreground">Válido até {expires}</p>
+      <button
+        onClick={copy}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-border bg-muted hover:bg-muted/80 transition-colors text-[13px] font-medium text-foreground"
+      >
+        {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+        {copied ? "Copiado!" : "Copiar código copia e cola"}
+      </button>
+      <p className="text-[11px] text-muted-foreground">
+        Após o pagamento, sua conta será ativada automaticamente em instantes.
+      </p>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Billing() {
+  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { data: billing, isLoading } = useGetBillingStatus();
   const subscribeMutation = useSubscribe();
   const cancelMutation = useCancelSubscription();
 
-  const [, setLocation] = useLocation();
   const [selectedCycle, setSelectedCycle] = useState<BillingCycle>("annual");
+  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "pix">("credit_card");
   const [cpfCnpj, setCpfCnpj] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-
-  function formatCpfCnpj(value: string) {
-    const digits = value.replace(/\D/g, "").slice(0, 14);
-    if (digits.length <= 11) {
-      return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, (_, a, b, c, d) =>
-        d ? `${a}.${b}.${c}-${d}` : c ? `${a}.${b}.${c}` : b ? `${a}.${b}` : a
-      );
-    }
-    return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, (_, a, b, c, d, e) =>
-      e ? `${a}.${b}.${c}/${d}-${e}` : d ? `${a}.${b}.${c}/${d}` : c ? `${a}.${b}.${c}` : b ? `${a}.${b}` : a
-    );
-  }
+  const [pixData, setPixData] = useState<{ qrCode: string; payload: string; expiresAt: string } | null>(null);
 
   const handleSubscribe = () => {
+    setError(null);
     const digits = cpfCnpj.replace(/\D/g, "");
     if (digits.length !== 11 && digits.length !== 14) {
       setError("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.");
       return;
     }
-    setError(null);
+
+    const creditCard = paymentMethod === "credit_card" ? {
+      holderName: cardName.trim(),
+      number: cardNumber.replace(/\s/g, ""),
+      expiryMonth: cardExpiry.split("/")[0] ?? "",
+      expiryYear: `20${cardExpiry.split("/")[1] ?? ""}`,
+      ccv: cardCvv,
+    } : undefined;
+
+    if (paymentMethod === "credit_card") {
+      if (!creditCard!.holderName || creditCard!.number.length < 16 || creditCard!.expiryMonth.length < 2 || !creditCard!.ccv) {
+        setError("Preencha todos os dados do cartão.");
+        return;
+      }
+    }
+
     subscribeMutation.mutate(
-      { data: { billingCycle: selectedCycle, cpfCnpj: digits } },
+      { data: { billingCycle: selectedCycle, cpfCnpj: digits, paymentMethod, creditCard } },
       {
-        onSuccess: ({ paymentUrl }) => {
-          window.open(paymentUrl, "_blank", "noopener");
+        onSuccess: (data) => {
+          if (paymentMethod === "pix" && data.pixQrCode) {
+            setPixData({ qrCode: data.pixQrCode, payload: data.pixPayload!, expiresAt: data.pixExpiresAt! });
+          } else {
+            queryClient.invalidateQueries({ queryKey: getBillingStatusQueryKey() });
+          }
         },
         onError: () => setError("Erro ao iniciar assinatura. Tente novamente."),
       },
@@ -177,11 +255,17 @@ export default function Billing() {
           </div>
         )}
 
-        {/* Plan selector (only if not active) */}
-        {!isActive && (
+        {/* PIX result after subscribe */}
+        {pixData && (
+          <PixResult qrCode={pixData.qrCode} payload={pixData.payload} expiresAt={pixData.expiresAt} />
+        )}
+
+        {/* Plan selector + payment form (only if not active and no pix pending) */}
+        {!isActive && !pixData && (
           <div className="glass rounded-2xl p-6 space-y-5">
             <p className="text-[13px] font-semibold text-foreground">Escolha seu plano</p>
 
+            {/* Plan options */}
             <div className="space-y-3">
               {PLANS.map((plan) => {
                 const selected = selectedCycle === plan.cycle;
@@ -190,9 +274,7 @@ export default function Billing() {
                     key={plan.cycle}
                     onClick={() => setSelectedCycle(plan.cycle)}
                     className={`w-full text-left px-5 py-4 rounded-xl border-2 transition-all ${
-                      selected
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-card hover:border-primary/40"
+                      selected ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -222,6 +304,29 @@ export default function Billing() {
               })}
             </div>
 
+            {/* Payment method toggle */}
+            <div className="flex rounded-xl border border-border overflow-hidden">
+              <button
+                onClick={() => setPaymentMethod("credit_card")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[13px] font-medium transition-colors ${
+                  paymentMethod === "credit_card" ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <CreditCard size={14} />
+                Cartão
+              </button>
+              <button
+                onClick={() => setPaymentMethod("pix")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[13px] font-medium transition-colors ${
+                  paymentMethod === "pix" ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <QrCode size={14} />
+                PIX
+              </button>
+            </div>
+
+            {/* CPF/CNPJ */}
             <div className="space-y-1.5">
               <label className="text-[12px] font-medium text-muted-foreground">CPF ou CNPJ</label>
               <input
@@ -234,6 +339,57 @@ export default function Billing() {
               />
             </div>
 
+            {/* Credit card fields */}
+            {paymentMethod === "credit_card" && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-medium text-muted-foreground">Número do cartão</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0000 0000 0000 0000"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-background text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-medium text-muted-foreground">Nome no cartão</label>
+                  <input
+                    type="text"
+                    placeholder="Como aparece no cartão"
+                    value={cardName}
+                    onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-background text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-medium text-muted-foreground">Validade</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="MM/AA"
+                      value={cardExpiry}
+                      onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
+                      className="w-full px-4 py-3 rounded-xl border border-border bg-background text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-medium text-muted-foreground">CVV</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="123"
+                      value={cardCvv}
+                      onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      className="w-full px-4 py-3 rounded-xl border border-border bg-background text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <button
               onClick={handleSubscribe}
               disabled={subscribeMutation.isPending}
@@ -241,13 +397,17 @@ export default function Billing() {
             >
               {subscribeMutation.isPending ? (
                 <><Loader2 size={16} className="animate-spin" /> Aguarde…</>
+              ) : paymentMethod === "pix" ? (
+                "Gerar QR Code PIX"
               ) : (
                 "Assinar agora"
               )}
             </button>
 
             <p className="text-[11px] text-center text-muted-foreground">
-              Pagamento seguro via PIX. Após o pagamento, sua conta é ativada automaticamente.
+              {paymentMethod === "pix"
+                ? "Após o pagamento via PIX, sua conta é ativada automaticamente."
+                : "Pagamento seguro. Sem taxas ocultas."}
             </p>
           </div>
         )}

@@ -335,11 +335,27 @@ export interface BillingStatus {
   currentPeriodEnd?: string | null;
 }
 
+export interface CreditCardInput {
+  holderName: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  ccv: string;
+}
+
 export interface SubscribeBody {
   billingCycle: BillingCycle;
   cpfCnpj: string;
+  paymentMethod: "credit_card" | "pix";
+  creditCard?: CreditCardInput;
+  phone?: string;
+  postalCode?: string;
+  addressNumber?: string;
 }
 
 export interface SubscribeResult {
-  paymentUrl: string;
+  /** Presente apenas no método PIX */
+  pixQrCode?: string;
+  pixPayload?: string;
+  pixExpiresAt?: string;
 }

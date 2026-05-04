@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import type { BillingCycle } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { findOrCreateAsaasCustomer, createAsaasSubscription, cancelAsaasSubscription } from "../lib/asaas";
+import type { CreditCardData, CreditCardHolderInfo } from "../lib/asaas";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -39,13 +40,26 @@ router.get("/billing/status", requireAuth, async (req, res): Promise<void> => {
   });
 });
 
-// POST /billing/subscribe — create Asaas subscription and return payment URL
+// POST /billing/subscribe — create Asaas subscription (credit card or PIX)
 router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
-  const { billingCycle, cpfCnpj } = req.body as { billingCycle?: BillingCycle; cpfCnpj?: string };
+  const { billingCycle, cpfCnpj, paymentMethod, creditCard, phone, postalCode, addressNumber } = req.body as {
+    billingCycle?: BillingCycle;
+    cpfCnpj?: string;
+    paymentMethod?: "credit_card" | "pix";
+    creditCard?: CreditCardData;
+    phone?: string;
+    postalCode?: string;
+    addressNumber?: string;
+  };
 
   if (!billingCycle || !BILLING_CYCLES.includes(billingCycle)) {
     res.status(400).json({ error: "billingCycle inválido. Use: monthly, semiannual ou annual." });
+    return;
+  }
+
+  if (paymentMethod !== "credit_card" && paymentMethod !== "pix") {
+    res.status(400).json({ error: "paymentMethod inválido. Use: credit_card ou pix." });
     return;
   }
 
@@ -53,6 +67,13 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
   if (!cpfCnpjClean || (cpfCnpjClean.length !== 11 && cpfCnpjClean.length !== 14)) {
     res.status(400).json({ error: "CPF ou CNPJ inválido." });
     return;
+  }
+
+  if (paymentMethod === "credit_card") {
+    if (!creditCard?.holderName || !creditCard.number || !creditCard.expiryMonth || !creditCard.expiryYear || !creditCard.ccv) {
+      res.status(400).json({ error: "Dados do cartão incompletos." });
+      return;
+    }
   }
 
   try {
@@ -86,17 +107,36 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
       cpfCnpjClean,
     );
 
-    const { asaasSubscriptionId, paymentUrl } = await createAsaasSubscription(
+    const holderInfo: CreditCardHolderInfo = {
+      name: user.name,
+      email: user.email,
+      cpfCnpj: cpfCnpjClean,
+      phone,
+      postalCode,
+      addressNumber,
+    };
+
+    const remoteIp = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.ip ?? "0.0.0.0";
+
+    const result = await createAsaasSubscription(
       asaasCustomerId,
       billingCycle,
+      paymentMethod,
+      creditCard,
+      holderInfo,
+      remoteIp,
     );
 
     await db
       .update(subscriptionsTable)
-      .set({ asaasCustomerId, asaasSubscriptionId, billingCycle, updatedAt: new Date() })
+      .set({ asaasCustomerId, asaasSubscriptionId: result.asaasSubscriptionId, billingCycle, updatedAt: new Date() })
       .where(eq(subscriptionsTable.userId, userId));
 
-    res.json({ paymentUrl });
+    if (result.method === "pix") {
+      res.json({ pixQrCode: result.pixQrCode, pixPayload: result.pixPayload, pixExpiresAt: result.pixExpiresAt });
+    } else {
+      res.json({});
+    }
   } catch (err) {
     logger.error({ err }, "[billing/subscribe] error");
     res.status(500).json({ error: "Erro ao iniciar assinatura. Tente novamente." });

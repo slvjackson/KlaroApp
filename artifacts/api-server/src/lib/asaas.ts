@@ -34,12 +34,36 @@ interface AsaasSubscription {
 }
 
 interface AsaasPayment {
+  id: string;
   invoiceUrl: string;
   bankSlipUrl?: string;
 }
 
+interface AsaasPixQrCode {
+  encodedImage: string;
+  payload: string;
+  expirationDate: string;
+}
+
 interface AsaasList<T> {
   data: T[];
+}
+
+export interface CreditCardData {
+  holderName: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  ccv: string;
+}
+
+export interface CreditCardHolderInfo {
+  name: string;
+  email: string;
+  cpfCnpj: string;
+  phone?: string;
+  postalCode?: string;
+  addressNumber?: string;
 }
 
 const CYCLE_MAP: Record<BillingCycle, string> = {
@@ -80,7 +104,6 @@ export async function findOrCreateAsaasCustomer(
 
   if (list.data.length > 0) {
     const existing = list.data[0]!;
-    // Update CPF/CNPJ if provided and not already set
     if (cpfCnpj) {
       await asaasReq("PUT", `/customers/${existing.id}`, { cpfCnpj });
     }
@@ -97,29 +120,62 @@ export async function findOrCreateAsaasCustomer(
   return customer.id;
 }
 
+export type SubscriptionResult =
+  | { asaasSubscriptionId: string; method: "credit_card" }
+  | { asaasSubscriptionId: string; method: "pix"; pixQrCode: string; pixPayload: string; pixExpiresAt: string };
+
 export async function createAsaasSubscription(
   customerId: string,
   billingCycle: BillingCycle,
-): Promise<{ asaasSubscriptionId: string; paymentUrl: string }> {
-  const sub = await asaasReq<AsaasSubscription>("POST", "/subscriptions", {
+  method: "credit_card" | "pix",
+  creditCard?: CreditCardData,
+  creditCardHolderInfo?: CreditCardHolderInfo,
+  remoteIp?: string,
+): Promise<SubscriptionResult> {
+  const base = {
     customer: customerId,
-    billingType: "UNDEFINED",
     value: PRICE_MAP[billingCycle],
     nextDueDate: nextDueDateStr(),
     cycle: CYCLE_MAP[billingCycle],
     description: `Klaro Pro — ${LABEL_MAP[billingCycle]}`,
+  };
+
+  if (method === "credit_card") {
+    const sub = await asaasReq<AsaasSubscription>("POST", "/subscriptions", {
+      ...base,
+      billingType: "CREDIT_CARD",
+      creditCard,
+      creditCardHolderInfo,
+      remoteIp: remoteIp ?? "0.0.0.0",
+    });
+    return { asaasSubscriptionId: sub.id, method: "credit_card" };
+  }
+
+  // PIX
+  const sub = await asaasReq<AsaasSubscription>("POST", "/subscriptions", {
+    ...base,
+    billingType: "PIX",
   });
 
-  // Retrieve the first pending payment to get the invoice URL
   const payments = await asaasReq<AsaasList<AsaasPayment>>(
     "GET",
     `/subscriptions/${sub.id}/payments?status=PENDING&limit=1`,
   );
 
-  const first = payments.data[0];
-  const paymentUrl = first?.invoiceUrl ?? first?.bankSlipUrl ?? "";
+  const firstPayment = payments.data[0];
+  if (!firstPayment) {
+    throw new Error("Asaas PIX: nenhum pagamento pendente encontrado após criação da assinatura");
+  }
 
-  return { asaasSubscriptionId: sub.id, paymentUrl };
+  const qr = await asaasReq<AsaasPixQrCode>("GET", `/payments/${firstPayment.id}/pixQrCode`);
+
+  return {
+    asaasSubscriptionId: sub.id,
+    method: "pix",
+    pixQrCode: qr.encodedImage,
+    pixPayload: qr.payload,
+    pixExpiresAt: qr.expirationDate,
+  };
 }
 
 export async function cancelAsaasSubscription(asaasSubscriptionId: string): Promise<void> {
