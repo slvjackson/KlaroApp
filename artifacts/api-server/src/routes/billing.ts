@@ -66,6 +66,19 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
       return;
     }
 
+    const [existingSub] = await db
+      .select({ asaasSubscriptionId: subscriptionsTable.asaasSubscriptionId })
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.userId, userId));
+
+    if (existingSub?.asaasSubscriptionId) {
+      try {
+        await cancelAsaasSubscription(existingSub.asaasSubscriptionId);
+      } catch {
+        // Already cancelled or not found in Asaas — safe to ignore
+      }
+    }
+
     const asaasCustomerId = await findOrCreateAsaasCustomer(
       user.name,
       user.email,
