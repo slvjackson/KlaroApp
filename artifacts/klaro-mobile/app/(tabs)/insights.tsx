@@ -1,6 +1,3 @@
-// Module-level: survives component remounts within the same JS session
-let _generationStartedAt: number | null = null;
-
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   useArchiveInsight,
@@ -34,6 +31,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GeneratingInsightsOverlay } from "@/components/GeneratingInsightsOverlay";
+import { insightGenEnd, insightGenStart, useInsightGenStartedAt } from "@/lib/insight-generation-store";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -255,6 +253,7 @@ export default function InsightsScreen() {
   const anamneseCompleted = !!user?.businessProfile?.anamneseCompleted;
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
   const [coverage, setCoverage] = useState<InsightsCoverage | null>(null);
+  const genStartedAt = useInsightGenStartedAt();
 
   const { data: insights, isLoading, refetch } = useListInsights();
   const generateMutation = useGenerateInsights();
@@ -284,16 +283,22 @@ export default function InsightsScreen() {
   }, []);
 
   async function handleGenerate() {
-    _generationStartedAt = Date.now();
+    insightGenStart();
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      const result = await generateMutation.mutateAsync({ period: selectedPeriod });
-      setCoverage(result.coverage?.hasGap ? result.coverage : null);
-      await refetch();
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } finally {
-      _generationStartedAt = null;
-    }
+    generateMutation.mutate(
+      { period: selectedPeriod },
+      {
+        onSuccess: async (result) => {
+          insightGenEnd();
+          setCoverage(result.coverage?.hasGap ? result.coverage : null);
+          await refetch();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        },
+        onError: () => {
+          insightGenEnd();
+        },
+      }
+    );
   }
 
   async function handleArchive(id: number) {
@@ -303,8 +308,8 @@ export default function InsightsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {generateMutation.isPending && _generationStartedAt !== null && (
-        <GeneratingInsightsOverlay startedAt={_generationStartedAt} />
+      {genStartedAt !== null && (
+        <GeneratingInsightsOverlay startedAt={genStartedAt} />
       )}
 
       {/* Header */}

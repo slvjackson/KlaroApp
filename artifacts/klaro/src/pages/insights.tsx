@@ -21,8 +21,20 @@ import { Link, useLocation } from "wouter";
 import { AnamneseCta } from "@/components/anamnese-cta";
 import { GeneratingInsightsOverlay } from "@/components/generating-insights-overlay";
 
-// Module-level: sobrevive remounts durante a mesma sessão
-let _generationStartedAt: number | null = null;
+// ── Mini observable store — survives page unmounts, re-renders subscribers ──
+let _genStartedAt: number | null = null;
+const _genListeners = new Set<() => void>();
+function genStart() { _genStartedAt = Date.now(); _genListeners.forEach((f) => f()); }
+function genEnd()   { _genStartedAt = null;        _genListeners.forEach((f) => f()); }
+function useGenStartedAt() {
+  const [v, setV] = useState<number | null>(() => _genStartedAt);
+  useEffect(() => {
+    const sync = () => setV(_genStartedAt);
+    _genListeners.add(sync);
+    return () => { _genListeners.delete(sync); };
+  }, []);
+  return v;
+}
 
 // ─── Period options ───────────────────────────────────────────────────────────
 
@@ -254,6 +266,7 @@ export default function Insights() {
   const [mission, setMission] = useState<Insight | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
   const [coverage, setCoverage] = useState<InsightsCoverage | null>(null);
+  const genStartedAt = useGenStartedAt();
   const [currentIndex, setCurrentIndex] = useState(0);
   const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
   const anamneseCompleted = !!bp?.anamneseCompleted;
@@ -277,17 +290,17 @@ export default function Insights() {
   }, [queue.length]);
 
   const handleGenerate = () => {
-    _generationStartedAt = Date.now();
+    genStart();
     generateInsights.mutate({ period: selectedPeriod }, {
       onSuccess: (data) => {
-        _generationStartedAt = null;
+        genEnd();
         queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
         setCoverage(data.coverage ?? null);
         setQueue((data.insights ?? []).filter((i) => !i.pinnedAt));
         setAttempted(true);
       },
       onError: () => {
-        _generationStartedAt = null;
+        genEnd();
         setAttempted(true);
       },
     });
@@ -318,8 +331,8 @@ export default function Insights() {
   return (
     <Layout title="Insights">
       <div className="relative space-y-5 max-w-3xl min-h-[400px]">
-        {generateInsights.isPending && _generationStartedAt !== null && (
-          <GeneratingInsightsOverlay startedAt={_generationStartedAt} />
+        {genStartedAt !== null && (
+          <GeneratingInsightsOverlay startedAt={genStartedAt} />
         )}
         {/* Header */}
         <div>
