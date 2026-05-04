@@ -21,6 +21,10 @@ export async function sendVerificationEmail(to: string, name: string, token: str
     to,
     subject: "Confirme seu e-mail — Klaro",
     html: verificationHtml(name, url),
+    headers: {
+      "List-Unsubscribe": `<mailto:${FROM}>`,
+      "X-Priority": "1",
+    },
   });
 }
 
@@ -39,6 +43,10 @@ export async function sendPasswordResetEmail(to: string, name: string, token: st
     to,
     subject: "Recuperação de senha — Klaro",
     html: resetHtml(name, url),
+    headers: {
+      "List-Unsubscribe": `<mailto:${FROM}>`,
+      "X-Priority": "1",
+    },
   });
 }
 
