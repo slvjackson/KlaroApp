@@ -100,53 +100,77 @@ router.post("/billing/webhook", async (req, res): Promise<void> => {
 
   const body = req.body as {
     event?: string;
-    payment?: { subscription?: string };
+    payment?: { subscription?: string; customer?: string };
     subscription?: { id?: string };
   };
 
   const event = body.event ?? "";
   const asaasSubId = body.payment?.subscription ?? body.subscription?.id;
+  const asaasCustomerId = body.payment?.customer;
 
-  logger.info({ event, asaasSubId }, "[billing/webhook] received");
+  logger.info({ event, asaasSubId, asaasCustomerId }, "[billing/webhook] received");
 
-  if (!asaasSubId) {
+  if (!asaasSubId && !asaasCustomerId) {
     res.status(200).send("ok");
     return;
   }
 
-  try {
-    if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
-      const [sub] = await db
+  async function findSub() {
+    if (asaasSubId) {
+      const [s] = await db
         .select({ id: subscriptionsTable.id, billingCycle: subscriptionsTable.billingCycle })
         .from(subscriptionsTable)
         .where(eq(subscriptionsTable.asaasSubscriptionId, asaasSubId));
+      if (s) return s;
+    }
+    if (asaasCustomerId) {
+      const [s] = await db
+        .select({ id: subscriptionsTable.id, billingCycle: subscriptionsTable.billingCycle })
+        .from(subscriptionsTable)
+        .where(eq(subscriptionsTable.asaasCustomerId, asaasCustomerId));
+      if (s) return s;
+    }
+    return undefined;
+  }
+
+  try {
+    if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
+      const sub = await findSub();
 
       if (sub) {
         const periodEnd = new Date();
-        if (sub.billingCycle === "monthly")    periodEnd.setMonth(periodEnd.getMonth() + 1);
+        if (sub.billingCycle === "monthly")         periodEnd.setMonth(periodEnd.getMonth() + 1);
         else if (sub.billingCycle === "semiannual") periodEnd.setMonth(periodEnd.getMonth() + 6);
-        else if (sub.billingCycle === "annual") periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        else if (sub.billingCycle === "annual")     periodEnd.setFullYear(periodEnd.getFullYear() + 1);
 
         await db
           .update(subscriptionsTable)
           .set({ status: "active", currentPeriodEnd: periodEnd, updatedAt: new Date() })
           .where(eq(subscriptionsTable.id, sub.id));
+
+        logger.info({ subId: sub.id, periodEnd }, "[billing/webhook] subscription activated");
+      } else {
+        logger.warn({ asaasSubId, asaasCustomerId }, "[billing/webhook] no subscription found for payment");
       }
     } else if (event === "PAYMENT_OVERDUE" || event === "PAYMENT_REPROVED_BY_RISK_ANALYSIS") {
-      await db
-        .update(subscriptionsTable)
-        .set({ status: "overdue", updatedAt: new Date() })
-        .where(eq(subscriptionsTable.asaasSubscriptionId, asaasSubId));
+      const sub = await findSub();
+      if (sub) {
+        await db
+          .update(subscriptionsTable)
+          .set({ status: "overdue", updatedAt: new Date() })
+          .where(eq(subscriptionsTable.id, sub.id));
+      }
     } else if (
       event === "SUBSCRIPTION_CANCELLED" ||
       event === "SUBSCRIPTION_INACTIVATED" ||
       event === "SUBSCRIPTION_DELETED" ||
       event === "PAYMENT_REFUNDED"
     ) {
-      await db
+      const sub = await findSub();
+      if (sub) await db
         .update(subscriptionsTable)
         .set({ status: "cancelled", updatedAt: new Date() })
-        .where(eq(subscriptionsTable.asaasSubscriptionId, asaasSubId));
+        .where(eq(subscriptionsTable.id, sub.id));
     }
   } catch (err) {
     logger.error({ err }, "[billing/webhook] processing error");
