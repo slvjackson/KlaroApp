@@ -114,11 +114,11 @@ function SummaryCard({ label, value, tone, icon: Icon, delta, sparkPoints, spark
           <div className={`flex items-center gap-1 text-[11px] font-semibold ${up ? "text-[var(--income)]" : "text-[var(--expense)]"}`}>
             {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
             <span>{up ? "+" : ""}{delta}%</span>
-            <span className="text-[var(--muted)] font-normal ml-1">vs mês anterior</span>
+            <span className="hidden sm:inline text-[var(--muted)] font-normal ml-1">vs mês anterior</span>
           </div>
         )}
         {sparkPoints && sparkColor && (
-          <div className="ml-auto">
+          <div className="ml-auto hidden sm:block">
             <Sparkline points={sparkPoints} color={sparkColor} width={72} height={24} />
           </div>
         )}

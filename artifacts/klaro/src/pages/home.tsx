@@ -30,11 +30,11 @@ export default function Home() {
         #09090b
       `,
     }}>
-      {/* Nav */}
+      {/* ── Nav ── */}
       <nav className="sticky top-0 z-50 border-b border-[var(--border)] bg-[rgba(9,9,11,0.7)] backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <KlaroMark size={26} />
+            <KlaroMark size={24} />
           </div>
 
           <div className="hidden md:flex items-center gap-8 text-[13px] text-[var(--muted)]">
@@ -42,36 +42,36 @@ export default function Home() {
             <a href="#como-funciona" className="hover:text-white transition-colors">Como funciona</a>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Link href="/login" className="text-[13px] text-[var(--muted)] hover:text-white px-3 py-2 transition-colors">
               Entrar
             </Link>
-            <Link href="/signup" className="btn-primary text-[13px] px-4 py-2 rounded-lg font-semibold">
+            <Link href="/signup" className="btn-primary text-[12.5px] sm:text-[13px] px-3.5 sm:px-4 py-2 rounded-lg font-semibold">
               Criar conta
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-20 pb-24">
-        <div className="grid lg:grid-cols-2 gap-14 items-center">
+      {/* ── Hero ── */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-16 sm:pb-24">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           {/* Copy */}
-          <div className="fadeUp">
-            <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#90f048] bg-[var(--accent-soft)] border border-[rgba(106,248,47,0.3)] px-3 py-1.5 rounded-full mb-6">
+          <div className="fadeUp text-center lg:text-left">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#90f048] bg-[var(--accent-soft)] border border-[rgba(106,248,47,0.3)] px-3 py-1.5 rounded-full mb-5">
               <Zap size={11} /> IA generativa integrada
             </div>
 
-            <h1 className="text-5xl lg:text-[56px] font-bold tracking-tight leading-[1.06] mb-5">
-              Clareza nos números.<br className="hidden lg:block" />
+            <h1 className="text-[34px] sm:text-5xl lg:text-[56px] font-bold tracking-tight leading-[1.06] mb-4 sm:mb-5">
+              Clareza nos números.<br className="hidden sm:block" />
               <span style={{ color: "var(--accent)" }}>Resultado</span> no bolso.
             </h1>
 
-            <p className="text-[17px] text-[var(--muted)] mb-8 leading-relaxed max-w-lg">
+            <p className="text-[15px] sm:text-[17px] text-[var(--muted)] mb-7 sm:mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
               O Klaro organiza seu financeiro e mostra onde você está perdendo dinheiro e como lucrar mais — sem planilhas complicadas.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 mb-8">
+            <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:mb-8">
               <Link href="/signup" className="btn-primary flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg text-[14px] font-semibold">
                 Começar grátis <ArrowRight size={15} />
               </Link>
@@ -80,7 +80,7 @@ export default function Home() {
               </a>
             </div>
 
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <div className="flex flex-wrap justify-center lg:justify-start gap-x-5 gap-y-2">
               {TRUST.map((t) => (
                 <div key={t} className="flex items-center gap-1.5 text-[12px] text-[var(--muted)]">
                   <CheckCircle2 size={12} className="text-[var(--accent)]" />{t}
@@ -89,8 +89,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Dashboard mock */}
-          <div className="relative w-full max-w-[480px] mx-auto fadeUp">
+          {/* Dashboard mock — hidden on very small screens */}
+          <div className="relative w-full max-w-[480px] mx-auto fadeUp hidden sm:block">
             <div className="absolute -inset-6 bg-[var(--accent-soft)] blur-3xl pointer-events-none" />
             <div className="relative glass-strong rounded-2xl overflow-hidden">
               {/* Window chrome */}
@@ -137,7 +137,6 @@ export default function Home() {
                         />
                       </div>
                     ))}
-                    {/* Animated trend line overlay */}
                     <svg
                       className="absolute inset-0 w-full h-full pointer-events-none"
                       viewBox="0 0 100 100"
@@ -192,19 +191,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features */}
-      <section id="funcionalidades" className="max-w-6xl mx-auto px-6 py-20 border-t border-[var(--border)]">
-        <div className="text-center mb-12">
+      {/* ── Features ── */}
+      <section id="funcionalidades" className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20 border-t border-[var(--border)]">
+        <div className="text-center mb-10 sm:mb-12">
           <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#90f048] bg-[var(--accent-soft)] border border-[rgba(106,248,47,0.3)] px-3 py-1.5 rounded-full mb-4">
             Funcionalidades
           </div>
-          <h2 className="text-[36px] font-bold tracking-tight">Tudo que você precisa, num só lugar</h2>
-          <p className="text-[16px] text-[var(--muted)] mt-3 max-w-xl mx-auto">
+          <h2 className="text-[28px] sm:text-[36px] font-bold tracking-tight">Tudo que você precisa, num só lugar</h2>
+          <p className="text-[15px] sm:text-[16px] text-[var(--muted)] mt-3 max-w-xl mx-auto">
             O Klaro organiza seu financeiro e mostra onde você está perdendo dinheiro e como lucrar mais — sem planilhas complicadas.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {FEATURES.map(({ icon: Icon, title, desc }) => (
             <div
               key={title}
@@ -220,21 +219,21 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Steps */}
-      <section id="como-funciona" className="max-w-6xl mx-auto px-6 py-20 border-t border-[var(--border)]">
-        <div className="text-center mb-12">
+      {/* ── Steps ── */}
+      <section id="como-funciona" className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20 border-t border-[var(--border)]">
+        <div className="text-center mb-10 sm:mb-12">
           <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#90f048] bg-[var(--accent-soft)] border border-[rgba(106,248,47,0.3)] px-3 py-1.5 rounded-full mb-4">
             Como funciona
           </div>
-          <h2 className="text-[36px] font-bold tracking-tight">Simples assim</h2>
-          <p className="text-[16px] text-[var(--muted)] mt-3 max-w-lg mx-auto">
+          <h2 className="text-[28px] sm:text-[36px] font-bold tracking-tight">Simples assim</h2>
+          <p className="text-[15px] sm:text-[16px] text-[var(--muted)] mt-3 max-w-lg mx-auto">
             Em três passos você já tem seu financeiro organizado e com insights automáticos.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
           {STEPS.map(({ n, title, desc }) => (
-            <div key={n} className="glass rounded-2xl p-6 relative overflow-hidden">
+            <div key={n} className="glass rounded-2xl p-5 sm:p-6 relative overflow-hidden">
               <div className="absolute top-4 right-4 text-[42px] font-black text-white/5 leading-none select-none">{n}</div>
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[rgba(106,248,47,0.3)] to-[rgba(106,248,47,0.15)] border border-[var(--border-2)] grid place-items-center mb-4">
                 <span className="text-[13px] font-bold text-[#90f048]">{n}</span>
@@ -246,13 +245,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="max-w-6xl mx-auto px-6 py-20 border-t border-[var(--border)]">
-        <div className="glass-strong rounded-3xl p-12 text-center relative overflow-hidden">
+      {/* ── CTA ── */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20 border-t border-[var(--border)]">
+        <div className="glass-strong rounded-2xl sm:rounded-3xl p-7 sm:p-12 text-center relative overflow-hidden">
           <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-[rgba(106,248,47,0.22)] blur-3xl pointer-events-none" />
           <div className="relative">
-            <h2 className="text-[36px] font-bold tracking-tight mb-2">Clareza nos números.<br /><span style={{ color: "var(--accent)" }}>Resultado</span> no bolso.</h2>
-            <p className="text-[16px] text-[var(--muted)] mb-8 max-w-md mx-auto leading-relaxed mt-3">
+            <h2 className="text-[28px] sm:text-[36px] font-bold tracking-tight mb-2">
+              Clareza nos números.<br />
+              <span style={{ color: "var(--accent)" }}>Resultado</span> no bolso.
+            </h2>
+            <p className="text-[14px] sm:text-[16px] text-[var(--muted)] mb-7 sm:mb-8 max-w-md mx-auto leading-relaxed mt-3">
               Crie sua conta grátis e comece a usar o Klaro em menos de 2 minutos.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -263,7 +265,7 @@ export default function Home() {
                 Já tenho conta
               </Link>
             </div>
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-6">
+            <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 mt-6">
               {TRUST.map((t) => (
                 <div key={t} className="flex items-center gap-1.5 text-[12px] text-[var(--muted)]">
                   <CheckCircle2 size={12} className="text-[var(--accent)]" />{t}
@@ -274,12 +276,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border)] py-8">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <KlaroMark size={20} />
-          </div>
+      {/* ── Footer ── */}
+      <footer className="border-t border-[var(--border)] py-6 sm:py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <KlaroMark size={20} />
           <p className="text-[12px] text-[var(--muted)]">
             © {new Date().getFullYear()} Klaro. Todos os direitos reservados.
           </p>

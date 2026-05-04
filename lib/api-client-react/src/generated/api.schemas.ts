@@ -233,6 +233,7 @@ export interface CategoryBreakdown {
   category: string;
   total: number;
   count: number;
+  type: string;
 }
 
 export type UploadFileBody = {
