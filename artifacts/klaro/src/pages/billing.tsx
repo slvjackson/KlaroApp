@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useGetBillingStatus, useSubscribe, useCancelSubscription } from "@workspace/api-client-react";
 import type { BillingCycle } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getBillingStatusQueryKey } from "@workspace/api-client-react";
-import { CheckCircle2, Zap, AlertTriangle, Clock, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, Zap, AlertTriangle, Clock, XCircle, Loader2, ArrowLeft } from "lucide-react";
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,7 @@ export default function Billing() {
   const subscribeMutation = useSubscribe();
   const cancelMutation = useCancelSubscription();
 
+  const [, setLocation] = useLocation();
   const [selectedCycle, setSelectedCycle] = useState<BillingCycle>("annual");
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +135,15 @@ export default function Billing() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto px-5 py-12 space-y-8">
+
+        {/* Back */}
+        <button
+          onClick={() => setLocation("/dashboard")}
+          className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft size={15} />
+          Voltar ao dashboard
+        </button>
 
         {/* Header */}
         <div className="text-center space-y-2">

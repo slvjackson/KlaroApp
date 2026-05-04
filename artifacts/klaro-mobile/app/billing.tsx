@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import {
   useGetBillingStatus,
   useSubscribe,
@@ -181,6 +182,12 @@ export default function BillingScreen() {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 32 }]}
       showsVerticalScrollIndicator={false}
     >
+      {/* Back */}
+      <Pressable onPress={() => router.push("/(tabs)")} style={styles.backBtn}>
+        <Feather name="arrow-left" size={16} color={colors.mutedForeground} />
+        <Text style={[styles.backText, { color: colors.mutedForeground }]}>Voltar ao dashboard</Text>
+      </Pressable>
+
       {/* Header */}
       <View style={styles.header}>
         <View style={[styles.iconWrap, { backgroundColor: `${colors.primary}1a` }]}>
@@ -342,4 +349,6 @@ const styles = StyleSheet.create({
   featureText:  { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 19 },
   cancelLink:   { alignItems: "center", paddingVertical: 8 },
   cancelText:   { fontSize: 12, fontFamily: "Inter_400Regular", textDecorationLine: "underline" },
+  backBtn:      { flexDirection: "row", alignItems: "center", gap: 6 },
+  backText:     { fontSize: 13, fontFamily: "Inter_400Regular" },
 });
