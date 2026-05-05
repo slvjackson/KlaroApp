@@ -215,14 +215,24 @@ export default function Billing() {
     <div className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto px-5 py-12 space-y-8">
 
-        {/* Back */}
-        <button
-          onClick={() => setLocation("/dashboard")}
-          className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft size={15} />
-          Voltar ao dashboard
-        </button>
+        {/* Back — to landing page if expired (no dashboard access), to dashboard otherwise */}
+        {billing?.status === "expired" ? (
+          <button
+            onClick={() => setLocation("/")}
+            className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={15} />
+            Voltar à página inicial
+          </button>
+        ) : (
+          <button
+            onClick={() => setLocation("/dashboard")}
+            className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={15} />
+            Voltar ao dashboard
+          </button>
+        )}
 
         {/* Header — winback for expired users, default for everyone else */}
         {isLoading ? (
