@@ -1,7 +1,7 @@
 import { pgTable, serial, integer, text, timestamp } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
-export type TokenSource = "chat" | "insight" | "parse" | "steps";
+export type TokenSource = "chat" | "insight" | "parse" | "steps" | "daily_question";
 
 export const tokenUsagesTable = pgTable("token_usages", {
   id: serial("id").primaryKey(),

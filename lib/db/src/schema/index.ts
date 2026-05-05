@@ -6,3 +6,5 @@ export * from "./insights";
 export * from "./subscriptions";
 export * from "./operational-costs";
 export * from "./token-usages";
+export * from "./user-activities";
+export * from "./daily-tasks";

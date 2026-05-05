@@ -226,7 +226,12 @@
       "Bash(node --env-file=/Users/jackson.alberto/Documents/KlaroApp/artifacts/api-server/.env -e ' *)",
       "Bash(curl -s -X POST https://sandbox.asaas.com/api/v3/customers -H 'access_token: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjkzNDc4ZDgyLTAyMzItNDFjMS04YzBkLTI2MTNkODJmMTM5YTo6JGFhY2hfZjM4ODNmZDQtMjAxMS00YjI2LTkyMjAtNGE2YWNiNDY0MDcx' -H 'Content-Type: application/json' -d '{\"name\":\"Teste Klaro\",\"email\":\"teste@klaro.com\",\"externalReference\":\"klaro_test\"}')",
       "Bash(date -v+1d '+%Y-%m-%d')",
-      "Bash(curl -s -X POST https://sandbox.asaas.com/api/v3/subscriptions -H 'access_token: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjkzNDc4ZDgyLTAyMzItNDFjMS04YzBkLTI2MTNkODJmMTM5YTo6JGFhY2hfZjM4ODNmZDQtMjAxMS00YjI2LTkyMjAtNGE2YWNiNDY0MDcx' -H 'Content-Type: application/json' -d '{\"customer\":\"cus_000007901799\",\"billingType\":\"PIX\",\"value\":149,\"nextDueDate\":\"__TRACKED_VAR__\",\"cycle\":\"MONTHLY\",\"description\":\"Klaro Pro — Mensal\"}')"
+      "Bash(curl -s -X POST https://sandbox.asaas.com/api/v3/subscriptions -H 'access_token: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjkzNDc4ZDgyLTAyMzItNDFjMS04YzBkLTI2MTNkODJmMTM5YTo6JGFhY2hfZjM4ODNmZDQtMjAxMS00YjI2LTkyMjAtNGE2YWNiNDY0MDcx' -H 'Content-Type: application/json' -d '{\"customer\":\"cus_000007901799\",\"billingType\":\"PIX\",\"value\":149,\"nextDueDate\":\"__TRACKED_VAR__\",\"cycle\":\"MONTHLY\",\"description\":\"Klaro Pro — Mensal\"}')",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(lsof -iTCP:3001 -sTCP:LISTEN)",
+      "Bash(lsof -iTCP:5173 -sTCP:LISTEN)",
+      "Bash(lsof -iTCP:3001 -sTCP:LISTEN -t)",
+      "Bash(xargs -r kill -9)"
     ],
     "additionalDirectories": [
       "/tmp"

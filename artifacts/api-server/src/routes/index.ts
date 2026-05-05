@@ -9,6 +9,7 @@ import dashboardRouter from "./dashboard";
 import chatRouter from "./chat";
 import billingRouter from "./billing";
 import adminRouter from "./admin";
+import dailyRouter from "./daily";
 import { requireAuth } from "../middlewares/auth";
 import { requireSubscription } from "../middlewares/subscription";
 
@@ -32,6 +33,7 @@ appRouter.use(transactionsRouter);
 appRouter.use(insightsRouter);
 appRouter.use(dashboardRouter);
 appRouter.use(chatRouter);
+appRouter.use(dailyRouter);
 
 router.use(appRouter);
 

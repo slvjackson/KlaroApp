@@ -10,6 +10,7 @@ import {
   useListTransactions,
 } from "@workspace/api-client-react";
 import { Sparkline } from "@/components/Sparkline";
+import { DailyHeader } from "@/components/DailyHeader";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "wouter";
@@ -376,6 +377,9 @@ export default function Dashboard() {
   return (
     <Layout title="Dashboard">
       <div className="space-y-6">
+        {/* Daily streak + tasks */}
+        <DailyHeader />
+
         {/* Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <SummaryCard

@@ -71,6 +71,33 @@ pool.query(`CREATE TABLE IF NOT EXISTS token_usages (
 )`).catch((e) =>
   logger.warn({ err: e }, "Could not create token_usages table")
 );
+pool.query(`CREATE TABLE IF NOT EXISTS user_activities (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  activity_date DATE NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)`)
+  .then(() =>
+    pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS user_activities_user_date_unique ON user_activities(user_id, activity_date)`)
+  )
+  .catch((e) =>
+    logger.warn({ err: e }, "Could not create user_activities table/index")
+  );
+pool.query(`CREATE TABLE IF NOT EXISTS daily_tasks (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  task_date DATE NOT NULL,
+  task_key TEXT NOT NULL,
+  params JSONB,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)`)
+  .then(() =>
+    pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS daily_tasks_user_date_key_unique ON daily_tasks(user_id, task_date, task_key)`)
+  )
+  .catch((e) =>
+    logger.warn({ err: e }, "Could not create daily_tasks table/index")
+  );
 
 app.listen(port, (err) => {
   if (err) {

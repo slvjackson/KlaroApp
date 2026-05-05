@@ -3,7 +3,7 @@ import { db, subscriptionsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { BillingCycle } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
-import { findOrCreateAsaasCustomer, createAsaasSubscription, cancelAsaasSubscription } from "../lib/asaas";
+import { findOrCreateAsaasCustomer, createAsaasSubscription, cancelAsaasSubscription, deletePendingAsaasPayments } from "../lib/asaas";
 import type { CreditCardData, CreditCardHolderInfo } from "../lib/asaas";
 import { logger } from "../lib/logger";
 
@@ -93,6 +93,13 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
       .where(eq(subscriptionsTable.userId, userId));
 
     if (existingSub?.asaasSubscriptionId) {
+      // Delete pending payments first to invalidate any payment link the user might still pay
+      // for the old subscription (prevents paying-old-getting-new exploit on plan switch).
+      try {
+        await deletePendingAsaasPayments(existingSub.asaasSubscriptionId);
+      } catch {
+        // Best-effort cleanup — webhook also rejects orphaned payments by subId mismatch
+      }
       try {
         await cancelAsaasSubscription(existingSub.asaasSubscriptionId);
       } catch {
@@ -173,14 +180,14 @@ router.post("/billing/webhook", async (req, res): Promise<void> => {
   async function findSub() {
     if (asaasSubId) {
       const [s] = await db
-        .select({ id: subscriptionsTable.id, billingCycle: subscriptionsTable.billingCycle })
+        .select({ id: subscriptionsTable.id, billingCycle: subscriptionsTable.billingCycle, asaasSubscriptionId: subscriptionsTable.asaasSubscriptionId })
         .from(subscriptionsTable)
         .where(eq(subscriptionsTable.asaasSubscriptionId, asaasSubId));
       if (s) return s;
     }
     if (asaasCustomerId) {
       const [s] = await db
-        .select({ id: subscriptionsTable.id, billingCycle: subscriptionsTable.billingCycle })
+        .select({ id: subscriptionsTable.id, billingCycle: subscriptionsTable.billingCycle, asaasSubscriptionId: subscriptionsTable.asaasSubscriptionId })
         .from(subscriptionsTable)
         .where(eq(subscriptionsTable.asaasCustomerId, asaasCustomerId));
       if (s) return s;
@@ -193,17 +200,28 @@ router.post("/billing/webhook", async (req, res): Promise<void> => {
       const sub = await findSub();
 
       if (sub) {
-        const periodEnd = new Date();
-        if (sub.billingCycle === "monthly")         periodEnd.setMonth(periodEnd.getMonth() + 1);
-        else if (sub.billingCycle === "semiannual") periodEnd.setMonth(periodEnd.getMonth() + 6);
-        else if (sub.billingCycle === "annual")     periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        // Security: only extend period if the payment's subscription matches the current DB subscription.
+        // If user switched plans (mensal → semestral) and pays the old mensal link, the asaasSubId in the
+        // webhook will NOT match the current asaasSubscriptionId in DB. We refuse to extend the period
+        // for orphaned payments to prevent paying-cheap-getting-expensive exploits.
+        if (asaasSubId && sub.asaasSubscriptionId && asaasSubId !== sub.asaasSubscriptionId) {
+          logger.warn(
+            { asaasSubId, currentSubId: sub.asaasSubscriptionId, subId: sub.id },
+            "[billing/webhook] payment for orphaned subscription — refusing to extend period",
+          );
+        } else {
+          const periodEnd = new Date();
+          if (sub.billingCycle === "monthly")         periodEnd.setMonth(periodEnd.getMonth() + 1);
+          else if (sub.billingCycle === "semiannual") periodEnd.setMonth(periodEnd.getMonth() + 6);
+          else if (sub.billingCycle === "annual")     periodEnd.setFullYear(periodEnd.getFullYear() + 1);
 
-        await db
-          .update(subscriptionsTable)
-          .set({ status: "active", currentPeriodEnd: periodEnd, updatedAt: new Date() })
-          .where(eq(subscriptionsTable.id, sub.id));
+          await db
+            .update(subscriptionsTable)
+            .set({ status: "active", currentPeriodEnd: periodEnd, updatedAt: new Date() })
+            .where(eq(subscriptionsTable.id, sub.id));
 
-        logger.info({ subId: sub.id, periodEnd }, "[billing/webhook] subscription activated");
+          logger.info({ subId: sub.id, periodEnd }, "[billing/webhook] subscription activated");
+        }
       } else {
         logger.warn({ asaasSubId, asaasCustomerId }, "[billing/webhook] no subscription found for payment");
       }

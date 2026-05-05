@@ -181,3 +181,27 @@ export async function createAsaasSubscription(
 export async function cancelAsaasSubscription(asaasSubscriptionId: string): Promise<void> {
   await asaasReq("DELETE", `/subscriptions/${asaasSubscriptionId}`);
 }
+
+// Lists pending payments for a subscription and deletes each one.
+// Used when switching plans to invalidate any payment link the user might still pay
+// for the previous (now cancelled) subscription.
+export async function deletePendingAsaasPayments(asaasSubscriptionId: string): Promise<void> {
+  const PENDING_STATUSES = ["PENDING", "AWAITING_RISK_ANALYSIS", "OVERDUE"];
+  for (const status of PENDING_STATUSES) {
+    try {
+      const list = await asaasReq<AsaasList<AsaasPayment>>(
+        "GET",
+        `/subscriptions/${asaasSubscriptionId}/payments?status=${status}&limit=100`,
+      );
+      for (const payment of list.data) {
+        try {
+          await asaasReq("DELETE", `/payments/${payment.id}`);
+        } catch {
+          // Already paid/deleted/refunded — ignore
+        }
+      }
+    } catch {
+      // Subscription may have no payments in this status — ignore
+    }
+  }
+}
