@@ -15,10 +15,11 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !password) return;
+    if (!name.trim() || !email.trim() || !password || !termsAccepted) return;
     setServerError(null);
     signup.mutate(
       { data: { name: name.trim(), email: email.trim(), password } },
@@ -121,9 +122,28 @@ export default function Signup() {
               </div>
             </div>
 
+            <label className="flex items-start gap-2 cursor-pointer select-none pt-1">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded accent-[var(--accent)] cursor-pointer shrink-0"
+              />
+              <span className="text-[12px] text-[var(--muted)] leading-snug">
+                Li e concordo com os{" "}
+                <Link
+                  href="/terms"
+                  className="text-[var(--accent)] hover:brightness-110 font-medium"
+                >
+                  Termos de Uso
+                </Link>
+                {" "}do Klaro.
+              </span>
+            </label>
+
             <button
               type="submit"
-              disabled={signup.isPending || !name.trim() || !email.trim() || !password}
+              disabled={signup.isPending || !name.trim() || !email.trim() || !password || !termsAccepted}
               className="btn-primary w-full py-2.5 rounded-xl text-[13.5px] font-semibold mt-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {signup.isPending ? "Criando conta…" : "Criar conta grátis"}

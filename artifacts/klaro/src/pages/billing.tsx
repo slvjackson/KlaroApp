@@ -159,7 +159,6 @@ export default function Billing() {
   const [error, setError] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [pixData, setPixData] = useState<{ qrCode: string; payload: string; expiresAt: string } | null>(null);
-  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const handleSubscribe = () => {
     setError(null);
@@ -405,32 +404,10 @@ export default function Billing() {
               </div>
             )}
 
-            {/* Terms acceptance */}
-            <label className="flex items-start gap-2.5 px-1 py-1 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={termsAccepted}
-                onChange={(e) => setTermsAccepted(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
-              />
-              <span className="text-[12.5px] text-muted-foreground leading-snug">
-                Li e concordo com os{" "}
-                <a
-                  href="/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline font-medium"
-                >
-                  Termos de Uso
-                </a>
-                {" "}do Klaro.
-              </span>
-            </label>
-
             <button
               onClick={handleSubscribe}
-              disabled={subscribeMutation.isPending || !termsAccepted}
-              className="btn-primary w-full py-3.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={subscribeMutation.isPending}
+              className="btn-primary w-full py-3.5 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {subscribeMutation.isPending ? (
                 <><Loader2 size={16} className="animate-spin" /> Aguarde…</>
