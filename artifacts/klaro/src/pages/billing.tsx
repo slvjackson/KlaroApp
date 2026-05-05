@@ -5,6 +5,7 @@ import type { BillingCycle } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getBillingStatusQueryKey } from "@workspace/api-client-react";
 import { CheckCircle2, Zap, AlertTriangle, Clock, XCircle, Loader2, ArrowLeft, CreditCard, QrCode, Copy, Check } from "lucide-react";
+import { WinbackHeader } from "@/components/WinbackHeader";
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
@@ -223,28 +224,32 @@ export default function Billing() {
           Voltar ao dashboard
         </button>
 
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-2">
-            <Zap size={28} className="text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Assine Klaro</h1>
-          <p className="text-[14px] text-muted-foreground">
-            Controle financeiro completo com inteligência artificial para o seu negócio.
-          </p>
-        </div>
-
-        {/* Subscription status */}
+        {/* Header — winback for expired users, default for everyone else */}
         {isLoading ? (
-          <div className="h-16 rounded-2xl bg-muted animate-pulse" />
-        ) : billing ? (
-          <StatusBanner
-            status={billing.status}
-            trialDaysLeft={billing.trialDaysLeft}
-            currentPeriodEnd={billing.currentPeriodEnd}
-            billingCycle={billing.billingCycle}
-          />
-        ) : null}
+          <div className="h-32 rounded-2xl bg-muted animate-pulse" />
+        ) : billing?.status === "expired" ? (
+          <WinbackHeader />
+        ) : (
+          <>
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-2">
+                <Zap size={28} className="text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground">Assine Klaro</h1>
+              <p className="text-[14px] text-muted-foreground">
+                Controle financeiro completo com inteligência artificial para o seu negócio.
+              </p>
+            </div>
+            {billing && (
+              <StatusBanner
+                status={billing.status}
+                trialDaysLeft={billing.trialDaysLeft}
+                currentPeriodEnd={billing.currentPeriodEnd}
+                billingCycle={billing.billingCycle}
+              />
+            )}
+          </>
+        )}
 
         {/* Error */}
         {error && (

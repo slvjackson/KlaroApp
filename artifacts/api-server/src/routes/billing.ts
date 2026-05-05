@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { db, subscriptionsTable, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, subscriptionsTable, usersTable, transactionsTable, insightsTable, userActivitiesTable } from "@workspace/db";
+import { eq, count, desc, isNull, and } from "drizzle-orm";
 import type { BillingCycle } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { findOrCreateAsaasCustomer, createAsaasSubscription, cancelAsaasSubscription, deletePendingAsaasPayments } from "../lib/asaas";
 import type { CreditCardData, CreditCardHolderInfo } from "../lib/asaas";
 import { logger } from "../lib/logger";
+import { calculateStreak } from "../lib/daily-tasks";
 
 const router = Router();
 
@@ -26,17 +27,82 @@ router.get("/billing/status", requireAuth, async (req, res): Promise<void> => {
   }
 
   const now = new Date();
+
+  // Compute effective status on read so the frontend reflects actual access.
+  // Storage may say "active"/"trial" but the period/trial may have ended without renewal.
+  let effectiveStatus: typeof sub.status = sub.status;
+  if (sub.status === "trial" && sub.trialEndsAt && sub.trialEndsAt <= now) {
+    effectiveStatus = "expired";
+  } else if (sub.status === "active" && sub.currentPeriodEnd && sub.currentPeriodEnd <= now) {
+    effectiveStatus = "expired";
+  } else if (sub.status === "overdue" && sub.currentPeriodEnd && sub.currentPeriodEnd <= now) {
+    effectiveStatus = "expired";
+  }
+
+  // Persist the transition lazily so subsequent reads/middleware reflect it
+  if (effectiveStatus !== sub.status) {
+    await db
+      .update(subscriptionsTable)
+      .set({ status: effectiveStatus, updatedAt: new Date() })
+      .where(eq(subscriptionsTable.id, sub.id));
+  }
+
   let trialDaysLeft: number | null = null;
-  if (sub.status === "trial" && sub.trialEndsAt) {
+  if (effectiveStatus === "trial" && sub.trialEndsAt) {
     trialDaysLeft = Math.max(0, Math.ceil((sub.trialEndsAt.getTime() - now.getTime()) / 86_400_000));
   }
 
   res.json({
-    status: sub.status,
+    status: effectiveStatus,
     billingCycle: sub.billingCycle ?? null,
     trialEndsAt: sub.trialEndsAt?.toISOString() ?? null,
     trialDaysLeft,
     currentPeriodEnd: sub.currentPeriodEnd?.toISOString() ?? null,
+  });
+});
+
+// GET /billing/winback-context — personal data for the win-back paywall (expired users)
+router.get("/billing/winback-context", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+
+  const [user, sub, txCountRow, insightCountRow, activities] = await Promise.all([
+    db.select({ name: usersTable.name, createdAt: usersTable.createdAt }).from(usersTable).where(eq(usersTable.id, userId)).then((r) => r[0]),
+    db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId)).then((r) => r[0]),
+    db.select({ c: count() }).from(transactionsTable).where(eq(transactionsTable.userId, userId)).then((r) => r[0]),
+    db.select({ c: count() }).from(insightsTable).where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt))).then((r) => r[0]),
+    db.select({ activityDate: userActivitiesTable.activityDate }).from(userActivitiesTable)
+      .where(eq(userActivitiesTable.userId, userId)).orderBy(desc(userActivitiesTable.activityDate)).limit(400),
+  ]);
+
+  if (!user || !sub) {
+    res.status(404).json({ error: "Conta não encontrada." });
+    return;
+  }
+
+  // hadPaidSubscription: did the user ever complete a paid period?
+  const hadPaidSubscription = sub.currentPeriodEnd != null;
+
+  // daysSinceExpired: take the most recent expiration anchor (currentPeriodEnd if paid, else trialEndsAt)
+  const expirationAnchor = sub.currentPeriodEnd ?? sub.trialEndsAt ?? null;
+  const daysSinceExpired = expirationAnchor
+    ? Math.max(0, Math.floor((Date.now() - expirationAnchor.getTime()) / 86_400_000))
+    : 0;
+
+  // daysUsing: from signup until expiration (or until now if no anchor)
+  const endRef = expirationAnchor ?? new Date();
+  const daysUsing = Math.max(1, Math.ceil((endRef.getTime() - user.createdAt.getTime()) / 86_400_000));
+
+  const streakDays = await calculateStreak(userId, activities.map((a) => a.activityDate));
+
+  res.json({
+    name: user.name,
+    hadPaidSubscription,
+    daysSinceExpired,
+    daysUsing,
+    transactionCount: Number(txCountRow?.c ?? 0),
+    insightCount: Number(insightCountRow?.c ?? 0),
+    streakDays,
+    lastPlan: sub.billingCycle ?? null,
   });
 });
 
@@ -180,14 +246,14 @@ router.post("/billing/webhook", async (req, res): Promise<void> => {
   async function findSub() {
     if (asaasSubId) {
       const [s] = await db
-        .select({ id: subscriptionsTable.id, billingCycle: subscriptionsTable.billingCycle, asaasSubscriptionId: subscriptionsTable.asaasSubscriptionId })
+        .select()
         .from(subscriptionsTable)
         .where(eq(subscriptionsTable.asaasSubscriptionId, asaasSubId));
       if (s) return s;
     }
     if (asaasCustomerId) {
       const [s] = await db
-        .select({ id: subscriptionsTable.id, billingCycle: subscriptionsTable.billingCycle, asaasSubscriptionId: subscriptionsTable.asaasSubscriptionId })
+        .select()
         .from(subscriptionsTable)
         .where(eq(subscriptionsTable.asaasCustomerId, asaasCustomerId));
       if (s) return s;
@@ -196,42 +262,56 @@ router.post("/billing/webhook", async (req, res): Promise<void> => {
   }
 
   try {
+    const sub = await findSub();
+    if (!sub) {
+      logger.warn({ asaasSubId, asaasCustomerId, event }, "[billing/webhook] no subscription found");
+      res.status(200).send("ok");
+      return;
+    }
+
+    // Orphan check: if the webhook references a specific Asaas subscription that doesn't match
+    // the current one in our DB, the event is for a previous (cancelled/replaced) subscription.
+    // We must not let it mutate the current user's access state.
+    const isOrphan = !!asaasSubId && asaasSubId !== sub.asaasSubscriptionId;
+    if (isOrphan) {
+      logger.warn(
+        { event, asaasSubId, currentSubId: sub.asaasSubscriptionId, subId: sub.id },
+        "[billing/webhook] event for orphaned subscription — ignoring",
+      );
+      res.status(200).send("ok");
+      return;
+    }
+
+    const now = new Date();
+    const stillInTrial = sub.status === "trial" && sub.trialEndsAt && sub.trialEndsAt > now;
+    const stillInPaidPeriod = sub.status === "active" && sub.currentPeriodEnd && sub.currentPeriodEnd > now;
+    const stillHasAccess = stillInTrial || stillInPaidPeriod;
+
     if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
-      const sub = await findSub();
+      const periodEnd = new Date();
+      if (sub.billingCycle === "monthly")         periodEnd.setMonth(periodEnd.getMonth() + 1);
+      else if (sub.billingCycle === "semiannual") periodEnd.setMonth(periodEnd.getMonth() + 6);
+      else if (sub.billingCycle === "annual")     periodEnd.setFullYear(periodEnd.getFullYear() + 1);
 
-      if (sub) {
-        // Security: only extend period if the payment's subscription matches the current DB subscription.
-        // If user switched plans (mensal → semestral) and pays the old mensal link, the asaasSubId in the
-        // webhook will NOT match the current asaasSubscriptionId in DB. We refuse to extend the period
-        // for orphaned payments to prevent paying-cheap-getting-expensive exploits.
-        if (asaasSubId && sub.asaasSubscriptionId && asaasSubId !== sub.asaasSubscriptionId) {
-          logger.warn(
-            { asaasSubId, currentSubId: sub.asaasSubscriptionId, subId: sub.id },
-            "[billing/webhook] payment for orphaned subscription — refusing to extend period",
-          );
-        } else {
-          const periodEnd = new Date();
-          if (sub.billingCycle === "monthly")         periodEnd.setMonth(periodEnd.getMonth() + 1);
-          else if (sub.billingCycle === "semiannual") periodEnd.setMonth(periodEnd.getMonth() + 6);
-          else if (sub.billingCycle === "annual")     periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      await db
+        .update(subscriptionsTable)
+        .set({ status: "active", currentPeriodEnd: periodEnd, updatedAt: new Date() })
+        .where(eq(subscriptionsTable.id, sub.id));
 
-          await db
-            .update(subscriptionsTable)
-            .set({ status: "active", currentPeriodEnd: periodEnd, updatedAt: new Date() })
-            .where(eq(subscriptionsTable.id, sub.id));
-
-          logger.info({ subId: sub.id, periodEnd }, "[billing/webhook] subscription activated");
-        }
-      } else {
-        logger.warn({ asaasSubId, asaasCustomerId }, "[billing/webhook] no subscription found for payment");
-      }
+      logger.info({ subId: sub.id, periodEnd }, "[billing/webhook] subscription activated");
     } else if (event === "PAYMENT_OVERDUE" || event === "PAYMENT_REPROVED_BY_RISK_ANALYSIS") {
-      const sub = await findSub();
-      if (sub) {
+      // Mark overdue only if the user has no other guarantee of access (no trial / paid period running).
+      // Otherwise the user is still entitled to use the app.
+      if (!stillHasAccess) {
         await db
           .update(subscriptionsTable)
           .set({ status: "overdue", updatedAt: new Date() })
           .where(eq(subscriptionsTable.id, sub.id));
+      } else {
+        logger.info(
+          { subId: sub.id, status: sub.status },
+          "[billing/webhook] payment overdue but user still in trial/paid period — keeping access",
+        );
       }
     } else if (
       event === "SUBSCRIPTION_CANCELLED" ||
@@ -239,11 +319,23 @@ router.post("/billing/webhook", async (req, res): Promise<void> => {
       event === "SUBSCRIPTION_DELETED" ||
       event === "PAYMENT_REFUNDED"
     ) {
-      const sub = await findSub();
-      if (sub) await db
-        .update(subscriptionsTable)
-        .set({ status: "cancelled", updatedAt: new Date() })
-        .where(eq(subscriptionsTable.id, sub.id));
+      // Cancellation in Asaas does NOT mean immediate access loss. The user keeps access until
+      // their trial or paid period ends. We only flip status to "cancelled" when access has expired.
+      if (stillHasAccess) {
+        await db
+          .update(subscriptionsTable)
+          .set({ asaasSubscriptionId: null, updatedAt: new Date() })
+          .where(eq(subscriptionsTable.id, sub.id));
+        logger.info(
+          { subId: sub.id, status: sub.status },
+          "[billing/webhook] subscription cancelled in Asaas — user keeps access until period end",
+        );
+      } else {
+        await db
+          .update(subscriptionsTable)
+          .set({ status: "cancelled", asaasSubscriptionId: null, updatedAt: new Date() })
+          .where(eq(subscriptionsTable.id, sub.id));
+      }
     }
   } catch (err) {
     logger.error({ err }, "[billing/webhook] processing error");
@@ -257,7 +349,7 @@ router.post("/billing/withdrawal-validation", async (_req, res): Promise<void> =
   res.json({ authorized: true });
 });
 
-// DELETE /billing/subscription — cancel active subscription
+// DELETE /billing/subscription — stop auto-renewal (keeps access until trial/period ends)
 router.delete("/billing/subscription", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
 
@@ -272,13 +364,33 @@ router.delete("/billing/subscription", requireAuth, async (req, res): Promise<vo
   }
 
   try {
+    await deletePendingAsaasPayments(sub.asaasSubscriptionId);
     await cancelAsaasSubscription(sub.asaasSubscriptionId);
-    await db
-      .update(subscriptionsTable)
-      .set({ status: "cancelled", updatedAt: new Date() })
-      .where(eq(subscriptionsTable.userId, userId));
 
-    res.json({ message: "Assinatura cancelada." });
+    const now = new Date();
+    const stillInTrial = sub.status === "trial" && sub.trialEndsAt && sub.trialEndsAt > now;
+    const stillInPaidPeriod = sub.status === "active" && sub.currentPeriodEnd && sub.currentPeriodEnd > now;
+
+    if (stillInTrial || stillInPaidPeriod) {
+      // Keep status — user retains access until trial/paid period ends. Just clear the Asaas link.
+      await db
+        .update(subscriptionsTable)
+        .set({ asaasSubscriptionId: null, updatedAt: new Date() })
+        .where(eq(subscriptionsTable.userId, userId));
+
+      const endLabel = stillInTrial
+        ? "fim do seu período de avaliação"
+        : "fim do período já pago";
+      res.json({ message: `Assinatura cancelada. Você mantém acesso até o ${endLabel}.` });
+    } else {
+      // No access remaining — flip to cancelled
+      await db
+        .update(subscriptionsTable)
+        .set({ status: "cancelled", asaasSubscriptionId: null, updatedAt: new Date() })
+        .where(eq(subscriptionsTable.userId, userId));
+
+      res.json({ message: "Assinatura cancelada." });
+    }
   } catch (err) {
     logger.error({ err }, "[billing/cancel] error");
     res.status(500).json({ error: "Erro ao cancelar assinatura. Tente novamente." });

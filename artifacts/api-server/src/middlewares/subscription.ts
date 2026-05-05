@@ -18,7 +18,16 @@ export async function requireSubscription(req: Request, res: Response, next: Nex
   const now = new Date();
 
   if (sub.status === "active") {
-    next();
+    // Active subscriptions remain valid until currentPeriodEnd. After that, access expires.
+    if (!sub.currentPeriodEnd || sub.currentPeriodEnd > now) {
+      next();
+      return;
+    }
+    await db
+      .update(subscriptionsTable)
+      .set({ status: "expired", updatedAt: new Date() })
+      .where(eq(subscriptionsTable.id, sub.id));
+    res.status(402).json({ error: "Período da assinatura encerrado.", code: "PERIOD_EXPIRED" });
     return;
   }
 
@@ -34,6 +43,12 @@ export async function requireSubscription(req: Request, res: Response, next: Nex
       .where(eq(subscriptionsTable.id, sub.id));
 
     res.status(402).json({ error: "Período de teste encerrado.", code: "TRIAL_EXPIRED" });
+    return;
+  }
+
+  // Overdue users keep access only if they still have time on a paid period
+  if (sub.status === "overdue" && sub.currentPeriodEnd && sub.currentPeriodEnd > now) {
+    next();
     return;
   }
 
