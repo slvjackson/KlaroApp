@@ -11,7 +11,7 @@ import { Sparkline } from "@/components/Sparkline";
 import { DailyHeader } from "@/components/DailyHeader";
 import { HealthScoreCard } from "@/components/HealthScoreCard";
 import { Link } from "wouter";
-import { Wallet, TrendingUp, TrendingDown, Receipt, Upload } from "lucide-react";
+import { TrendingUp, TrendingDown, Upload } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -29,14 +29,10 @@ function groupByCategory(
     .sort((a, b) => b.total - a.total);
 }
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
-
 const CAT_COLORS = [
   "#6af82f", "#10b981", "#f59e0b", "#e879f9",
   "#fb923c", "#14b8a6", "#60a5fa", "#f43f5e",
 ];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function brl(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -54,69 +50,87 @@ function fmtMonth(val: string | null | undefined) {
   return y ? `${label}/${y}` : label;
 }
 
-// ─── SummaryCard ──────────────────────────────────────────────────────────────
+// ─── Hero Balance Card ────────────────────────────────────────────────────────
 
-interface SummaryCardProps {
-  label: string;
-  value: string;
-  tone: "income" | "expense" | "brand" | "neutral";
-  icon: React.ElementType;
+interface HeroProps {
+  balance: number;
+  income: number;
+  expenses: number;
+  txCount: number;
   delta?: number;
   sparkPoints?: number[];
-  sparkColor?: string;
-  loading?: boolean;
+  loading: boolean;
+  selectedMonth: string | null;
 }
 
-function SummaryCard({ label, value, tone, icon: Icon, delta, sparkPoints, sparkColor, loading }: SummaryCardProps) {
+function HeroBalanceCard({ balance, income, expenses, txCount, delta, sparkPoints, loading, selectedMonth }: HeroProps) {
+  const positive = balance >= 0;
   const up = (delta ?? 0) >= 0;
 
-  const iconCls =
-    tone === "income" ? "bg-[var(--income-soft)] text-[var(--income)]" :
-    tone === "expense" ? "bg-[var(--expense-soft)] text-[var(--expense)]" :
-    tone === "brand"   ? "bg-[var(--accent-soft)] text-[#90f048]" :
-    "bg-white/5 text-white/70";
-
-  const valCls =
-    tone === "income"  ? "text-[var(--income)]" :
-    tone === "expense" ? "text-[var(--expense)]" :
-    "text-white";
-
   return (
-    <div className="glass rounded-2xl p-4 relative overflow-hidden">
-      <div className="flex items-start justify-between">
-        <div className="text-[10.5px] uppercase tracking-[0.14em] font-semibold text-[var(--muted)]">{label}</div>
-        <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${iconCls}`}>
-          <Icon size={15} />
+    <div className="glass rounded-2xl p-5 md:p-6">
+      {/* Balance headline */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-[10.5px] uppercase tracking-[0.16em] font-semibold text-[var(--muted)] mb-2.5">
+            Saldo líquido{selectedMonth ? ` · ${fmtMonth(selectedMonth)}` : ""}
+          </div>
+          {loading ? (
+            <div className="h-10 w-48 rounded-lg bg-white/5 animate-pulse" />
+          ) : (
+            <div className={`text-[34px] sm:text-[42px] font-bold tnum tracking-tight leading-none ${positive ? "text-white" : "text-[var(--expense)]"}`}>
+              {brl(balance)}
+            </div>
+          )}
+          {!loading && delta !== undefined && (
+            <div className={`flex items-center gap-1 mt-2.5 text-[12px] font-semibold ${up ? "text-[var(--income)]" : "text-[var(--expense)]"}`}>
+              {up ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+              <span>{up ? "+" : ""}{delta}%</span>
+              <span className="text-[var(--muted)] font-normal ml-0.5">vs mês anterior</span>
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="mt-3">
-        {loading ? (
-          <div className="h-7 w-28 rounded-md bg-white/5 animate-pulse" />
-        ) : (
-          <div className={`text-[20px] sm:text-[26px] font-bold tnum tracking-tight leading-none ${valCls}`}>{value}</div>
-        )}
-      </div>
-
-      <div className="mt-2.5 flex items-center justify-between">
-        {delta !== undefined && (
-          <div className={`flex items-center gap-1 text-[11px] font-semibold ${up ? "text-[var(--income)]" : "text-[var(--expense)]"}`}>
-            {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-            <span>{up ? "+" : ""}{delta}%</span>
-            <span className="hidden sm:inline text-[var(--muted)] font-normal ml-1">vs mês anterior</span>
+        {sparkPoints && sparkPoints.length >= 2 && (
+          <div className="hidden sm:block shrink-0 mt-1">
+            <Sparkline
+              points={sparkPoints}
+              color={positive ? "var(--accent)" : "var(--expense)"}
+              width={140}
+              height={52}
+            />
           </div>
         )}
-        {sparkPoints && sparkColor && (
-          <div className="ml-auto hidden sm:block">
-            <Sparkline points={sparkPoints} color={sparkColor} width={72} height={24} />
-          </div>
-        )}
+      </div>
+
+      {/* Supporting strip */}
+      <div className="mt-5 pt-4 border-t border-[var(--border)] grid grid-cols-3 gap-3 sm:gap-6">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--muted)] mb-1">Entradas</div>
+          {loading
+            ? <div className="h-5 w-20 rounded bg-white/5 animate-pulse" />
+            : <div className="text-[15px] sm:text-[17px] font-semibold tnum text-[var(--income)] truncate">{brl0(income)}</div>
+          }
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--muted)] mb-1">Saídas</div>
+          {loading
+            ? <div className="h-5 w-20 rounded bg-white/5 animate-pulse" />
+            : <div className="text-[15px] sm:text-[17px] font-semibold tnum text-[var(--expense)] truncate">{brl0(expenses)}</div>
+          }
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--muted)] mb-1">Transações</div>
+          {loading
+            ? <div className="h-5 w-10 rounded bg-white/5 animate-pulse" />
+            : <div className="text-[15px] sm:text-[17px] font-semibold tnum text-white">{txCount}</div>
+          }
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Monthly chart (custom SVG bars) ─────────────────────────────────────────
+// ─── Monthly chart ────────────────────────────────────────────────────────────
 
 function MonthlyChart({
   data,
@@ -132,12 +146,12 @@ function MonthlyChart({
   const hasSelection = selectedMonth !== null;
 
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="glass rounded-2xl p-5 h-full flex flex-col">
       <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
         <div>
-          <div className="text-[15px] font-semibold text-white">Fluxo Mensal</div>
+          <div className="text-[13px] font-semibold text-white">Fluxo Mensal</div>
           <div className="flex flex-wrap items-center gap-2 mt-0.5">
-            <div className="text-[12px] text-[var(--muted)]">Entradas vs. Saídas nos últimos meses</div>
+            <div className="text-[11.5px] text-[var(--muted)]">Entradas vs. Saídas</div>
             {hasSelection && (
               <button
                 onClick={() => onSelectMonth(null)}
@@ -148,7 +162,7 @@ function MonthlyChart({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3 text-[11.5px]">
+        <div className="flex items-center gap-3 text-[11px]">
           <div className="flex items-center gap-1.5 text-[var(--muted)]">
             <span className="w-2 h-2 rounded-full bg-[var(--income)]" />Entradas
           </div>
@@ -158,20 +172,18 @@ function MonthlyChart({
         </div>
       </div>
 
-      <div className="mt-5 relative h-[180px] flex items-end gap-3">
+      <div className="mt-4 relative h-[160px] flex items-end gap-2 flex-1">
         <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="border-t border-dashed border-white/5" />
           ))}
         </div>
-
         {data.map((m, i) => {
           const ih = (m.income / max) * 100;
           const eh = (m.expenses / max) * 100;
           const isHov = hover === i;
           const isSelected = selectedMonth === m.month;
           const isDimmed = hasSelection && !isSelected;
-
           return (
             <div
               key={m.month}
@@ -189,16 +201,10 @@ function MonthlyChart({
                     <div className="text-[var(--expense)] tnum">− {brl0(m.expenses)}</div>
                   </div>
                 )}
-                <div
-                  className="bar-income w-[11px] rounded-t-md transition-all"
-                  style={{ height: ih + "%", boxShadow: isSelected ? "0 0 8px var(--income)" : undefined }}
-                />
-                <div
-                  className="bar-expense w-[11px] rounded-t-md transition-all"
-                  style={{ height: eh + "%", boxShadow: isSelected ? "0 0 8px var(--expense)" : undefined }}
-                />
+                <div className="bar-income w-[9px] rounded-t-md transition-all" style={{ height: ih + "%", boxShadow: isSelected ? "0 0 8px var(--income)" : undefined }} />
+                <div className="bar-expense w-[9px] rounded-t-md transition-all" style={{ height: eh + "%", boxShadow: isSelected ? "0 0 8px var(--expense)" : undefined }} />
               </div>
-              <div className={`text-[10.5px] transition-colors ${isSelected ? "text-white font-semibold" : isHov ? "text-white" : "text-[var(--muted)]"}`}>
+              <div className={`text-[9.5px] transition-colors ${isSelected ? "text-white font-semibold" : isHov ? "text-white" : "text-[var(--muted)]"}`}>
                 {fmtMonth(m.month)}
               </div>
             </div>
@@ -209,7 +215,7 @@ function MonthlyChart({
   );
 }
 
-// ─── Category donut (conic-gradient) ─────────────────────────────────────────
+// ─── Category donut ───────────────────────────────────────────────────────────
 
 interface CatItem { category: string; total: number; type: string; }
 
@@ -226,7 +232,6 @@ function CategoryDonut({ data, selectedMonth }: { data: CatItem[]; selectedMonth
   }, [data, donutType]);
 
   const total = filtered.reduce((s, c) => s + c.total, 0);
-
   let cursor = 0;
   const stops = filtered.map((c, i) => {
     const from = (cursor / total) * 360;
@@ -236,12 +241,12 @@ function CategoryDonut({ data, selectedMonth }: { data: CatItem[]; selectedMonth
   }).join(", ");
 
   return (
-    <div className="glass rounded-2xl p-5">
-      <div className="flex items-center justify-between">
+    <div className="glass rounded-2xl p-5 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <div className="text-[15px] font-semibold text-white">Por Categoria</div>
+          <div className="text-[13px] font-semibold text-white">Por Categoria</div>
           <div className="flex items-center gap-1.5">
-            <div className="text-[12px] text-[var(--muted)]">
+            <div className="text-[11.5px] text-[var(--muted)]">
               {selectedMonth ? fmtMonth(selectedMonth) : "Todo o período"}
             </div>
             {selectedMonth && (
@@ -250,59 +255,47 @@ function CategoryDonut({ data, selectedMonth }: { data: CatItem[]; selectedMonth
           </div>
         </div>
         <div className="flex gap-1 p-0.5 rounded-md bg-[rgba(255,255,255,0.04)] border border-[var(--border)]">
-          <button
-            onClick={() => setDonutType("expense")}
-            className={`px-2.5 py-1 text-[10.5px] font-semibold rounded-[5px] transition-colors ${donutType === "expense" ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)] hover:text-white"}`}
-          >
-            Saídas
-          </button>
-          <button
-            onClick={() => setDonutType("income")}
-            className={`px-2.5 py-1 text-[10.5px] font-semibold rounded-[5px] transition-colors ${donutType === "income" ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)] hover:text-white"}`}
-          >
-            Entradas
-          </button>
+          <button onClick={() => setDonutType("expense")} className={`px-2.5 py-1 text-[10.5px] font-semibold rounded-[5px] transition-colors ${donutType === "expense" ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)] hover:text-white"}`}>Saídas</button>
+          <button onClick={() => setDonutType("income")}  className={`px-2.5 py-1 text-[10.5px] font-semibold rounded-[5px] transition-colors ${donutType === "income"  ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)] hover:text-white"}`}>Entradas</button>
         </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="flex items-center justify-center h-40 text-[12px] text-[var(--muted)]">
+        <div className="flex items-center justify-center flex-1 text-[12px] text-[var(--muted)]">
           {donutType === "expense" ? "Sem despesas registradas." : "Sem entradas registradas."}
         </div>
       ) : (
-        <>
-          <div className="relative mx-auto mt-4" style={{ width: 148, height: 148 }}>
+        <div className="flex items-center gap-5 flex-1 min-h-0">
+          <div className="relative shrink-0" style={{ width: 120, height: 120 }}>
             <div
               className="w-full h-full rounded-full"
               style={{
                 background: `conic-gradient(${stops})`,
-                mask: "radial-gradient(circle, transparent 54px, #000 55px)",
-                WebkitMask: "radial-gradient(circle, transparent 54px, #000 55px)",
+                mask: "radial-gradient(circle, transparent 42px, #000 43px)",
+                WebkitMask: "radial-gradient(circle, transparent 42px, #000 43px)",
               }}
             />
             <div className="absolute inset-0 grid place-items-center text-center">
               <div>
-                <div className="text-[9.5px] uppercase tracking-[0.18em] text-[var(--muted)]">Total</div>
-                <div className="text-[16px] font-bold text-white tnum leading-tight">{brl0(total)}</div>
-                <div className="text-[10px] text-[var(--muted)] mt-0.5">{filtered.length} categorias</div>
+                <div className="text-[9px] uppercase tracking-[0.16em] text-[var(--muted)]">Total</div>
+                <div className="text-[13px] font-bold text-white tnum leading-tight">{brl0(total)}</div>
               </div>
             </div>
           </div>
-
-          <div className="mt-4 space-y-1.5">
-            {filtered.slice(0, 5).map((c, i) => {
+          <div className="flex-1 min-w-0 space-y-1.5">
+            {filtered.slice(0, 6).map((c, i) => {
               const pct = total > 0 ? Math.round((c.total / total) * 100) : 0;
               return (
                 <div key={c.category} className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: CAT_COLORS[i % CAT_COLORS.length] }} />
-                  <div className="text-[11.5px] text-white/90 flex-1 truncate">{c.category}</div>
-                  <div className="text-[10.5px] text-[var(--muted)] w-8 text-right tnum">{pct}%</div>
-                  <div className="text-[11.5px] font-medium text-white w-[74px] text-right tnum">{brl0(c.total)}</div>
+                  <div className="text-[11px] text-white/80 flex-1 truncate">{c.category}</div>
+                  <div className="text-[10px] text-[var(--muted)] w-7 text-right tnum">{pct}%</div>
+                  <div className="text-[11px] font-medium text-white w-16 text-right tnum">{brl0(c.total)}</div>
                 </div>
               );
             })}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -323,13 +316,11 @@ export default function Dashboard() {
   const catData = (categoryBreakdown ?? []) as { category: string; total: number; type: string }[];
   const allTxArr = (allTx ?? []) as { amount: number; category: string; type: string; date: string }[];
 
-  // Filter transactions by selected month
   const filteredTx = useMemo(
     () => selectedMonth ? allTxArr.filter((t) => t.date.startsWith(selectedMonth)) : allTxArr,
     [selectedMonth, allTxArr],
   );
 
-  // Category breakdown — client-side when month selected, API data otherwise
   const activeCatData = useMemo(
     () => selectedMonth
       ? [...groupByCategory(filteredTx, "expense"), ...groupByCategory(filteredTx, "income")]
@@ -339,16 +330,12 @@ export default function Dashboard() {
 
   if (isAuthLoading) return null;
 
-  // Summary values — from monthly trend when month selected
   const selectedTrend = selectedMonth ? monthly.find((m) => m.month === selectedMonth) : null;
-  const totalIncome    = selectedTrend ? selectedTrend.income    : (summary?.totalIncome    ?? 0);
-  const totalExpenses  = selectedTrend ? selectedTrend.expenses  : (summary?.totalExpenses  ?? 0);
-  const netBalance     = selectedTrend ? selectedTrend.income - selectedTrend.expenses : (summary?.netBalance ?? 0);
-  const txCount        = selectedMonth
-    ? filteredTx.length
-    : (summary?.transactionCount ?? 0);
+  const totalIncome   = selectedTrend ? selectedTrend.income   : (summary?.totalIncome   ?? 0);
+  const totalExpenses = selectedTrend ? selectedTrend.expenses : (summary?.totalExpenses ?? 0);
+  const netBalance    = selectedTrend ? selectedTrend.income - selectedTrend.expenses : (summary?.netBalance ?? 0);
+  const txCount       = selectedMonth ? filteredTx.length : (summary?.transactionCount ?? 0);
 
-  // Sparkline points
   const incomePoints  = monthly.map((m) => m.income);
   const expensePoints = monthly.map((m) => m.expenses);
 
@@ -360,88 +347,64 @@ export default function Dashboard() {
     return Math.round(((curr - prev) / prev) * 100);
   }
 
+  const balanceDelta = lastDelta(
+    incomePoints.map((inc, i) => inc - (expensePoints[i] ?? 0))
+  );
+
   return (
     <Layout title="Dashboard">
-      <div className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          <SummaryCard
-            label="Saldo líquido"
-            value={brl(netBalance)}
-            tone={netBalance >= 0 ? "brand" : "expense"}
-            icon={Wallet}
-            delta={lastDelta(incomePoints.map((i, idx) => i - (expensePoints[idx] ?? 0)))}
-            sparkPoints={incomePoints.length >= 2 ? incomePoints : undefined}
-            sparkColor="var(--accent)"
-            loading={isSummaryLoading}
-          />
-          <SummaryCard
-            label="Entradas"
-            value={brl(totalIncome)}
-            tone="income"
-            icon={TrendingUp}
-            delta={lastDelta(incomePoints)}
-            sparkPoints={incomePoints.length >= 2 ? incomePoints : undefined}
-            sparkColor="var(--income)"
-            loading={isSummaryLoading}
-          />
-          <SummaryCard
-            label="Saídas"
-            value={brl(totalExpenses)}
-            tone="expense"
-            icon={TrendingDown}
-            delta={lastDelta(expensePoints)}
-            sparkPoints={expensePoints.length >= 2 ? expensePoints : undefined}
-            sparkColor="var(--expense)"
-            loading={isSummaryLoading}
-          />
-          <SummaryCard
-            label="Transações"
-            value={String(txCount)}
-            tone="neutral"
-            icon={Receipt}
-            loading={isSummaryLoading}
-          />
-        </div>
+      <div className="space-y-4 md:space-y-5">
 
-        {/* Health Score */}
-        <HealthScoreCard />
+        {/* ── Row 1: Hero balance ── */}
+        <HeroBalanceCard
+          balance={netBalance}
+          income={totalIncome}
+          expenses={totalExpenses}
+          txCount={txCount}
+          delta={balanceDelta}
+          sparkPoints={incomePoints.length >= 2 ? incomePoints : undefined}
+          loading={isSummaryLoading}
+          selectedMonth={selectedMonth}
+        />
 
-        {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          {/* Bar chart */}
-          <div className="col-span-1 lg:col-span-2">
+        {/* ── Row 2: Analysis ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
+          {/* Fluxo mensal */}
+          <div className="min-h-[260px]">
             {isMonthlyLoading ? (
-              <div className="glass rounded-2xl p-5 h-[280px] animate-pulse" />
+              <div className="glass rounded-2xl h-full animate-pulse" />
             ) : monthly.length === 0 ? (
-              <div className="glass rounded-2xl p-5 flex flex-col items-center justify-center h-[280px] gap-3">
-                <Upload size={32} className="text-[var(--muted)]/40" />
+              <div className="glass rounded-2xl p-5 h-full flex flex-col items-center justify-center gap-3">
+                <Upload size={28} className="text-[var(--muted)]/40" />
                 <p className="text-[13px] text-[var(--muted)]">Sem dados mensais ainda.</p>
-                <Link href="/upload" className="text-[12px] text-[var(--accent)] hover:brightness-110">
-                  Fazer upload
-                </Link>
+                <Link href="/upload" className="text-[12px] text-[var(--accent)] hover:brightness-110">Fazer upload</Link>
               </div>
             ) : (
-              <MonthlyChart
-                data={monthly}
-                selectedMonth={selectedMonth}
-                onSelectMonth={setSelectedMonth}
-              />
+              <MonthlyChart data={monthly} selectedMonth={selectedMonth} onSelectMonth={setSelectedMonth} />
             )}
           </div>
 
-          {/* Donut */}
-          <div className="col-span-1">
+          {/* Saúde do negócio */}
+          <HealthScoreCard />
+        </div>
+
+        {/* ── Row 3: Category + Routine ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
+          {/* Por categoria */}
+          <div className="min-h-[240px]">
             {isCategoryLoading ? (
-              <div className="glass rounded-2xl p-5 h-full animate-pulse" />
+              <div className="glass rounded-2xl h-full animate-pulse" />
             ) : (
               <CategoryDonut data={activeCatData} selectedMonth={selectedMonth} />
             )}
           </div>
+
+          {/* Rotina diária */}
+          <div className="glass rounded-2xl p-5">
+            <DailyHeader />
+          </div>
         </div>
 
-        {/* Daily streak + tasks */}
-        <DailyHeader />
       </div>
     </Layout>
   );

@@ -212,7 +212,7 @@ export function DailyHeader() {
   const visibleTasks = showCompleted ? data.tasks : data.tasks.filter((t) => !t.completedAt);
 
   return (
-    <div className="mb-6">
+    <div>
       {/* Streak header — compact when all tasks done */}
       {allDone ? (
         <div className="flex items-center justify-between gap-3 mb-3 px-1">
@@ -274,7 +274,7 @@ export function DailyHeader() {
 
       {/* Task cards — hidden when all done unless user toggled visibility */}
       {visibleTasks.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-2.5">
           {visibleTasks.map((task) =>
             task.key === "business_question" ? (
               <QuestionCard key={task.id} task={task} onComplete={handleComplete} />
