@@ -10,7 +10,7 @@ import crypto from "crypto";
 
 const router = Router();
 
-router.use(requireAuth, requireAdmin);
+router.use("/admin", requireAuth, requireAdmin);
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
