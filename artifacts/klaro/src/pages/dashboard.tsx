@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import { Sparkline } from "@/components/Sparkline";
 import { DailyHeader } from "@/components/DailyHeader";
+import { HealthScoreCard } from "@/components/HealthScoreCard";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "wouter";
@@ -420,6 +421,9 @@ export default function Dashboard() {
             loading={isSummaryLoading}
           />
         </div>
+
+        {/* Health Score */}
+        <HealthScoreCard />
 
         {/* Charts row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
