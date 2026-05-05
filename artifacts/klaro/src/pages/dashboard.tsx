@@ -5,20 +5,13 @@ import {
   useGetDashboardSummary,
   useGetMonthlyTrend,
   useGetTransactionsByCategory,
-  useListInsights,
-  useListUploads,
   useListTransactions,
 } from "@workspace/api-client-react";
 import { Sparkline } from "@/components/Sparkline";
 import { DailyHeader } from "@/components/DailyHeader";
 import { HealthScoreCard } from "@/components/HealthScoreCard";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Link } from "wouter";
-import {
-  Wallet, TrendingUp, TrendingDown, Receipt,
-  Lightbulb, Upload, ChevronRight, FileText,
-} from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, Receipt, Upload } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,12 +52,6 @@ function fmtMonth(val: string | null | undefined) {
   const [y, m] = val.split("-");
   const label = MONTHS[parseInt(m, 10) - 1] ?? val;
   return y ? `${label}/${y}` : label;
-}
-
-function translateStatus(s: string) {
-  if (s === "done") return "Processado";
-  if (s === "failed") return "Erro";
-  return "Processando";
 }
 
 // ─── SummaryCard ──────────────────────────────────────────────────────────────
@@ -330,8 +317,6 @@ export default function Dashboard() {
   const { data: summary, isLoading: isSummaryLoading } = useGetDashboardSummary();
   const { data: monthlyTrend, isLoading: isMonthlyLoading } = useGetMonthlyTrend();
   const { data: categoryBreakdown, isLoading: isCategoryLoading } = useGetTransactionsByCategory();
-  const { data: insights } = useListInsights();
-  const { data: uploads } = useListUploads();
   const { data: allTx } = useListTransactions({ limit: 5000 });
 
   const monthly = (monthlyTrend ?? []) as { month: string; income: number; expenses: number }[];
@@ -378,9 +363,6 @@ export default function Dashboard() {
   return (
     <Layout title="Dashboard">
       <div className="space-y-6">
-        {/* Daily streak + tasks */}
-        <DailyHeader />
-
         {/* Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <SummaryCard
@@ -458,100 +440,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Bottom row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Insights */}
-          <div className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Lightbulb size={15} className="text-[#90f048]" />
-                <div className="text-[15px] font-semibold text-white">Insights Recentes</div>
-              </div>
-              <Link href="/insights" className="flex items-center gap-1 text-[11.5px] text-[var(--muted)] hover:text-white">
-                Ver todos <ChevronRight size={12} />
-              </Link>
-            </div>
-
-            {insights && insights.length > 0 ? (
-              <div className="space-y-2">
-                {insights.slice(0, 3).map((ins) => (
-                  <div key={ins.id} className="p-3 rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.015)] hover:border-[var(--border-2)] transition-colors">
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-6 h-6 rounded-md grid place-items-center shrink-0 mt-0.5 bg-[var(--income-soft)] text-[var(--income)]">
-                        <TrendingUp size={13} />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-[12.5px] font-semibold text-white leading-snug">{ins.title}</div>
-                        <div className="text-[11.5px] text-[var(--muted)] leading-relaxed mt-0.5 line-clamp-2">{ins.description}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                <Lightbulb size={28} className="text-[var(--muted)]/40" />
-                <p className="text-[12.5px] text-[var(--muted)]">Nenhum insight gerado ainda.</p>
-                <Link href="/upload" className="text-[12px] text-[var(--accent)] hover:brightness-110">
-                  Faça um upload para começar
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Uploads */}
-          <div className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Upload size={15} className="text-[var(--muted)]" />
-                <div className="text-[15px] font-semibold text-white">Uploads Recentes</div>
-              </div>
-              <Link href="/upload" className="flex items-center gap-1 text-[11.5px] text-[var(--muted)] hover:text-white">
-                Novo upload <ChevronRight size={12} />
-              </Link>
-            </div>
-
-            {uploads && uploads.length > 0 ? (
-              <div className="space-y-2">
-                {[...uploads].reverse().slice(0, 5).map((upload) => (
-                  <div key={upload.id} className="flex items-center gap-3 p-2.5 rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.015)]">
-                    <div className="w-8 h-8 bg-white/5 rounded-lg grid place-items-center shrink-0">
-                      <FileText size={15} className="text-[var(--muted)]" />
-                    </div>
-                    <div className="flex-1 min-w-0 leading-tight">
-                      <div className="text-[12.5px] font-medium text-white truncate">{upload.fileName}</div>
-                      <div className="text-[11px] text-[var(--muted)]">
-                        {upload.createdAt ? format(new Date(upload.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : "—"}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                        upload.processingStatus === "done"   ? "bg-[var(--income-soft)] text-[var(--income)]" :
-                        upload.processingStatus === "failed" ? "bg-[var(--expense-soft)] text-[var(--expense)]" :
-                        "bg-white/5 text-[var(--muted)]"
-                      }`}>
-                        {translateStatus(upload.processingStatus)}
-                      </span>
-                      {upload.processingStatus === "done" && (
-                        <Link href={`/review/${upload.id}`} className="text-[11px] text-[var(--accent)] hover:brightness-110">
-                          Revisar
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                <Upload size={28} className="text-[var(--muted)]/40" />
-                <p className="text-[12.5px] text-[var(--muted)]">Nenhum upload feito ainda.</p>
-                <Link href="/upload" className="text-[12px] text-[var(--accent)] hover:brightness-110">
-                  Fazer primeiro upload
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Daily streak + tasks */}
+        <DailyHeader />
       </div>
     </Layout>
   );
