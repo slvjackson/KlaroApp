@@ -100,13 +100,12 @@ function dateStr(s: string | null | undefined) {
 
 function StatusBadge({ status }: { status: string | null }) {
   const map: Record<string, { label: string; color: string }> = {
-    active:    { label: "Ativo",      color: "text-[var(--income)] bg-[rgba(106,248,47,0.1)]" },
-    trial:     { label: "Trial",      color: "text-[#60a5fa] bg-[rgba(96,165,250,0.1)]" },
-    overdue:   { label: "Atrasado",   color: "text-[#f59e0b] bg-[rgba(245,158,11,0.1)]" },
-    cancelled: { label: "Cancelado",  color: "text-[var(--muted)] bg-[rgba(255,255,255,0.05)]" },
-    expired:   { label: "Expirado",   color: "text-[var(--expense)] bg-[rgba(244,63,94,0.1)]" },
-    inactive:  { label: "Inativo",    color: "text-[var(--muted)] bg-[rgba(255,255,255,0.05)]" },
-    blocked:   { label: "Bloqueado",  color: "text-[var(--expense)] bg-[rgba(244,63,94,0.1)]" },
+    active:   { label: "Ativo",      color: "text-[var(--income)] bg-[rgba(106,248,47,0.1)]" },
+    trial:    { label: "Trial",      color: "text-[#60a5fa] bg-[rgba(96,165,250,0.1)]" },
+    overdue:  { label: "Atrasado",   color: "text-[#f59e0b] bg-[rgba(245,158,11,0.1)]" },
+    expired:  { label: "Expirado",   color: "text-[var(--expense)] bg-[rgba(244,63,94,0.1)]" },
+    inactive: { label: "Inativo",    color: "text-[var(--muted)] bg-[rgba(255,255,255,0.05)]" },
+    blocked:  { label: "Bloqueado",  color: "text-[var(--expense)] bg-[rgba(244,63,94,0.1)]" },
   };
   const s = map[status ?? ""] ?? { label: status ?? "—", color: "text-[var(--muted)]" };
   return (
@@ -320,6 +319,77 @@ function OverviewTab() {
 
 // ─── Tab: Users ───────────────────────────────────────────────────────────────
 
+// ─── Confirmation dialog ─────────────────────────────────────────────────────
+
+interface PendingAction {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  danger?: boolean;
+  execute: () => void;
+}
+
+function ConfirmDialog({ action, onCancel, busy }: { action: PendingAction; onCancel: () => void; busy: boolean }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="glass-strong rounded-2xl p-6 w-full max-w-[400px] space-y-4">
+        <h3 className="text-[15px] font-bold text-white">{action.title}</h3>
+        <p className="text-[12.5px] text-[var(--muted)] leading-relaxed whitespace-pre-line">{action.message}</p>
+        <div className="flex gap-2 justify-end pt-2">
+          <button
+            onClick={onCancel}
+            disabled={busy}
+            className="text-[12px] text-[var(--muted)] hover:text-white px-4 py-2 rounded-lg disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={action.execute}
+            disabled={busy}
+            className={`text-[12px] font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 ${
+              action.danger
+                ? "bg-[var(--expense)] text-white hover:brightness-110"
+                : "btn-primary"
+            }`}
+          >
+            {busy ? "Executando…" : action.confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab: Users ───────────────────────────────────────────────────────────────
+
+const STATUS_COPY = {
+  active: {
+    title: "Ativar conta",
+    message: "O usuário poderá fazer login e usar normalmente o Klaro.",
+    confirmLabel: "Ativar conta",
+  },
+  inactive: {
+    title: "Inativar conta",
+    message: "O usuário não poderá fazer login. Você pode reativar a conta a qualquer momento.",
+    confirmLabel: "Inativar",
+    danger: true,
+  },
+  blocked: {
+    title: "Bloquear conta",
+    message: "O usuário não poderá fazer login e tentativas retornarão erro de bloqueio. Você pode desbloquear a conta a qualquer momento.",
+    confirmLabel: "Bloquear",
+    danger: true,
+  },
+} as const;
+
+function getRelevantSubActions(subStatus: string | null, hasAsaasSub: boolean): ("activate-monthly" | "restart-trial" | "cancel")[] {
+  const actions: ("activate-monthly" | "restart-trial" | "cancel")[] = [];
+  if (subStatus !== "active") actions.push("activate-monthly");
+  if (subStatus === "expired" || subStatus === "overdue") actions.push("restart-trial");
+  if (hasAsaasSub) actions.push("cancel");
+  return actions;
+}
+
 function UsersTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery<{ users: AdminUser[] }>({
@@ -350,6 +420,14 @@ function UsersTab() {
 
   const [expandedUser, setExpandedUser] = useState<number | null>(null);
   const [resetSent, setResetSent] = useState<number | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+
+  const anyMutating = patchStatus.isPending || resetPw.isPending || patchSub.isPending || cancelSub.isPending;
+
+  function runAndClose(fn: () => void) {
+    fn();
+    setPendingAction(null);
+  }
 
   if (isLoading) return <div className="text-[var(--muted)] text-[13px] py-8 text-center">Carregando usuários…</div>;
 
@@ -359,7 +437,10 @@ function UsersTab() {
     <div className="space-y-3">
       <div className="text-[11px] text-[var(--muted)]">{users.length} usuários cadastrados</div>
 
-      {users.map((u) => (
+      {users.map((u) => {
+        const subActions = getRelevantSubActions(u.subStatus, !!u.asaasSubscriptionId);
+
+        return (
         <div key={u.id} className="glass rounded-xl overflow-hidden">
           <button
             className="w-full flex items-center gap-3 p-4 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors"
@@ -440,62 +521,99 @@ function UsersTab() {
                 </div>
               </div>
 
-              {/* Account status controls */}
+              {/* Account status controls — current state shown but disabled */}
               <div>
                 <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Status da Conta</div>
                 <div className="flex gap-2 flex-wrap">
-                  {(["active", "inactive", "blocked"] as const).map((s) => (
-                    <button
-                      key={s}
-                      disabled={u.status === s || patchStatus.isPending}
-                      onClick={() => patchStatus.mutate({ id: u.id, status: s })}
-                      className={`text-[11px] px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 ${
-                        u.status === s
-                          ? "border-[var(--accent)] text-[var(--accent)] bg-[rgba(106,248,47,0.08)]"
-                          : "border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:border-[rgba(255,255,255,0.25)] hover:text-white"
-                      }`}
-                    >
-                      {s === "active" ? "Ativar" : s === "inactive" ? "Inativar" : "Bloquear"}
-                    </button>
-                  ))}
+                  {(["active", "inactive", "blocked"] as const).map((s) => {
+                    const isCurrent = u.status === s;
+                    const copy = STATUS_COPY[s];
+                    return (
+                      <button
+                        key={s}
+                        disabled={isCurrent || anyMutating}
+                        onClick={() => setPendingAction({
+                          title: copy.title,
+                          message: `${copy.message}\n\nUsuário: ${u.name} (${u.email}).`,
+                          confirmLabel: copy.confirmLabel,
+                          danger: "danger" in copy && copy.danger,
+                          execute: () => runAndClose(() => patchStatus.mutate({ id: u.id, status: s })),
+                        })}
+                        className={`text-[11px] px-3 py-1.5 rounded-lg border transition-colors disabled:cursor-not-allowed ${
+                          isCurrent
+                            ? "border-[var(--accent)] text-[var(--accent)] bg-[rgba(106,248,47,0.08)]"
+                            : "border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:border-[rgba(255,255,255,0.25)] hover:text-white disabled:opacity-40"
+                        }`}
+                      >
+                        {s === "active" ? "Ativar" : s === "inactive" ? "Inativar" : "Bloquear"}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Subscription controls */}
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Assinatura</div>
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    disabled={patchSub.isPending}
-                    onClick={() => patchSub.mutate({ id: u.id, status: "active", billingCycle: "monthly" })}
-                    className="text-[11px] px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:border-[rgba(106,248,47,0.4)] hover:text-[var(--accent)] transition-colors disabled:opacity-40"
-                  >
-                    Ativar Mensal
-                  </button>
-                  <button
-                    disabled={patchSub.isPending}
-                    onClick={() => patchSub.mutate({ id: u.id, status: "trial", billingCycle: null })}
-                    className="text-[11px] px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:border-[rgba(96,165,250,0.4)] hover:text-[#60a5fa] transition-colors disabled:opacity-40"
-                  >
-                    Reiniciar Trial
-                  </button>
-                  <button
-                    disabled={cancelSub.isPending || u.subStatus === "cancelled"}
-                    onClick={() => cancelSub.mutate(u.id)}
-                    className="text-[11px] px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:border-[rgba(244,63,94,0.4)] hover:text-[var(--expense)] transition-colors disabled:opacity-40"
-                  >
-                    Cancelar Assinatura
-                  </button>
+              {/* Subscription controls — only relevant actions */}
+              {subActions.length > 0 && (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider text-[var(--muted)] mb-2">Assinatura</div>
+                  <div className="flex gap-2 flex-wrap">
+                    {subActions.includes("activate-monthly") && (
+                      <button
+                        disabled={anyMutating}
+                        onClick={() => setPendingAction({
+                          title: "Ativar plano mensal",
+                          message: `Define o status como ativo e o ciclo como Mensal. Próxima renovação será em 30 dias.\n\nEsta ação NÃO cobra do usuário e não cria assinatura no Asaas — é uma concessão manual.\n\nUsuário: ${u.name} (${u.email}).`,
+                          confirmLabel: "Ativar mensal",
+                          execute: () => runAndClose(() => patchSub.mutate({ id: u.id, status: "active", billingCycle: "monthly" })),
+                        })}
+                        className="text-[11px] px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:border-[rgba(106,248,47,0.4)] hover:text-[var(--accent)] transition-colors disabled:opacity-40"
+                      >
+                        Ativar Mensal
+                      </button>
+                    )}
+                    {subActions.includes("restart-trial") && (
+                      <button
+                        disabled={anyMutating}
+                        onClick={() => setPendingAction({
+                          title: "Reiniciar trial",
+                          message: `Coloca o usuário em um novo período de avaliação de 7 dias. Os dados financeiros e insights são preservados.\n\nUsuário: ${u.name} (${u.email}).`,
+                          confirmLabel: "Reiniciar trial",
+                          execute: () => runAndClose(() => patchSub.mutate({ id: u.id, status: "trial", billingCycle: null })),
+                        })}
+                        className="text-[11px] px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:border-[rgba(96,165,250,0.4)] hover:text-[#60a5fa] transition-colors disabled:opacity-40"
+                      >
+                        Reiniciar Trial
+                      </button>
+                    )}
+                    {subActions.includes("cancel") && (
+                      <button
+                        disabled={anyMutating}
+                        onClick={() => setPendingAction({
+                          title: "Cancelar assinatura",
+                          message: `Cancela a assinatura no Asaas e impede futuras renovações. O usuário mantém acesso até o fim do trial ou do período já pago.\n\nUsuário: ${u.name} (${u.email}).`,
+                          confirmLabel: "Cancelar assinatura",
+                          danger: true,
+                          execute: () => runAndClose(() => cancelSub.mutate(u.id)),
+                        })}
+                        className="text-[11px] px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:border-[rgba(244,63,94,0.4)] hover:text-[var(--expense)] transition-colors disabled:opacity-40"
+                      >
+                        Cancelar Assinatura
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Password reset */}
               <div className="flex items-center gap-3">
                 <button
-                  disabled={resetPw.isPending || resetSent === u.id}
-                  onClick={() => {
-                    resetPw.mutate(u.id, { onSuccess: () => setResetSent(u.id) });
-                  }}
+                  disabled={anyMutating || resetSent === u.id}
+                  onClick={() => setPendingAction({
+                    title: "Enviar reset de senha",
+                    message: `Envia um e-mail para ${u.email} com link para redefinir a senha. O link expira em 24h.\n\nUsuário: ${u.name}.`,
+                    confirmLabel: "Enviar e-mail",
+                    execute: () => runAndClose(() => resetPw.mutate(u.id, { onSuccess: () => setResetSent(u.id) })),
+                  })}
                   className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] text-[var(--muted)] hover:border-[rgba(255,255,255,0.25)] hover:text-white transition-colors disabled:opacity-40"
                 >
                   <Mail size={11} />
@@ -505,7 +623,12 @@ function UsersTab() {
             </div>
           )}
         </div>
-      ))}
+      );
+      })}
+
+      {pendingAction && (
+        <ConfirmDialog action={pendingAction} onCancel={() => setPendingAction(null)} busy={anyMutating} />
+      )}
     </div>
   );
 }

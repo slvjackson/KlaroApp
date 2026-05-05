@@ -33,7 +33,7 @@ const queryClient = new QueryClient();
 // Public paths that never need subscription check
 const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/billing", "/admin"]);
 
-const BLOCKED_STATUSES = new Set(["expired", "cancelled", "overdue"]);
+const BLOCKED_STATUSES = new Set(["expired"]);
 
 function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();

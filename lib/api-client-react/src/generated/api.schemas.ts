@@ -309,11 +309,10 @@ export type SubscriptionStatus =
   (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
 
 export const SubscriptionStatus = {
-  trial:     "trial",
-  active:    "active",
-  overdue:   "overdue",
-  cancelled: "cancelled",
-  expired:   "expired",
+  trial:   "trial",
+  active:  "active",
+  overdue: "overdue",
+  expired: "expired",
 } as const;
 
 export type BillingCycle =

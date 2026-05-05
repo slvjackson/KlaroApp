@@ -526,9 +526,9 @@ export default function Profile() {
                       </span>
                     </>
                   )}
-                  {(billing.status === "cancelled" || billing.status === "expired" || billing.status === "overdue") && (
+                  {(billing.status === "expired" || billing.status === "overdue") && (
                     <span className="text-[13px] font-semibold text-[var(--expense)]">
-                      {billing.status === "cancelled" ? "Cancelada" : billing.status === "overdue" ? "Pagamento pendente" : "Expirada"}
+                      {billing.status === "overdue" ? "Pagamento pendente" : "Expirada"}
                     </span>
                   )}
                 </div>

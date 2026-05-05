@@ -130,11 +130,11 @@ router.post("/admin/users/:id/reset-password", async (req, res): Promise<void> =
 router.patch("/admin/users/:id/subscription", async (req, res): Promise<void> => {
   const targetId = Number(req.params.id);
   const { status, billingCycle } = req.body as {
-    status?: "trial" | "active" | "overdue" | "cancelled" | "expired";
+    status?: "trial" | "active" | "overdue" | "expired";
     billingCycle?: "monthly" | "semiannual" | "annual" | null;
   };
 
-  const validStatuses = ["trial", "active", "overdue", "cancelled", "expired"];
+  const validStatuses = ["trial", "active", "overdue", "expired"];
   if (status && !validStatuses.includes(status)) {
     res.status(400).json({ error: "status inválido." });
     return;
@@ -144,10 +144,25 @@ router.patch("/admin/users/:id/subscription", async (req, res): Promise<void> =>
   if (status !== undefined) patch.status = status;
   if (billingCycle !== undefined) patch.billingCycle = billingCycle;
 
-  if (status === "active" && !billingCycle) {
+  if (status === "active") {
+    // Recompute currentPeriodEnd from the (new or existing) cycle
+    const [current] = await db
+      .select({ billingCycle: subscriptionsTable.billingCycle })
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.userId, targetId));
+    const effectiveCycle = (billingCycle ?? current?.billingCycle ?? "monthly") as "monthly" | "semiannual" | "annual";
     const periodEnd = new Date();
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    if (effectiveCycle === "monthly")         periodEnd.setMonth(periodEnd.getMonth() + 1);
+    else if (effectiveCycle === "semiannual") periodEnd.setMonth(periodEnd.getMonth() + 6);
+    else if (effectiveCycle === "annual")     periodEnd.setFullYear(periodEnd.getFullYear() + 1);
     patch.currentPeriodEnd = periodEnd;
+    patch.billingCycle = effectiveCycle;
+  } else if (status === "trial") {
+    // Restart trial: 7 days from now, clear paid-period anchor
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+    patch.trialEndsAt = trialEndsAt;
+    patch.currentPeriodEnd = null;
   }
 
   await db
@@ -158,16 +173,22 @@ router.patch("/admin/users/:id/subscription", async (req, res): Promise<void> =>
   res.json({ message: "Assinatura atualizada." });
 });
 
-// DELETE /admin/users/:id/subscription — cancel subscription in Asaas + DB
+// DELETE /admin/users/:id/subscription — cancel subscription in Asaas; user keeps access
+// until current period/trial ends (only flips to expired if no access remaining).
 router.delete("/admin/users/:id/subscription", async (req, res): Promise<void> => {
   const targetId = Number(req.params.id);
 
   const [sub] = await db
-    .select({ asaasSubscriptionId: subscriptionsTable.asaasSubscriptionId })
+    .select()
     .from(subscriptionsTable)
     .where(eq(subscriptionsTable.userId, targetId));
 
-  if (sub?.asaasSubscriptionId) {
+  if (!sub) {
+    res.status(404).json({ error: "Assinatura não encontrada." });
+    return;
+  }
+
+  if (sub.asaasSubscriptionId) {
     try {
       await cancelAsaasSubscription(sub.asaasSubscriptionId);
     } catch {
@@ -175,12 +196,23 @@ router.delete("/admin/users/:id/subscription", async (req, res): Promise<void> =
     }
   }
 
-  await db
-    .update(subscriptionsTable)
-    .set({ status: "cancelled", updatedAt: new Date() })
-    .where(eq(subscriptionsTable.userId, targetId));
+  const now = new Date();
+  const stillInTrial = sub.status === "trial" && sub.trialEndsAt && sub.trialEndsAt > now;
+  const stillInPaidPeriod = sub.status === "active" && sub.currentPeriodEnd && sub.currentPeriodEnd > now;
 
-  res.json({ message: "Assinatura cancelada." });
+  if (stillInTrial || stillInPaidPeriod) {
+    await db
+      .update(subscriptionsTable)
+      .set({ asaasSubscriptionId: null, updatedAt: new Date() })
+      .where(eq(subscriptionsTable.userId, targetId));
+    res.json({ message: "Assinatura cancelada (acesso mantido até o fim do período atual)." });
+  } else {
+    await db
+      .update(subscriptionsTable)
+      .set({ status: "expired", asaasSubscriptionId: null, updatedAt: new Date() })
+      .where(eq(subscriptionsTable.userId, targetId));
+    res.json({ message: "Assinatura cancelada." });
+  }
 });
 
 // ─── Clear test data ──────────────────────────────────────────────────────────
@@ -233,11 +265,22 @@ router.get("/admin/metrics", async (req, res): Promise<void> => {
       billingCycle: subscriptionsTable.billingCycle,
       updatedAt: subscriptionsTable.updatedAt,
       createdAt: subscriptionsTable.createdAt,
+      currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
     })
     .from(subscriptionsTable);
 
   const activeSubs = allSubs.filter((s) => s.status === "active");
   const trialSubs = allSubs.filter((s) => s.status === "trial");
+
+  // Churned subscriptions: had a paid period (currentPeriodEnd != null) that ended → status "expired".
+  // This excludes trial expirations (which never had a paid period) so they don't pollute churn metrics.
+  const churnedSubs = allSubs.filter(
+    (s) => s.status === "expired" && s.currentPeriodEnd != null,
+  );
+  // Window: those whose paid period ended within the last 30 days
+  const churnedSubsLast30 = churnedSubs.filter(
+    (s) => s.currentPeriodEnd != null && s.currentPeriodEnd >= thirtyDaysAgo,
+  );
 
   // MRR = sum of monthly-equivalent revenue for active paying subscribers
   const mrr = activeSubs.reduce((sum, s) => {
@@ -251,20 +294,11 @@ router.get("/admin/metrics", async (req, res): Promise<void> => {
   const totalUsers = allSubs.length;
   const arpu = activeCount > 0 ? mrr / activeCount : 0;
 
-  // Churn: cancelled in last 30 days / total that were active at start of period
-  const cancelledLast30 = allSubs.filter(
-    (s) => s.status === "cancelled" && s.updatedAt >= thirtyDaysAgo
-  ).length;
+  // Denominator: paying users who existed at the start of the 30-day window
+  // (currently active) + (churned during the window — they were active at start)
+  const activeAtStart = activeCount + churnedSubsLast30.length;
 
-  // Denominator: paying users who existed at the start of the window
-  // (currently active) + (cancelled during the window, i.e. were active at start)
-  const activeAtStart = allSubs.filter(
-    (s) =>
-      s.status === "active" ||
-      (s.status === "cancelled" && s.updatedAt >= thirtyDaysAgo)
-  ).length;
-
-  const monthlyChurnRate = activeAtStart > 0 ? cancelledLast30 / activeAtStart : 0;
+  const monthlyChurnRate = activeAtStart > 0 ? churnedSubsLast30.length / activeAtStart : 0;
   // Linear annualisation — avoids the compound formula inflating small samples
   // (e.g. 1 cancellation / 4 users = 25% monthly → 97% compound annual, vs 25%*12 = 300% capped at 100%)
   const annualChurnRate = Math.min(monthlyChurnRate * 12, 1);
@@ -277,18 +311,15 @@ router.get("/admin/metrics", async (req, res): Promise<void> => {
     .filter((s) => s.createdAt >= thirtyDaysAgo)
     .reduce((sum, s) => sum + (s.billingCycle ? (MRR_BY_CYCLE[s.billingCycle] ?? 0) : 0), 0);
 
-  // Churned MRR (cancelled in last 30 days)
-  const churnedMrrValue = allSubs
-    .filter((s) => s.status === "cancelled" && s.updatedAt >= thirtyDaysAgo)
+  // Churned MRR (paid subs that expired in the last 30 days)
+  const churnedMrrValue = churnedSubsLast30
     .reduce((sum, s) => sum + (s.billingCycle ? (MRR_BY_CYCLE[s.billingCycle] ?? 0) : 0), 0);
 
-  // Starting MRR (active subs from 30-60 days ago window as proxy)
-  const startingMrr = allSubs
-    .filter((s) =>
-      s.status === "active" ||
-      (s.status === "cancelled" && s.updatedAt >= thirtyDaysAgo && s.createdAt < thirtyDaysAgo)
-    )
-    .reduce((sum, s) => sum + (s.billingCycle ? (MRR_BY_CYCLE[s.billingCycle] ?? 0) : 0), 0);
+  // Starting MRR proxy: active now + churned within window who were created before window
+  const startingMrr = [
+    ...activeSubs,
+    ...churnedSubsLast30.filter((s) => s.createdAt < thirtyDaysAgo),
+  ].reduce((sum, s) => sum + (s.billingCycle ? (MRR_BY_CYCLE[s.billingCycle] ?? 0) : 0), 0);
 
   const nrr = startingMrr > 0 ? (startingMrr + newMrr - churnedMrrValue) / startingMrr : null;
 

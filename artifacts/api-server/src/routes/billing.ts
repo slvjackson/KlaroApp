@@ -320,7 +320,7 @@ router.post("/billing/webhook", async (req, res): Promise<void> => {
       event === "PAYMENT_REFUNDED"
     ) {
       // Cancellation in Asaas does NOT mean immediate access loss. The user keeps access until
-      // their trial or paid period ends. We only flip status to "cancelled" when access has expired.
+      // their trial or paid period ends. We only flip status to "expired" when access is over.
       if (stillHasAccess) {
         await db
           .update(subscriptionsTable)
@@ -333,7 +333,7 @@ router.post("/billing/webhook", async (req, res): Promise<void> => {
       } else {
         await db
           .update(subscriptionsTable)
-          .set({ status: "cancelled", asaasSubscriptionId: null, updatedAt: new Date() })
+          .set({ status: "expired", asaasSubscriptionId: null, updatedAt: new Date() })
           .where(eq(subscriptionsTable.id, sub.id));
       }
     }
@@ -383,10 +383,10 @@ router.delete("/billing/subscription", requireAuth, async (req, res): Promise<vo
         : "fim do período já pago";
       res.json({ message: `Assinatura cancelada. Você mantém acesso até o ${endLabel}.` });
     } else {
-      // No access remaining — flip to cancelled
+      // No access remaining — flip to expired
       await db
         .update(subscriptionsTable)
-        .set({ status: "cancelled", asaasSubscriptionId: null, updatedAt: new Date() })
+        .set({ status: "expired", asaasSubscriptionId: null, updatedAt: new Date() })
         .where(eq(subscriptionsTable.userId, userId));
 
       res.json({ message: "Assinatura cancelada." });

@@ -1,7 +1,7 @@
 import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
-export type SubscriptionStatus = "trial" | "active" | "overdue" | "cancelled" | "expired";
+export type SubscriptionStatus = "trial" | "active" | "overdue" | "expired";
 export type BillingCycle = "monthly" | "semiannual" | "annual";
 
 export const subscriptionsTable = pgTable("subscriptions", {

@@ -87,9 +87,8 @@ function StatusBanner({ status, trialDaysLeft, currentPeriodEnd, billingCycle }:
   }
 
   const labels: Record<string, string> = {
-    overdue:   "Pagamento pendente — regularize para continuar usando o Klaro.",
-    cancelled: "Assinatura cancelada.",
-    expired:   "Período de teste encerrado.",
+    overdue: "Pagamento pendente — regularize para continuar usando o Klaro.",
+    expired: "Período de teste encerrado.",
   };
 
   return (

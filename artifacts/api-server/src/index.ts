@@ -46,6 +46,9 @@ pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'").catch((e) =>
   logger.warn({ err: e }, "Could not add status column to users")
 );
+pool.query("UPDATE subscriptions SET status='expired' WHERE status='cancelled'").catch((e) =>
+  logger.warn({ err: e }, "Could not migrate cancelled subscriptions to expired")
+);
 pool.query(`CREATE TABLE IF NOT EXISTS operational_costs (
   id SERIAL PRIMARY KEY,
   category TEXT NOT NULL,
