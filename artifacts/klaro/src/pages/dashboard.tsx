@@ -31,9 +31,16 @@ function groupByCategory(
     .sort((a, b) => b.total - a.total);
 }
 
+// Paleta Neo-Brutalismo moderno: pastéis saturados + contrastes profundos + acento elétrico
 const CAT_COLORS = [
-  "#6af82f", "#10b981", "#f59e0b", "#e879f9",
-  "#fb923c", "#14b8a6", "#60a5fa", "#f43f5e",
+  "#7FE5C2", // mint
+  "#C2B5FF", // lavender
+  "#FF9580", // coral
+  "#D9FF1F", // lime (acento elétrico)
+  "#2A3FC9", // royal blue profundo
+  "#8A38FF", // roxo vibrante
+  "#FFB68A", // peach
+  "#E8E8E8", // cinza claro neutro
 ];
 
 function brl(v: number) {
@@ -166,10 +173,10 @@ function MonthlyChart({
         </div>
         <div className="flex items-center gap-3 text-[11px]">
           <div className="flex items-center gap-1.5 text-[var(--muted)]">
-            <span className="w-2 h-2 rounded-full bg-[var(--income)]" />Entradas
+            <span className="w-2 h-2 rounded-full bg-[var(--chart-mint)]" />Entradas
           </div>
           <div className="flex items-center gap-1.5 text-[var(--muted)]">
-            <span className="w-2 h-2 rounded-full bg-[var(--expense)]" />Saídas
+            <span className="w-2 h-2 rounded-full bg-[var(--chart-coral)]" />Saídas
           </div>
         </div>
       </div>
@@ -199,12 +206,12 @@ function MonthlyChart({
                 {(isHov || isSelected) && (
                   <div className="absolute -top-16 z-10 px-2.5 py-1.5 rounded-md bg-[#1a1a20] border border-[var(--border-2)] text-[11px] whitespace-nowrap shadow-xl left-1/2 -translate-x-1/2">
                     <div className="text-white font-semibold">{fmtMonth(m.month)}</div>
-                    <div className="text-[var(--income)] tnum">+ {brl0(m.income)}</div>
-                    <div className="text-[var(--expense)] tnum">− {brl0(m.expenses)}</div>
+                    <div className="text-[var(--chart-mint)] tnum">+ {brl0(m.income)}</div>
+                    <div className="text-[var(--chart-coral)] tnum">− {brl0(m.expenses)}</div>
                   </div>
                 )}
-                <div className="bar-income w-[9px] rounded-t-md transition-all" style={{ height: ih + "%", boxShadow: isSelected ? "0 0 8px var(--income)" : undefined }} />
-                <div className="bar-expense w-[9px] rounded-t-md transition-all" style={{ height: eh + "%", boxShadow: isSelected ? "0 0 8px var(--expense)" : undefined }} />
+                <div className="chart-bar-income w-[9px] rounded-t-md transition-all" style={{ height: ih + "%", boxShadow: isSelected ? "0 0 8px var(--chart-mint)" : undefined }} />
+                <div className="chart-bar-expense w-[9px] rounded-t-md transition-all" style={{ height: eh + "%", boxShadow: isSelected ? "0 0 8px var(--chart-coral)" : undefined }} />
               </div>
               <div className={`text-[9.5px] transition-colors ${isSelected ? "text-white font-semibold" : isHov ? "text-white" : "text-[var(--muted)]"}`}>
                 {fmtMonth(m.month)}

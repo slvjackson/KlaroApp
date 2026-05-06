@@ -18,6 +18,18 @@
   --income-soft: rgba(16, 185, 129, 0.12);
   --expense-soft: rgba(244, 63, 94, 0.12);
   --accent-soft: rgba(106, 248, 47, 0.14);
+
+  /* ─── Chart palette (Neo-Brutalismo moderno) ─────────────────────────────
+     Não é semântica de transação (esses ficam em --income/--expense).
+     Use estes tokens só dentro de gráficos do dashboard. */
+  --chart-mint:     #7FE5C2;
+  --chart-coral:    #FF9580;
+  --chart-lavender: #C2B5FF;
+  --chart-royal:    #2A3FC9;
+  --chart-purple:   #8A38FF;
+  --chart-lime:     #D9FF1F;
+  --chart-peach:    #FFB68A;
+  --chart-gray:     #E8E8E8;
 }
 
 /* ─── Tailwind color mappings ───────────────────────────────────────────── */
@@ -200,11 +212,17 @@ select.field {
   to { opacity: 1; }
 }
 
-/* ─── Mini bar chart ────────────────────────────────────────────────────── */
+/* ─── Mini bar chart (semântico — usado em listas de transação) ─────────── */
 .bar-income { background: linear-gradient(180deg, #10b981, #059669); }
 .bar-expense { background: linear-gradient(180deg, #f43f5e, #be123c); }
 .bar-income:hover { filter: brightness(1.15); }
 .bar-expense:hover { filter: brightness(1.15); }
+
+/* ─── Chart bars (paleta Neo-Brutalismo, só pros gráficos do dashboard) ─── */
+.chart-bar-income  { background: linear-gradient(180deg, #7FE5C2, #5FCFA8); }
+.chart-bar-expense { background: linear-gradient(180deg, #FF9580, #E07A66); }
+.chart-bar-income:hover  { filter: brightness(1.1); }
+.chart-bar-expense:hover { filter: brightness(1.1); }
 
 /* ─── Tabular numbers ───────────────────────────────────────────────────── */
 .tnum {
