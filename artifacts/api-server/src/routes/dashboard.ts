@@ -345,7 +345,13 @@ router.post("/dashboard/today-card/regenerate", requireAuth, async (req, res): P
     userId, batchStartDate: today, expiresAt, cards: generated.cards, generatedBy: generated.generatedBy,
     seasonalSignature: generated.seasonalSignature,
   });
-  res.json({ ok: true, cardCount: generated.cards.length, generatedBy: generated.generatedBy });
+  res.json({
+    ok: true,
+    cardCount: generated.cards.length,
+    generatedBy: generated.generatedBy,
+    seasonalSignature: generated.seasonalSignature,
+    cards: generated.cards.map((c) => ({ id: c.id, narrativeAngle: c.narrativeAngle, blockTypes: c.blocks.map((b) => b.type) })),
+  });
 });
 
 // GET /dashboard/ranking — global ranking by active days

@@ -20,7 +20,9 @@ import { getActiveEvents, getActiveWindowSignature, type ActiveEvent } from "./s
 import { getSegmentBenchmark, type SegmentBenchmark } from "./segment-benchmarks";
 
 const MODEL = "claude-haiku-4-5-20251001";
-const MAX_OUTPUT_TOKENS = 2400;
+const MAX_OUTPUT_TOKENS = 4096;
+const VALIDATION_TOLERANCE = 0.05;     // ±5% — tolera arredondamentos de narrativa
+const MIN_VALIDATED_CARDS = 3;
 
 // ─── Aggregations ────────────────────────────────────────────────────────────
 
@@ -295,24 +297,76 @@ export async function generateBatch(userId: number, today: string): Promise<Gene
     logTokenUsage(userId, "today_card_batch", MODEL, res.usage.input_tokens, res.usage.output_tokens);
 
     const raw = res.content[0].type === "text" ? res.content[0].text.trim() : "";
-    const cleaned = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
-    const parsed = JSON.parse(cleaned) as { cards: CardEntry[] };
+    const cleaned = extractJsonObject(raw);
+    if (!cleaned) {
+      logger.warn({ userId, rawSample: raw.slice(0, 300), stopReason: res.stop_reason }, "today-card AI: no JSON object found, using fallback");
+      return { cards: buildFallbackBatch(ctx), generatedBy: "fallback", seasonalSignature: ctx.seasonalSignature };
+    }
+    let parsed: { cards?: CardEntry[] };
+    try {
+      parsed = JSON.parse(cleaned) as { cards?: CardEntry[] };
+    } catch (parseErr) {
+      logger.warn({ userId, parseErr: String(parseErr), sample: cleaned.slice(0, 300), stopReason: res.stop_reason }, "today-card AI: JSON parse failed, using fallback");
+      return { cards: buildFallbackBatch(ctx), generatedBy: "fallback", seasonalSignature: ctx.seasonalSignature };
+    }
 
-    const validated = (parsed.cards ?? [])
-      .filter((c) => Array.isArray(c.blocks) && c.blocks.length > 0 && c.blocks.length <= 5)
-      .map((c, idx) => ({ ...c, id: c.id ?? `card_${idx}` }))
-      .filter((c) => validateCardNumbers(c, ctx));
+    const rawCards = parsed.cards ?? [];
+    const shapeOk = rawCards
+      .filter((c) => Array.isArray(c.blocks) && c.blocks.length > 0 && c.blocks.length <= 8)
+      .map((c, idx) => ({ ...c, id: c.id ?? `card_${idx}` }));
+    const rejectedShape = rawCards.length - shapeOk.length;
 
-    if (validated.length < 3) {
-      logger.warn({ userId, validatedCount: validated.length }, "today-card batch failed validation, using fallback");
+    const validated: CardEntry[] = [];
+    const rejectedNumbers: Array<{ id: string; offending: number[] }> = [];
+    for (const c of shapeOk) {
+      const result = validateCardNumbersDetailed(c, ctx);
+      if (result.ok) validated.push(c);
+      else rejectedNumbers.push({ id: c.id, offending: result.offending });
+    }
+
+    logger.info({
+      userId,
+      stopReason: res.stop_reason,
+      rawCount: rawCards.length,
+      shapeOk: shapeOk.length,
+      validated: validated.length,
+      rejectedShape,
+      rejectedNumbers,
+      inputTokens: res.usage.input_tokens,
+      outputTokens: res.usage.output_tokens,
+    }, "today-card AI generation report");
+
+    if (validated.length < MIN_VALIDATED_CARDS) {
       return { cards: buildFallbackBatch(ctx), generatedBy: "fallback", seasonalSignature: ctx.seasonalSignature };
     }
 
     return { cards: validated, generatedBy: "ai", seasonalSignature: ctx.seasonalSignature };
   } catch (e) {
-    logger.error({ err: e, userId }, "today-card AI generation failed");
+    logger.error({ err: e, userId }, "today-card AI generation threw, using fallback");
     return { cards: buildFallbackBatch(ctx), generatedBy: "fallback", seasonalSignature: ctx.seasonalSignature };
   }
+}
+
+/** Extrai o primeiro objeto JSON balanceado do texto, ignorando comentários antes/depois. */
+function extractJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
 }
 
 // ─── Numeric validation ──────────────────────────────────────────────────────
@@ -342,11 +396,10 @@ function collectAllowedNumbers(ctx: BusinessContext): number[] {
 
 function isAllowedNumber(n: number, allowed: number[]): boolean {
   if (n === 0) return true;
-  // Allow if within ±2% of any source number, OR if within ±2% of a derived percentage (0..200)
-  if (n >= 0 && n <= 200 && Math.abs(n - Math.round(n)) < 1) return true; // pct
+  if (Math.abs(n) <= 200 && Math.abs(n - Math.round(n)) < 1) return true; // percentual
   for (const a of allowed) {
     if (a === 0) continue;
-    if (Math.abs(n - a) / Math.max(Math.abs(a), 1) <= 0.02) return true;
+    if (Math.abs(Math.abs(n) - Math.abs(a)) / Math.max(Math.abs(a), 1) <= VALIDATION_TOLERANCE) return true;
   }
   return false;
 }
@@ -363,24 +416,25 @@ function extractNumbers(text: string): number[] {
   return out;
 }
 
-function validateCardNumbers(card: CardEntry, ctx: BusinessContext): boolean {
+function validateCardNumbersDetailed(card: CardEntry, ctx: BusinessContext): { ok: boolean; offending: number[] } {
   const allowed = collectAllowedNumbers(ctx);
+  const offending: number[] = [];
   const stringsToCheck: string[] = [];
   for (const b of card.blocks) {
     if (b.type === "callout") { stringsToCheck.push(b.headline, b.body); }
     else if (b.type === "bigNumber") { stringsToCheck.push(b.value, b.delta ?? "", b.sublabel ?? ""); }
     else if (b.type === "text") { stringsToCheck.push(b.content); }
-    else if (b.type === "barChart") { for (const d of b.data) if (!isAllowedNumber(d.value, allowed)) return false; }
-    else if (b.type === "lineChart") { for (const d of b.data) if (!isAllowedNumber(d.y, allowed)) return false; }
+    else if (b.type === "barChart") { for (const d of b.data) if (!isAllowedNumber(d.value, allowed)) offending.push(d.value); }
+    else if (b.type === "lineChart") { for (const d of b.data) if (!isAllowedNumber(d.y, allowed)) offending.push(d.y); }
     else if (b.type === "comparison") { stringsToCheck.push(b.left.value, b.right.value); }
     else if (b.type === "list") { for (const it of b.items) stringsToCheck.push(it.value, it.subtitle ?? ""); }
   }
   for (const s of stringsToCheck) {
     for (const n of extractNumbers(s)) {
-      if (!isAllowedNumber(n, allowed)) return false;
+      if (!isAllowedNumber(n, allowed)) offending.push(n);
     }
   }
-  return true;
+  return { ok: offending.length === 0, offending };
 }
 
 // ─── Deterministic fallback batch (used when AI fails) ────────────────────────
@@ -394,42 +448,143 @@ function buildFallbackBatch(ctx: BusinessContext): CardEntry[] {
   const lastClosed = ctx.monthly[ctx.monthly.length - 1];
   const useAnchor = ctx.curMtd.txCount >= 3 ? ctx.curMtd : (lastClosed ?? ctx.prevMtd);
   const anchorLabel = ctx.curMtd.txCount >= 3 ? "Mês até aqui" : `Último mês fechado (${useAnchor.month})`;
+  const last6 = ctx.monthly.slice(-6);
 
-  // Card 1: snapshot
-  cards.push({
-    id: "fallback_snapshot",
-    narrativeAngle: "monthly_snapshot",
-    blocks: [
-      { type: "callout", tone: useAnchor.margin >= 0 ? "celebration" : "warning", headline: `${anchorLabel}`, body: useAnchor.margin >= 0 ? "Você fechou no azul." : "Despesas superaram receitas — atenção." },
-      { type: "bigNumber", label: "Margem", value: fmtBRL(useAnchor.margin), trend: useAnchor.margin >= 0 ? "up" : "down" },
-      { type: "comparison", title: "Entradas vs Saídas", left: { label: "Entradas", value: fmtBRL(useAnchor.income) }, right: { label: "Saídas", value: fmtBRL(useAnchor.expense) } },
-    ],
-  });
+  // Card 1: snapshot enriquecido — callout + bigNumber + lineChart de margem + comparison + top categorias
+  const marginSeries = last6.map((m) => ({ x: m.month.slice(5), y: Math.round(m.margin) }));
+  const topAnchorExpenses = Object.entries(useAnchor.byCatExpense).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const snapshotBlocks: CardBlock[] = [
+    {
+      type: "callout",
+      tone: useAnchor.margin >= 0 ? "celebration" : "warning",
+      headline: anchorLabel,
+      body: useAnchor.margin >= 0
+        ? `Você fechou no azul com ${useAnchor.txCount} transações registradas.`
+        : `Despesas superaram receitas em ${ctx.curMtd.txCount >= 3 ? "maio" : useAnchor.month}. Início de mês com custos fixos pesa antes da receita acumular.`,
+    },
+    {
+      type: "comparison",
+      title: "Entradas vs Saídas",
+      left:  { label: "Entradas", value: fmtBRL(useAnchor.income),  trend: "up" },
+      right: { label: "Saídas",   value: fmtBRL(useAnchor.expense), trend: "down" },
+    },
+  ];
+  if (marginSeries.length >= 3) {
+    snapshotBlocks.push({
+      type: "lineChart",
+      title: "Margem dos últimos 6 meses",
+      data: marginSeries,
+      unit: "BRL",
+    });
+  }
+  if (topAnchorExpenses.length > 0) {
+    snapshotBlocks.push({
+      type: "list",
+      title: "Maiores saídas do período",
+      items: topAnchorExpenses.map(([label, value]) => ({
+        label,
+        value: fmtBRL(value),
+        subtitle: `${Math.round((value / useAnchor.expense) * 100)}% das despesas`,
+      })),
+    });
+  }
+  cards.push({ id: "fallback_snapshot", narrativeAngle: "monthly_snapshot", blocks: snapshotBlocks });
 
-  // Card 2: trend (if >= 3 months)
+  // Card 2: tendência de receita
   if (ctx.monthly.length >= 3) {
-    const last6 = ctx.monthly.slice(-6);
+    const trendDelta = last6.length >= 2
+      ? ((last6[last6.length - 1].income - last6[0].income) / Math.max(last6[0].income, 1)) * 100
+      : 0;
     cards.push({
-      id: "fallback_trend",
+      id: "fallback_revenue_trend",
       narrativeAngle: "revenue_trend",
       blocks: [
-        { type: "callout", tone: "comparison", headline: "Evolução da receita", body: `Veja como suas entradas se moveram nos últimos ${last6.length} meses.` },
+        {
+          type: "callout",
+          tone: trendDelta >= 0 ? "celebration" : "warning",
+          headline: `Receita ${trendDelta >= 0 ? "cresceu" : "caiu"} ${Math.abs(Math.round(trendDelta))}% em ${last6.length} meses`,
+          body: `De ${last6[0].month} a ${last6[last6.length - 1].month}, sua receita mensal foi de ${fmtBRL(last6[0].income)} para ${fmtBRL(last6[last6.length - 1].income)}.`,
+        },
         { type: "lineChart", title: "Receita mensal", data: last6.map((m) => ({ x: m.month.slice(5), y: Math.round(m.income) })), unit: "BRL" },
+        {
+          type: "bigNumber",
+          label: "Variação no período",
+          value: `${trendDelta >= 0 ? "+" : ""}${Math.round(trendDelta)}%`,
+          trend: trendDelta >= 0 ? "up" : "down",
+          sublabel: `${last6[0].month} → ${last6[last6.length - 1].month}`,
+        },
       ],
     });
   }
 
-  // Card 3: top expense categories (last closed month)
+  // Card 3: top categorias de despesa do último fechado, com bar chart
   if (lastClosed && Object.keys(lastClosed.byCatExpense).length >= 3) {
     const top = Object.entries(lastClosed.byCatExpense).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const top3Sum = top.slice(0, 3).reduce((s, [, v]) => s + v, 0);
+    const top3Pct = lastClosed.expense > 0 ? Math.round((top3Sum / lastClosed.expense) * 100) : 0;
     cards.push({
       id: "fallback_top_expenses",
       narrativeAngle: "expense_breakdown",
       blocks: [
-        { type: "callout", tone: "insight", headline: `Onde foi seu dinheiro em ${lastClosed.month}`, body: "Top 5 categorias de despesa.", ctaLabel: "Ver transações", ctaHref: "/transactions" },
+        {
+          type: "callout",
+          tone: "insight",
+          headline: `Top 3 categorias = ${top3Pct}% das despesas em ${lastClosed.month}`,
+          body: `${top.slice(0, 3).map(([c]) => c).join(", ")} concentram a maior parte das saídas. Cortes aqui têm impacto desproporcional.`,
+          ctaLabel: "Ver transações",
+          ctaHref: "/transactions",
+        },
         { type: "barChart", title: `Despesas — ${lastClosed.month}`, data: top.map(([label, value]) => ({ label, value: Math.round(value), color: "expense" })), unit: "BRL" },
       ],
     });
+  }
+
+  // Card 4: mix de receita
+  if (lastClosed && Object.keys(lastClosed.byCatIncome).length >= 2) {
+    const top = Object.entries(lastClosed.byCatIncome).sort((a, b) => b[1] - a[1]);
+    const leader = top[0];
+    const leaderPct = lastClosed.income > 0 ? Math.round((leader[1] / lastClosed.income) * 100) : 0;
+    cards.push({
+      id: "fallback_income_mix",
+      narrativeAngle: "income_mix",
+      blocks: [
+        {
+          type: "callout",
+          tone: leaderPct > 60 ? "warning" : "comparison",
+          headline: `${leader[0]} foi sua maior fonte de receita`,
+          body: leaderPct > 60
+            ? `${leaderPct}% da receita de ${lastClosed.month} veio de ${leader[0]}. Concentração alta = risco. Vale diversificar.`
+            : `${leader[0]} representou ${leaderPct}% da receita em ${lastClosed.month}. Distribuição saudável entre canais.`,
+        },
+        { type: "barChart", title: `Receita por canal — ${lastClosed.month}`, data: top.map(([label, value]) => ({ label, value: Math.round(value), color: "income" })), unit: "BRL" },
+      ],
+    });
+  }
+
+  // Card 5: melhor mês (positivo)
+  if (ctx.monthly.length >= 2) {
+    const best = [...ctx.monthly].sort((a, b) => b.margin - a.margin)[0];
+    if (best.margin > 0) {
+      cards.push({
+        id: "fallback_best_month",
+        narrativeAngle: "best_month_recap",
+        blocks: [
+          {
+            type: "callout",
+            tone: "celebration",
+            headline: `${best.month} foi o seu melhor mês`,
+            body: `Margem de ${fmtBRL(best.margin)} com ${fmtBRL(best.income)} de receita. ${best.txCount} transações.`,
+          },
+          {
+            type: "comparison",
+            title: "Composição",
+            left:  { label: "Receita",  value: fmtBRL(best.income),  trend: "up" },
+            right: { label: "Despesa", value: fmtBRL(best.expense), trend: "down" },
+          },
+          { type: "bigNumber", label: "Margem do mês", value: fmtBRL(best.margin), trend: "up", sublabel: `${Math.round((best.margin / best.income) * 100)}% sobre a receita` },
+        ],
+      });
+    }
   }
 
   return cards;
