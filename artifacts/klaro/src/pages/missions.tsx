@@ -216,7 +216,7 @@ export default function Missions() {
 
   return (
     <Layout title="Missões">
-      <div className="space-y-5 max-w-xl">
+      <div className="max-w-2xl mx-auto space-y-6-y-5 max-w-xl">
         <div>
           <h1 className="text-[22px] font-bold tracking-tight text-white">Missões</h1>
           {pinned.length > 0 && (

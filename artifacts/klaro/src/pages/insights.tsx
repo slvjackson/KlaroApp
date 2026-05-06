@@ -333,7 +333,7 @@ export default function Insights() {
 
   return (
     <Layout title="Insights">
-      <div className="relative space-y-5 max-w-3xl min-h-[400px]">
+      <div className="max-w-2xl mx-auto space-y-6">
         {genStartedAt !== null && (
           <GeneratingInsightsOverlay startedAt={genStartedAt} />
         )}
