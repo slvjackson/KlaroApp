@@ -11,6 +11,7 @@ import { Sparkline } from "@/components/Sparkline";
 import { DailyHeader } from "@/components/DailyHeader";
 import { HealthScoreCard } from "@/components/HealthScoreCard";
 import { LevelCard } from "@/components/LevelCard";
+import { TodayCard } from "@/components/TodayCard";
 import { Link } from "wouter";
 import { TrendingUp, TrendingDown, Upload } from "lucide-react";
 
@@ -367,6 +368,9 @@ export default function Dashboard() {
           loading={isSummaryLoading}
           selectedMonth={selectedMonth}
         />
+
+        {/* ── Row 1.5: Card "Hoje" rotativo ── */}
+        <TodayCard />
 
         {/* ── Row 2: Analysis ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
