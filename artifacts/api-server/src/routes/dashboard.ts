@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { db, transactionsTable, rawInputsTable, usersTable, userActivitiesTable, insightsTable } from "@workspace/db";
+import { db, transactionsTable, rawInputsTable, usersTable, userActivitiesTable, insightsTable, dailyCardBatchesTable } from "@workspace/db";
 import { eq, and, gte, lte, isNull, isNotNull, count, sum, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { calculateStreak, getTodayBrasilia } from "../lib/daily-tasks";
+import { generateBatch } from "../lib/today-card-generator";
 
 const router = Router();
 
@@ -270,264 +271,72 @@ router.get("/dashboard/achievements", requireAuth, async (req, res): Promise<voi
   });
 });
 
-// ─── Card "Hoje" rotativo (Pilar 3) ──────────────────────────────────────────
+// ─── Card "Hoje" rotativo (Pilar 3) — gerado por IA com fallback determinístico
 
-type CardTone = "insight" | "comparison" | "warning" | "celebration";
-
-interface DailyCard {
-  id: string;
-  tone: CardTone;
-  icon: string;
-  headline: string;
-  body: string;
-  metric?: { value: string; delta?: string; trend?: "up" | "down" | "flat" };
-  cta?: { label: string; href: string };
-}
-
-interface MonthAgg {
-  income: number;
-  expense: number;
-  byCatExpense: Map<string, number>;
-  byCatIncome: Map<string, number>;
-  txCount: number;
-}
-
-function emptyAgg(): MonthAgg {
-  return { income: 0, expense: 0, byCatExpense: new Map(), byCatIncome: new Map(), txCount: 0 };
-}
-
-function shiftMonth(yyyymm: string, delta: number): string {
-  const [y, m] = yyyymm.split("-").map(Number);
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-function fmtBRL(v: number): string {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
-}
-
-function fmtPct(v: number): string {
-  return `${v >= 0 ? "+" : ""}${Math.round(v)}%`;
-}
-
-function hashSeed(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function topEntries(m: Map<string, number>, n: number): Array<[string, number]> {
-  return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
-}
+const BATCH_TTL_DAYS = 7;
 
 router.get("/dashboard/today-card", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
   const today = getTodayBrasilia();
-  const currentMonth = today.slice(0, 7);
-  const prevMonth = shiftMonth(currentMonth, -1);
-  const dayOfMonth = parseInt(today.slice(8, 10), 10);
 
-  const transactions = await db
-    .select({ date: transactionsTable.date, type: transactionsTable.type, amount: transactionsTable.amount, category: transactionsTable.category })
-    .from(transactionsTable)
-    .where(eq(transactionsTable.userId, userId));
+  // Look up the most recent non-expired batch
+  const existing = await db
+    .select()
+    .from(dailyCardBatchesTable)
+    .where(eq(dailyCardBatchesTable.userId, userId))
+    .orderBy(desc(dailyCardBatchesTable.createdAt))
+    .limit(1)
+    .then((r) => r[0]);
 
-  if (transactions.length === 0) {
-    res.json({
-      id: "no_data",
-      tone: "insight",
-      icon: "Upload",
-      headline: "Comece importando seus dados",
-      body: "Suba uma planilha ou extrato para destravar análises diárias do seu negócio.",
-      cta: { label: "Fazer upload", href: "/upload" },
-    } satisfies DailyCard);
+  let batch = existing;
+  const isStale = !batch || new Date(batch.expiresAt).getTime() <= Date.now();
+
+  if (isStale) {
+    const generated = await generateBatch(userId, today);
+    if (generated.cards.length > 0) {
+      const expiresAt = new Date(Date.now() + BATCH_TTL_DAYS * 86_400_000);
+      const inserted = await db
+        .insert(dailyCardBatchesTable)
+        .values({
+          userId,
+          batchStartDate: today,
+          expiresAt,
+          cards: generated.cards,
+          generatedBy: generated.generatedBy,
+        })
+        .returning();
+      batch = inserted[0];
+    }
+  }
+
+  if (!batch || !Array.isArray(batch.cards) || batch.cards.length === 0) {
+    res.json({ id: "no_data", narrativeAngle: "empty", blocks: [
+      { type: "callout", tone: "insight", icon: "Upload", headline: "Comece importando seus dados",
+        body: "Suba uma planilha ou extrato para destravar análises diárias do seu negócio.",
+        ctaLabel: "Fazer upload", ctaHref: "/upload" },
+    ] });
     return;
   }
 
-  // Aggregate by month
-  const months = new Map<string, MonthAgg>();
-  for (const t of transactions) {
-    const month = t.date.slice(0, 7);
-    if (!months.has(month)) months.set(month, emptyAgg());
-    const agg = months.get(month)!;
-    agg.txCount++;
-    if (t.type === "income") {
-      agg.income += t.amount;
-      agg.byCatIncome.set(t.category, (agg.byCatIncome.get(t.category) ?? 0) + t.amount);
-    } else {
-      agg.expense += t.amount;
-      agg.byCatExpense.set(t.category, (agg.byCatExpense.get(t.category) ?? 0) + t.amount);
-    }
-  }
+  // Pick deterministically by (today - batchStart) % cards.length
+  const startMs = new Date(batch.batchStartDate + "T00:00:00Z").getTime();
+  const todayMs = new Date(today + "T00:00:00Z").getTime();
+  const dayOffset = Math.max(0, Math.floor((todayMs - startMs) / 86_400_000));
+  const pick = batch.cards[dayOffset % batch.cards.length];
 
-  const cur = months.get(currentMonth) ?? emptyAgg();
-  const prev = months.get(prevMonth) ?? emptyAgg();
+  res.json({ ...pick, generatedBy: batch.generatedBy });
+});
 
-  // Month-to-date previous month (for fair mid-month comparison)
-  const prevMtdAgg = emptyAgg();
-  for (const t of transactions) {
-    if (!t.date.startsWith(prevMonth)) continue;
-    const d = parseInt(t.date.slice(8, 10), 10);
-    if (d > dayOfMonth) continue;
-    prevMtdAgg.txCount++;
-    if (t.type === "income") {
-      prevMtdAgg.income += t.amount;
-      prevMtdAgg.byCatIncome.set(t.category, (prevMtdAgg.byCatIncome.get(t.category) ?? 0) + t.amount);
-    } else {
-      prevMtdAgg.expense += t.amount;
-      prevMtdAgg.byCatExpense.set(t.category, (prevMtdAgg.byCatExpense.get(t.category) ?? 0) + t.amount);
-    }
-  }
-
-  const candidates: DailyCard[] = [];
-
-  // Template 1: maior categoria de despesa do mês atual
-  if (cur.byCatExpense.size >= 2 && cur.expense > 0) {
-    const [topCat, topVal] = topEntries(cur.byCatExpense, 1)[0];
-    const pct = Math.round((topVal / cur.expense) * 100);
-    if (pct >= 25) {
-      candidates.push({
-        id: "biggest_expense",
-        tone: "insight",
-        icon: "PieChart",
-        headline: `${topCat} concentra ${pct}% das despesas`,
-        body: `Você gastou ${fmtBRL(topVal)} em ${topCat} este mês. É a sua maior categoria de saída.`,
-        metric: { value: `${pct}%`, trend: "flat" },
-        cta: { label: "Ver categorias", href: "/transactions" },
-      });
-    }
-  }
-
-  // Template 2: categoria de despesa que mais cresceu vs mesmo período mês anterior
-  if (prevMtdAgg.byCatExpense.size > 0 && cur.byCatExpense.size > 0 && cur.txCount >= 3) {
-    let bestCat: string | null = null;
-    let bestDelta = 0;
-    let bestCurVal = 0;
-    for (const [cat, curVal] of cur.byCatExpense) {
-      const prevVal = prevMtdAgg.byCatExpense.get(cat) ?? 0;
-      if (prevVal < 100) continue;
-      const delta = ((curVal - prevVal) / prevVal) * 100;
-      if (delta > bestDelta) { bestDelta = delta; bestCat = cat; bestCurVal = curVal; }
-    }
-    if (bestCat && bestDelta >= 20) {
-      candidates.push({
-        id: "expense_grew",
-        tone: "warning",
-        icon: "TrendingUp",
-        headline: `${bestCat} subiu ${Math.round(bestDelta)}%`,
-        body: `Você gastou ${fmtBRL(bestCurVal)} em ${bestCat} no mês até aqui — bem acima do mesmo período do mês anterior.`,
-        metric: { value: fmtPct(bestDelta), trend: "up" },
-        cta: { label: "Investigar", href: "/transactions" },
-      });
-    }
-  }
-
-  // Template 3: categoria de despesa que mais caiu (celebration) — usa MTD para comparação justa
-  if (prevMtdAgg.byCatExpense.size > 0 && cur.txCount >= 5) {
-    let bestCat: string | null = null;
-    let bestDelta = 0;
-    let bestSaving = 0;
-    for (const [cat, prevVal] of prevMtdAgg.byCatExpense) {
-      if (prevVal < 200) continue;
-      const curVal = cur.byCatExpense.get(cat) ?? 0;
-      const delta = ((curVal - prevVal) / prevVal) * 100;
-      if (delta < bestDelta) { bestDelta = delta; bestCat = cat; bestSaving = prevVal - curVal; }
-    }
-    if (bestCat && bestDelta <= -15) {
-      candidates.push({
-        id: "expense_fell",
-        tone: "celebration",
-        icon: "TrendingDown",
-        headline: `${bestCat} caiu ${Math.abs(Math.round(bestDelta))}%`,
-        body: `Você economizou ${fmtBRL(bestSaving)} em ${bestCat} comparado ao mês anterior. Continue assim.`,
-        metric: { value: fmtPct(bestDelta), trend: "down" },
-      });
-    }
-  }
-
-  // Template 4: receita que mais cresceu — MTD vs MTD
-  if (prevMtdAgg.byCatIncome.size > 0 && cur.byCatIncome.size > 0 && cur.txCount >= 3) {
-    let bestCat: string | null = null;
-    let bestDelta = 0;
-    let bestCurVal = 0;
-    let bestPrevVal = 0;
-    for (const [cat, curVal] of cur.byCatIncome) {
-      const prevVal = prevMtdAgg.byCatIncome.get(cat) ?? 0;
-      if (prevVal < 100) continue;
-      const delta = ((curVal - prevVal) / prevVal) * 100;
-      if (delta > bestDelta) { bestDelta = delta; bestCat = cat; bestCurVal = curVal; bestPrevVal = prevVal; }
-    }
-    if (bestCat && bestDelta >= 15) {
-      candidates.push({
-        id: "income_grew",
-        tone: "celebration",
-        icon: "TrendingUp",
-        headline: `${bestCat} cresceu ${Math.round(bestDelta)}%`,
-        body: `Você faturou ${fmtBRL(bestCurVal)} em ${bestCat} no mês até aqui, contra ${fmtBRL(bestPrevVal)} no mesmo período do mês anterior.`,
-        metric: { value: fmtPct(bestDelta), trend: "up" },
-      });
-    }
-  }
-
-  // Template 5: margem mês até hoje vs mesmo período mês anterior
-  if (prevMtdAgg.income > 0 && cur.income > 0) {
-    const curMargin = cur.income - cur.expense;
-    const prevMargin = prevMtdAgg.income - prevMtdAgg.expense;
-    if (Math.abs(prevMargin) >= 200) {
-      const delta = ((curMargin - prevMargin) / Math.abs(prevMargin)) * 100;
-      if (Math.abs(delta) >= 15) {
-        const isUp = delta > 0;
-        candidates.push({
-          id: "margin_compare",
-          tone: isUp ? "celebration" : "warning",
-          icon: isUp ? "TrendingUp" : "TrendingDown",
-          headline: `Margem ${isUp ? "acima" : "abaixo"} do mês passado`,
-          body: `Mês até aqui: ${fmtBRL(curMargin)}. No mesmo dia do mês anterior, você tinha ${fmtBRL(prevMargin)}.`,
-          metric: { value: fmtPct(delta), trend: isUp ? "up" : "down" },
-        });
-      }
-    }
-  }
-
-  // Template 6: concentração top 3 categorias de despesa
-  if (cur.byCatExpense.size >= 4 && cur.expense > 0) {
-    const top3 = topEntries(cur.byCatExpense, 3);
-    const top3Sum = top3.reduce((s, [, v]) => s + v, 0);
-    const pct = Math.round((top3Sum / cur.expense) * 100);
-    if (pct >= 60) {
-      candidates.push({
-        id: "expense_concentration",
-        tone: "comparison",
-        icon: "BarChart3",
-        headline: `3 categorias somam ${pct}% das despesas`,
-        body: `${top3.map(([c]) => c).join(", ")} concentram a maior parte das suas saídas. Cortes aqui têm impacto maior.`,
-        metric: { value: `${pct}%`, trend: "flat" },
-        cta: { label: "Ver detalhes", href: "/transactions" },
-      });
-    }
-  }
-
-  // Fallback: nenhum template elegível
-  if (candidates.length === 0) {
-    const useAnchor = cur.txCount >= 3 ? cur : prev;
-    const anchorLabel = cur.txCount >= 3 ? "Mês até aqui" : "Último mês fechado";
-    const margin = useAnchor.income - useAnchor.expense;
-    candidates.push({
-      id: "fallback_summary",
-      tone: margin >= 0 ? "celebration" : "warning",
-      icon: "Sparkles",
-      headline: `${anchorLabel}: ${margin >= 0 ? "no azul" : "no vermelho"}`,
-      body: `${useAnchor.txCount} transações registradas, ${fmtBRL(useAnchor.income)} de entradas e ${fmtBRL(useAnchor.expense)} de saídas.`,
-      metric: { value: fmtBRL(margin), trend: margin >= 0 ? "up" : "down" },
-      cta: { label: "Ver insights", href: "/insights" },
-    });
-  }
-
-  // Pick deterministically by (userId, today)
-  const seed = hashSeed(`${userId}-${today}`);
-  const pick = candidates[seed % candidates.length];
-
-  res.json(pick);
+// POST /dashboard/today-card/regenerate — invalidate cache + regenerate (admin/debug + future trigger hook)
+router.post("/dashboard/today-card/regenerate", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const today = getTodayBrasilia();
+  const generated = await generateBatch(userId, today);
+  const expiresAt = new Date(Date.now() + BATCH_TTL_DAYS * 86_400_000);
+  await db.insert(dailyCardBatchesTable).values({
+    userId, batchStartDate: today, expiresAt, cards: generated.cards, generatedBy: generated.generatedBy,
+  });
+  res.json({ ok: true, cardCount: generated.cards.length, generatedBy: generated.generatedBy });
 });
 
 // GET /dashboard/ranking — global ranking by active days

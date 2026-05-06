@@ -235,7 +235,11 @@
       "Bash(psql \"postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" -c \"SELECT COUNT\\(*\\) FROM transactions WHERE user_id = 1; SELECT MIN\\(date\\), MAX\\(date\\) FROM transactions WHERE user_id = 1;\")",
       "Bash(psql \"postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\")",
       "Bash(awk '/Pilar 3 . Conteúdo/,/Pilar 1 — Habit/' /Users/jackson.alberto/.claude/projects/-Users-jackson-alberto-Documents-KlaroApp/e74fc429-5273-461c-b57a-209fb771c111/tool-results/blvbjxp9x.txt)",
-      "Bash(psql 'postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require' -t -c ' *)"
+      "Bash(psql 'postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require' -t -c ' *)",
+      "Bash(psql 'postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require' -c ' *)",
+      "Bash(python3)",
+      "Bash(npx tsx -e ' *)",
+      "Bash(node --import tsx/esm -e ' *)"
     ],
     "additionalDirectories": [
       "/tmp"

@@ -8,3 +8,4 @@ export * from "./operational-costs";
 export * from "./token-usages";
 export * from "./user-activities";
 export * from "./daily-tasks";
+export * from "./daily-card-batches";
