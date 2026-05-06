@@ -14,9 +14,9 @@ async function fetchHealthScore(): Promise<HealthScore> {
 }
 
 function scoreColor(score: number): string {
-  if (score >= 71) return "#7FE5C2"; // mint pastel
-  if (score >= 41) return "#C2B5FF"; // lavender pastel
-  return "#FF9580";                   // coral pastel
+  if (score >= 71) return "#2DD4BF"; // mint pastel
+  if (score >= 41) return "#A78BFA"; // lavender pastel
+  return "#FB7185";                   // coral pastel
 }
 
 function scoreLabel(score: number): string {

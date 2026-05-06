@@ -22,14 +22,14 @@
   /* ─── Chart palette (Neo-Brutalismo moderno) ─────────────────────────────
      Não é semântica de transação (esses ficam em --income/--expense).
      Use estes tokens só dentro de gráficos do dashboard. */
-  --chart-mint:     #7FE5C2;
-  --chart-coral:    #FF9580;
-  --chart-lavender: #C2B5FF;
-  --chart-royal:    #2A3FC9;
-  --chart-purple:   #8A38FF;
-  --chart-lime:     #D9FF1F;
-  --chart-peach:    #FFB68A;
-  --chart-gray:     #E8E8E8;
+  --chart-mint:     #2DD4BF;
+  --chart-coral:    #FB7185;
+  --chart-lavender: #A78BFA;
+  --chart-royal:    #3B82F6;
+  --chart-purple:   #C084FC;
+  --chart-lime:     #EAB308;
+  --chart-peach:    #FB923C;
+  --chart-gray:     #4B5563;
 }
 
 /* ─── Tailwind color mappings ───────────────────────────────────────────── */

@@ -33,7 +33,7 @@ interface ComponentItem { value: number; max: number; [key: string]: unknown }
 function ComponentRow({ item, meta }: { item: ComponentItem; meta: ComponentMeta }) {
   const pct = Math.min(1, item.value / item.max);
   const done = item.value >= item.max;
-  const color = done ? "#7FE5C2" : item.value > 0 ? "#C2B5FF" : "rgba(255,255,255,0.15)";
+  const color = done ? "#2DD4BF" : item.value > 0 ? "#A78BFA" : "rgba(255,255,255,0.15)";
 
   return (
     <div className="flex items-center gap-4 py-3 border-b border-[var(--border)] last:border-0">
