@@ -24,6 +24,8 @@ import Missions from "@/pages/missions";
 import Billing from "@/pages/billing";
 import Admin from "@/pages/admin";
 import Terms from "@/pages/terms";
+import Saude from "@/pages/saude";
+import Conquistas from "@/pages/conquistas";
 import { GlobalUploadOverlay } from "@/pages/upload";
 import VerifyEmail from "@/pages/verify-email";
 import ForgotPassword from "@/pages/forgot-password";
@@ -79,6 +81,8 @@ function Router() {
       <Route path="/missions" component={Missions} />
       <Route path="/admin" component={Admin} />
       <Route path="/terms" component={Terms} />
+      <Route path="/saude" component={Saude} />
+      <Route path="/conquistas" component={Conquistas} />
       <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />

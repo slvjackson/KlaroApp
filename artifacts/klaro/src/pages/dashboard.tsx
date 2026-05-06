@@ -10,6 +10,7 @@ import {
 import { Sparkline } from "@/components/Sparkline";
 import { DailyHeader } from "@/components/DailyHeader";
 import { HealthScoreCard } from "@/components/HealthScoreCard";
+import { LevelCard } from "@/components/LevelCard";
 import { Link } from "wouter";
 import { TrendingUp, TrendingDown, Upload } from "lucide-react";
 
@@ -384,8 +385,11 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Saúde do negócio */}
-          <HealthScoreCard />
+          {/* Saúde + Nível */}
+          <div className="flex flex-col gap-4">
+            <HealthScoreCard />
+            <LevelCard />
+          </div>
         </div>
 
         {/* ── Row 3: Category + Routine ── */}

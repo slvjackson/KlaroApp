@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, transactionsTable, rawInputsTable, usersTable, userActivitiesTable, insightsTable } from "@workspace/db";
-import { eq, and, gte, lte, isNull, isNotNull, count, sum } from "drizzle-orm";
+import { eq, and, gte, lte, isNull, isNotNull, count, sum, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { calculateStreak, getTodayBrasilia } from "../lib/daily-tasks";
 
@@ -213,7 +213,7 @@ router.get("/dashboard/achievements", requireAuth, async (req, res): Promise<voi
   const bp = (userRow?.businessProfile as Record<string, unknown> | null) ?? {};
   const filledAnamneseFields = ANAMNESE_FIELDS_ACHV.filter((f) => bp[f] != null && String(bp[f]).trim() !== "").length;
 
-  const uniqueDates = [...new Set(allActivities.map((a) => String(a.activityDate)))].sort();
+  const uniqueDates = ([...new Set(allActivities.map((a) => String(a.activityDate)))].sort()) as string[];
   const totalActiveDays = uniqueDates.length;
   const currentStreak = await calculateStreak(userId, uniqueDates);
   const maxStreak = computeMaxStreak(uniqueDates);
@@ -268,6 +268,61 @@ router.get("/dashboard/achievements", requireAuth, async (req, res): Promise<voi
     totalActiveDays, currentStreak, achievements,
     unlockedCount, totalAchievements: achievements.length,
   });
+});
+
+// GET /dashboard/ranking — global ranking by active days
+router.get("/dashboard/ranking", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+
+  // Activity counts for all users, sorted desc
+  const activityCounts = await db
+    .select({ userId: userActivitiesTable.userId, pts: count() })
+    .from(userActivitiesTable)
+    .groupBy(userActivitiesTable.userId)
+    .orderBy(desc(count()));
+
+  const ranked = activityCounts.map((r, idx) => ({ userId: r.userId, pts: Number(r.pts), rank: idx + 1 }));
+
+  let userEntry = ranked.find((r) => r.userId === userId);
+  let userRank: number;
+  let userPts: number;
+
+  if (!userEntry) {
+    userRank = ranked.length + 1;
+    userPts = 0;
+    userEntry = { userId, pts: 0, rank: userRank };
+  } else {
+    userRank = userEntry.rank;
+    userPts = userEntry.pts;
+  }
+
+  const totalUsers = ranked.length + (userPts === 0 && !ranked.find((r) => r.userId === userId) ? 1 : 0);
+
+  const above = ranked.filter((r) => r.rank < userRank).slice(-5);
+  const below = ranked.filter((r) => r.rank > userRank).slice(0, 5);
+  const nearbyEntries = [...above, userEntry, ...below];
+
+  const nearbyIds = nearbyEntries.map((e) => e.userId);
+  const users = nearbyIds.length > 0
+    ? await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, nearbyIds))
+    : [];
+  const nameMap = new Map(users.map((u) => [u.id, u.name ?? "Usuário"]));
+
+  function maskName(name: string): string {
+    return name.split(" ").map((w, i) => {
+      if (w.length <= 1) return w;
+      return i === 0 ? w[0] + "***" : w[0] + ".";
+    }).join(" ");
+  }
+
+  const nearby = nearbyEntries.map((e) => ({
+    rank: e.rank,
+    name: e.userId === userId ? String(nameMap.get(userId) ?? "Você") : maskName(String(nameMap.get(e.userId) ?? "Usuário")),
+    pts: e.pts,
+    isCurrentUser: e.userId === userId,
+  }));
+
+  res.json({ userRank, userPts, totalUsers, nearby });
 });
 
 export default router;
