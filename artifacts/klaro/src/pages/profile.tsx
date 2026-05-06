@@ -6,6 +6,7 @@ import { Layout } from "@/components/layout";
 import { Loader2, CheckCircle2, AlertCircle, Lock, Trash2, X, Sparkles, Pencil, CreditCard } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AnamneseCta } from "@/components/anamnese-cta";
+import { AchievementsCard } from "@/components/AchievementsCard";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -247,6 +248,8 @@ export default function Profile() {
           <h1 className="text-[22px] font-bold tracking-tight text-white">Perfil do Negócio</h1>
           <p className="text-[12.5px] text-[var(--muted)] mt-1">Essas informações melhoram a leitura dos arquivos e os insights gerados.</p>
         </div>
+
+        <AchievementsCard />
 
         {bp?.anamneseCompleted ? (
           <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[rgba(16,185,129,0.06)] border border-[rgba(16,185,129,0.18)]">

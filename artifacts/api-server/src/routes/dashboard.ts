@@ -175,4 +175,99 @@ router.get("/dashboard/health-score", requireAuth, async (req, res): Promise<voi
   });
 });
 
+// ─── Achievements & Levels ───────────────────────────────────────────────────
+
+const ANAMNESE_FIELDS_ACHV = [
+  "tempoMercado", "tipoNegocio", "ticketMedio", "faixaFaturamento",
+  "controleFinanceiro", "sabeLucro", "separaFinancas", "conheceCustos",
+  "comoDecide", "deixouInvestir", "surpresaCaixa", "maiorDificuldade",
+  "querMelhorar", "comMaisClareza",
+];
+
+function computeMaxStreak(sortedUniqueDates: string[]): number {
+  if (sortedUniqueDates.length === 0) return 0;
+  let max = 1, cur = 1;
+  for (let i = 1; i < sortedUniqueDates.length; i++) {
+    const diffMs = new Date(sortedUniqueDates[i]).getTime() - new Date(sortedUniqueDates[i - 1]).getTime();
+    const diffDays = Math.round(diffMs / 86_400_000);
+    if (diffDays === 1) { cur++; if (cur > max) max = cur; }
+    else if (diffDays > 1) cur = 1;
+  }
+  return max;
+}
+
+router.get("/dashboard/achievements", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+
+  const [userRow, uploadCountRow, totalTxRow, outrosTxRow, allActivities, pinnedInsights, insightCountRow, allTransactions] = await Promise.all([
+    db.select({ businessProfile: usersTable.businessProfile }).from(usersTable).where(eq(usersTable.id, userId)).then((r) => r[0]),
+    db.select({ c: count() }).from(rawInputsTable).where(eq(rawInputsTable.userId, userId)).then((r) => r[0]),
+    db.select({ c: count() }).from(transactionsTable).where(eq(transactionsTable.userId, userId)).then((r) => r[0]),
+    db.select({ c: count() }).from(transactionsTable).where(and(eq(transactionsTable.userId, userId), eq(transactionsTable.category, "Outros"))).then((r) => r[0]),
+    db.select({ activityDate: userActivitiesTable.activityDate }).from(userActivitiesTable).where(eq(userActivitiesTable.userId, userId)).orderBy(userActivitiesTable.activityDate),
+    db.select({ steps: insightsTable.steps, stepsProgress: insightsTable.stepsProgress }).from(insightsTable).where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt), isNotNull(insightsTable.pinnedAt))),
+    db.select({ c: count() }).from(insightsTable).where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt))).then((r) => r[0]),
+    db.select({ date: transactionsTable.date, type: transactionsTable.type, amount: transactionsTable.amount }).from(transactionsTable).where(eq(transactionsTable.userId, userId)),
+  ]);
+
+  const bp = (userRow?.businessProfile as Record<string, unknown> | null) ?? {};
+  const filledAnamneseFields = ANAMNESE_FIELDS_ACHV.filter((f) => bp[f] != null && String(bp[f]).trim() !== "").length;
+
+  const uniqueDates = [...new Set(allActivities.map((a) => String(a.activityDate)))].sort();
+  const totalActiveDays = uniqueDates.length;
+  const currentStreak = await calculateStreak(userId, uniqueDates);
+  const maxStreak = computeMaxStreak(uniqueDates);
+
+  const uploadCount = Number(uploadCountRow?.c ?? 0);
+  const totalTx = Number(totalTxRow?.c ?? 0);
+  const outrosTx = Number(outrosTxRow?.c ?? 0);
+  const insightCount = Number(insightCountRow?.c ?? 0);
+
+  // Find any month with positive margin
+  const monthMap = new Map<string, { income: number; expense: number }>();
+  for (const t of allTransactions) {
+    const month = t.date.substring(0, 7);
+    const m = monthMap.get(month) ?? { income: 0, expense: 0 };
+    if (t.type === "income") m.income += t.amount; else m.expense += t.amount;
+    monthMap.set(month, m);
+  }
+  const hasPositiveMonth = [...monthMap.values()].some((m) => m.income > 0 && m.income > m.expense);
+
+  const anyStepCompleted = pinnedInsights.some(
+    (i) => Array.isArray(i.stepsProgress) && (i.stepsProgress as boolean[]).some(Boolean),
+  );
+
+  const achievements = [
+    { id: "primeiro_upload",        title: "Primeiro Upload",      description: "Enviou os primeiros dados financeiros",      category: "dados",        unlocked: uploadCount > 0 },
+    { id: "anamnese_completa",      title: "Diagnóstico Completo", description: "Respondeu o diagnóstico do negócio",          category: "perfil",       unlocked: !!bp.anamneseCompleted || filledAnamneseFields >= ANAMNESE_FIELDS_ACHV.length },
+    { id: "streak_7",               title: "Uma Semana Firme",     description: "7 dias consecutivos de uso",                 category: "engajamento",  unlocked: maxStreak >= 7 },
+    { id: "streak_30",              title: "Mês de Ouro",          description: "30 dias consecutivos de uso",                category: "engajamento",  unlocked: maxStreak >= 30 },
+    { id: "cem_transacoes",         title: "Centenário",           description: "100 transações importadas",                  category: "dados",        unlocked: totalTx >= 100 },
+    { id: "primeira_missao",        title: "Missão Ativada",       description: "Ativou um plano de ação em Insights",        category: "insights",     unlocked: pinnedInsights.length > 0 },
+    { id: "passo_concluido",        title: "Primeiro Passo",       description: "Concluiu o primeiro passo de uma missão",    category: "insights",     unlocked: anyStepCompleted },
+    { id: "mes_positivo",           title: "No Azul",              description: "Registrou margem positiva em algum mês",     category: "financas",     unlocked: hasPositiveMonth },
+    { id: "categorizacao_perfeita", title: "Tudo Organizado",      description: "Zero transações na categoria 'Outros'",      category: "dados",        unlocked: totalTx > 0 && outrosTx === 0 },
+    { id: "cinco_insights",         title: "Gerador de Insights",  description: "Gerou 5 ou mais insights com a IA",          category: "insights",     unlocked: insightCount >= 5 },
+  ];
+
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  const points = totalActiveDays + unlockedCount * 5;
+
+  let level: string, levelIndex: number, currentLevelStart: number, nextLevelThreshold: number;
+  if (points >= 100)      { level = "Mestre";       levelIndex = 3; currentLevelStart = 100; nextLevelThreshold = 100; }
+  else if (points >= 50)  { level = "Estrategista"; levelIndex = 2; currentLevelStart = 50;  nextLevelThreshold = 100; }
+  else if (points >= 20)  { level = "Operador";     levelIndex = 1; currentLevelStart = 20;  nextLevelThreshold = 50; }
+  else                    { level = "Iniciante";    levelIndex = 0; currentLevelStart = 0;   nextLevelThreshold = 20; }
+
+  const levelPct = levelIndex === 3
+    ? 100
+    : Math.round(((points - currentLevelStart) / (nextLevelThreshold - currentLevelStart)) * 100);
+
+  res.json({
+    level, levelIndex, levelPct, points, nextLevelThreshold,
+    totalActiveDays, currentStreak, achievements,
+    unlockedCount, totalAchievements: achievements.length,
+  });
+});
+
 export default router;
