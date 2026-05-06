@@ -26,9 +26,10 @@ export const dailyCardBatchesTable = pgTable("daily_card_batches", {
   userId:          integer("user_id").notNull(),
   batchStartDate:  text("batch_start_date").notNull(),       // YYYY-MM-DD
   expiresAt:       timestamp("expires_at",  { withTimezone: true }).notNull(),
-  cards:           json("cards").$type<CardEntry[]>().notNull(),
-  generatedBy:     text("generated_by").notNull(),            // 'ai' | 'fallback'
-  createdAt:       timestamp("created_at",  { withTimezone: true }).notNull().defaultNow(),
+  cards:               json("cards").$type<CardEntry[]>().notNull(),
+  generatedBy:         text("generated_by").notNull(),            // 'ai' | 'fallback'
+  seasonalSignature:   text("seasonal_signature").notNull().default(""), // identifier of active sazonal window set at gen time
+  createdAt:           timestamp("created_at",  { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type DailyCardBatch = typeof dailyCardBatchesTable.$inferSelect;

@@ -3,7 +3,8 @@ import { db, transactionsTable, rawInputsTable, usersTable, userActivitiesTable,
 import { eq, and, gte, lte, isNull, isNotNull, count, sum, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { calculateStreak, getTodayBrasilia } from "../lib/daily-tasks";
-import { generateBatch } from "../lib/today-card-generator";
+import { generateBatch, getUserSegment } from "../lib/today-card-generator";
+import { getActiveWindowSignature } from "../lib/seasonal-calendar";
 
 const router = Router();
 
@@ -288,8 +289,14 @@ router.get("/dashboard/today-card", requireAuth, async (req, res): Promise<void>
     .limit(1)
     .then((r) => r[0]);
 
+  // Detect seasonal window change since the batch was generated → forces regen
+  const segment = await getUserSegment(userId);
+  const currentSignature = getActiveWindowSignature(today, segment);
+  const seasonalChanged = !!existing && existing.seasonalSignature !== "" && existing.seasonalSignature !== currentSignature;
+
   let batch = existing;
-  const isStale = !batch || new Date(batch.expiresAt).getTime() <= Date.now();
+  const isExpired = !batch || new Date(batch.expiresAt).getTime() <= Date.now();
+  const isStale = isExpired || seasonalChanged;
 
   if (isStale) {
     const generated = await generateBatch(userId, today);
@@ -303,6 +310,7 @@ router.get("/dashboard/today-card", requireAuth, async (req, res): Promise<void>
           expiresAt,
           cards: generated.cards,
           generatedBy: generated.generatedBy,
+          seasonalSignature: generated.seasonalSignature,
         })
         .returning();
       batch = inserted[0];
@@ -335,6 +343,7 @@ router.post("/dashboard/today-card/regenerate", requireAuth, async (req, res): P
   const expiresAt = new Date(Date.now() + BATCH_TTL_DAYS * 86_400_000);
   await db.insert(dailyCardBatchesTable).values({
     userId, batchStartDate: today, expiresAt, cards: generated.cards, generatedBy: generated.generatedBy,
+    seasonalSignature: generated.seasonalSignature,
   });
   res.json({ ok: true, cardCount: generated.cards.length, generatedBy: generated.generatedBy });
 });

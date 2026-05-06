@@ -16,6 +16,8 @@ import type { CardBlock, CardEntry } from "@workspace/db";
 import { eq, and, desc, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 import { logTokenUsage } from "./token-logger";
+import { getActiveEvents, getActiveWindowSignature, type ActiveEvent } from "./seasonal-calendar";
+import { getSegmentBenchmark, type SegmentBenchmark } from "./segment-benchmarks";
 
 const MODEL = "claude-haiku-4-5-20251001";
 const MAX_OUTPUT_TOKENS = 2400;
@@ -52,6 +54,9 @@ interface BusinessContext {
   };
   recentInsights: Array<{ title: string; tone: string | null; createdAt: string }>;
   activeDaysLast30: number;
+  seasonalEvents: ActiveEvent[];
+  segmentBenchmark: SegmentBenchmark | null;
+  seasonalSignature: string;
 }
 
 function emptyMonth(month: string): MonthAgg {
@@ -127,13 +132,20 @@ export async function buildContext(userId: number, today: string): Promise<Busin
   const activeDaysLast30 = activities.filter((a) => String(a.activityDate) >= thirtyAgo).length;
 
   const bp = (userRow?.businessProfile as Record<string, unknown> | null) ?? {};
+  const segment = bp.segment as string | undefined;
+
+  // Seasonal context + segment benchmark (best-effort; never block generation)
+  const seasonalEvents = getActiveEvents(today, segment);
+  const seasonalSignature = getActiveWindowSignature(today, segment);
+  const benchmarkMonth = curMtd.txCount >= 3 ? currentMonth : prevMonth;
+  const segmentBenchmark = segment ? await getSegmentBenchmark(segment, benchmarkMonth).catch(() => null) : null;
 
   return {
     monthly, currentMonth, prevMonth, today, dayOfMonth,
     curMtd, prevMtd,
     profile: {
       businessName: bp.businessName as string | undefined,
-      segment: bp.segment as string | undefined,
+      segment,
       segmentCustomLabel: bp.segmentCustomLabel as string | undefined,
       mainProducts: bp.mainProducts as string | undefined,
       monthlyRevenueGoal: bp.monthlyRevenueGoal as number | undefined,
@@ -147,6 +159,9 @@ export async function buildContext(userId: number, today: string): Promise<Busin
       createdAt: i.createdAt instanceof Date ? i.createdAt.toISOString() : String(i.createdAt),
     })),
     activeDaysLast30,
+    seasonalEvents,
+    segmentBenchmark,
+    seasonalSignature,
   };
 }
 
@@ -186,6 +201,24 @@ function summarizeContextForPrompt(ctx: BusinessContext): string {
     ctx.recentInsights.forEach((i) => lines.push(`- ${i.title} (${i.tone ?? "neutral"})`));
   }
 
+  if (ctx.seasonalEvents.length > 0) {
+    lines.push(`\n# Eventos sazonais ativos para o segmento`);
+    lines.push(`Use estes eventos como ângulo narrativo quando fizer sentido — preparação prévia, dia do evento, ou retrospectiva imediata.`);
+    for (const e of ctx.seasonalEvents) {
+      lines.push(`- ${e.name} (${e.positionLabel}, ${e.date}): ${e.impact}`);
+    }
+  }
+
+  if (ctx.segmentBenchmark) {
+    const b = ctx.segmentBenchmark;
+    lines.push(`\n# Benchmark anônimo do segmento (Klaro, ${b.monthRef})`);
+    lines.push(`Mediana entre ${b.userCount} negócios do mesmo segmento:`);
+    lines.push(`- Receita mediana: R$ ${b.medianIncome}`);
+    lines.push(`- Despesa mediana: R$ ${b.medianExpense}`);
+    lines.push(`- Margem mediana: R$ ${b.medianMargin} (${b.medianMarginPct}% da receita)`);
+    lines.push(`Você pode comparar o usuário com a mediana se for um ângulo relevante. Sempre cite "mediana entre N negócios" pra ser honesto sobre a fonte.`);
+  }
+
   return lines.join("\n");
 }
 
@@ -194,11 +227,13 @@ const SYSTEM_PROMPT = `Você é o motor narrativo do Klaro, um app de gestão fi
 Sua tarefa: gerar um BATCH de 5 a 7 cards diários para o dashboard do usuário. Cada card é uma micro-narrativa que vive sozinha — combina texto, números e dados visuais para destacar UM aspecto específico do negócio.
 
 Regras absolutas:
-1. JAMAIS invente números. Use SOMENTE valores que aparecem explicitamente no contexto fornecido (linhas mensais, MTD, agregados por categoria). Cálculos derivados (deltas, percentuais, médias) são permitidos desde que partam de números reais.
-2. Cada card cobre um ÂNGULO DIFERENTE. Não repita a mesma história em 2 cards. Ângulos possíveis: tendência mensal, categoria de despesa que cresceu, categoria que caiu, mix de receita, ticket médio, comparação com meta, sazonalidade, concentração de despesas, evolução de margem, alerta operacional.
+1. JAMAIS invente números. Use SOMENTE valores que aparecem explicitamente no contexto fornecido (linhas mensais, MTD, agregados por categoria, benchmarks de segmento). Cálculos derivados (deltas, percentuais, médias) são permitidos desde que partam de números reais.
+2. Cada card cobre um ÂNGULO DIFERENTE. Não repita a mesma história em 2 cards. Ângulos possíveis: tendência mensal, categoria de despesa que cresceu, categoria que caiu, mix de receita, ticket médio, comparação com meta, sazonalidade, concentração de despesas, evolução de margem, alerta operacional, comparação com mediana do segmento, preparação para evento sazonal.
 3. Português brasileiro coloquial mas profissional. Direto, sem encheção de linguiça. Frases curtas.
 4. Tom apropriado ao dado: "celebration" se o número é bom, "warning" se exige atenção, "comparison" para análises neutras de tendência, "insight" como default.
 5. Cada card tem 2 a 4 blocos. Use a combinação que melhor conta a história — texto sozinho é fraco, gráfico sozinho é frio, big number sem contexto é vago. Misture.
+6. Quando houver evento sazonal ativo na janela (seção "Eventos sazonais"), pelo menos 1 dos cards deve conectar os dados do usuário ao evento — preparação, projeção, ou comparação com período equivalente. NÃO mencione eventos fora da janela.
+7. Quando houver benchmark de segmento, você pode comparar o usuário à mediana — sempre citando "mediana entre N negócios do segmento" pra ser honesto. Se a comparação for desfavorável, use tom "warning" com construtividade. Se favorável, "celebration".
 
 Tipos de bloco disponíveis:
 - callout:    { type, tone, headline, body, ctaLabel?, ctaHref?, icon? }   — cabeçalho narrativo do card
@@ -227,13 +262,25 @@ function buildUserPrompt(ctx: BusinessContext): string {
 interface GeneratedBatch {
   cards: CardEntry[];
   generatedBy: "ai" | "fallback";
+  seasonalSignature: string;
+}
+
+/** Lê o segmento do usuário sem fazer todo o buildContext (uso em triggers). */
+export async function getUserSegment(userId: number): Promise<string | null> {
+  const row = await db
+    .select({ businessProfile: usersTable.businessProfile })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .then((r) => r[0]);
+  const bp = (row?.businessProfile as Record<string, unknown> | null) ?? {};
+  return (bp.segment as string | undefined) ?? null;
 }
 
 export async function generateBatch(userId: number, today: string): Promise<GeneratedBatch> {
   const ctx = await buildContext(userId, today);
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return { cards: buildFallbackBatch(ctx), generatedBy: "fallback" };
+    return { cards: buildFallbackBatch(ctx), generatedBy: "fallback", seasonalSignature: ctx.seasonalSignature };
   }
 
   try {
@@ -258,13 +305,13 @@ export async function generateBatch(userId: number, today: string): Promise<Gene
 
     if (validated.length < 3) {
       logger.warn({ userId, validatedCount: validated.length }, "today-card batch failed validation, using fallback");
-      return { cards: buildFallbackBatch(ctx), generatedBy: "fallback" };
+      return { cards: buildFallbackBatch(ctx), generatedBy: "fallback", seasonalSignature: ctx.seasonalSignature };
     }
 
-    return { cards: validated, generatedBy: "ai" };
+    return { cards: validated, generatedBy: "ai", seasonalSignature: ctx.seasonalSignature };
   } catch (e) {
     logger.error({ err: e, userId }, "today-card AI generation failed");
-    return { cards: buildFallbackBatch(ctx), generatedBy: "fallback" };
+    return { cards: buildFallbackBatch(ctx), generatedBy: "fallback", seasonalSignature: ctx.seasonalSignature };
   }
 }
 
@@ -284,6 +331,12 @@ function collectAllowedNumbers(ctx: BusinessContext): number[] {
     for (const v of Object.values(agg.byCatExpense)) nums.push(v);
     for (const v of Object.values(agg.byCatIncome)) nums.push(v);
   }
+  if (ctx.segmentBenchmark) {
+    const b = ctx.segmentBenchmark;
+    nums.push(b.medianIncome, b.medianExpense, b.medianMargin, b.medianMarginPct, b.userCount);
+  }
+  if (ctx.profile.monthlyRevenueGoal) nums.push(ctx.profile.monthlyRevenueGoal);
+  if (ctx.profile.profitMarginGoal) nums.push(ctx.profile.profitMarginGoal);
   return nums.filter((n) => Number.isFinite(n));
 }
 

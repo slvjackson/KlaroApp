@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, transactionsTable, usersTable, rawInputsTable } from "@workspace/db";
+import { db, transactionsTable, usersTable, rawInputsTable, dailyCardBatchesTable } from "@workspace/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { getSegmentProfile } from "../prompts/segments/index";
@@ -51,6 +51,12 @@ router.post("/transactions", requireAuth, async (req, res): Promise<void> => {
     .insert(transactionsTable)
     .values({ userId, date, description, amount: parseFloat(amount), type, category })
     .returning();
+
+  // Invalidate Today Card batch — new data may shift narrative
+  await db
+    .update(dailyCardBatchesTable)
+    .set({ expiresAt: new Date(0) })
+    .where(eq(dailyCardBatchesTable.userId, userId));
 
   res.status(201).json(created);
 });

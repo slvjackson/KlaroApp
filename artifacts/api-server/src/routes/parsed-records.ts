@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, parsedRecordsTable, rawInputsTable, transactionsTable } from "@workspace/db";
+import { db, parsedRecordsTable, rawInputsTable, transactionsTable, dailyCardBatchesTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { UpdateParsedRecordBody, CreateParsedRecordsBody, ConfirmParsedRecordsBody } from "@workspace/api-zod";
@@ -206,6 +206,13 @@ router.post("/parsed-records/confirm", requireAuth, async (req, res): Promise<vo
     .update(parsedRecordsTable)
     .set({ isConfirmed: true })
     .where(and(eq(parsedRecordsTable.rawInputId, rawInputId), eq(parsedRecordsTable.userId, userId)));
+
+  // Invalidate any active Today Card batch — new data means stale narrative.
+  // Next dashboard load will regenerate. We just expire, not delete, to keep audit trail.
+  await db
+    .update(dailyCardBatchesTable)
+    .set({ expiresAt: new Date(0) })
+    .where(eq(dailyCardBatchesTable.userId, userId));
 
   res.json({ confirmedCount: transactions.length, transactions });
 });

@@ -239,7 +239,8 @@
       "Bash(psql 'postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require' -c ' *)",
       "Bash(python3)",
       "Bash(npx tsx -e ' *)",
-      "Bash(node --import tsx/esm -e ' *)"
+      "Bash(node --import tsx/esm -e ' *)",
+      "Bash(psql \"postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" -c \"ALTER TABLE daily_card_batches ADD COLUMN IF NOT EXISTS seasonal_signature TEXT NOT NULL DEFAULT '';\")"
     ],
     "additionalDirectories": [
       "/tmp"
