@@ -39,14 +39,48 @@ function getPeriodStartDate(period: Period, anchor: Date): string {
   return d.toISOString().split("T")[0]!;
 }
 
-// GET /insights — list non-archived insights for current user
+// GET /insights — list insights for current user
+//
+// Query params:
+//   status (optional): "active" (default) | "dismissed" | "discarded" | "archived" | "all"
+//     - active:    archivedAt IS NULL (covers both pinned missions and unpinned active insights)
+//     - dismissed: archivedReason = "dismissed"
+//     - discarded: archivedReason = "discarded"
+//     - archived:  archivedReason = "user_archived"
+//     - all:       no filter
+//
+// The default of "active" preserves the previous behavior — existing callers (Insights
+// carousel, Missions list) keep working without changes.
 router.get("/insights", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
+  const status = (req.query.status as string | undefined) ?? "active";
+
+  const baseFilter = eq(insightsTable.userId, userId);
+
+  let where;
+  switch (status) {
+    case "dismissed":
+      where = and(baseFilter, eq(insightsTable.archivedReason, "dismissed"));
+      break;
+    case "discarded":
+      where = and(baseFilter, eq(insightsTable.archivedReason, "discarded"));
+      break;
+    case "archived":
+      where = and(baseFilter, eq(insightsTable.archivedReason, "user_archived"));
+      break;
+    case "all":
+      where = baseFilter;
+      break;
+    case "active":
+    default:
+      where = and(baseFilter, isNull(insightsTable.archivedAt));
+      break;
+  }
 
   const insights = await db
     .select()
     .from(insightsTable)
-    .where(and(eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt)))
+    .where(where)
     .orderBy(insightsTable.createdAt);
 
   res.json(insights);
@@ -352,7 +386,79 @@ router.patch("/insights/:id/progress", requireAuth, async (req, res): Promise<vo
   res.json(updated);
 });
 
-// DELETE /insights/:id — soft-archive a single insight
+// ─── Lifecycle endpoints ──────────────────────────────────────────────────────
+//
+// Lifecycle is encoded as (archivedAt, archivedReason, pinnedAt):
+//   active           → archivedAt=null, pinnedAt=null
+//   dismissed        → archivedAt set, reason="dismissed", pinnedAt=null
+//   discarded        → archivedAt set, reason="discarded", pinnedAt=null
+//   active mission   → archivedAt=null, pinnedAt set
+//   archived mission → archivedAt set, reason="user_archived", pinnedAt set
+//   auto-stale       → archivedAt set, reason="auto_stale" (system action, deferred to phase 2)
+//
+// Soft-archive endpoints all return the updated row so the client can update its cache.
+// DELETE is a true hard delete — use only for explicit removal (typo, garbage data).
+
+async function softArchive(
+  id: number,
+  userId: number,
+  reason: "dismissed" | "discarded" | "user_archived",
+  res: import("express").Response,
+): Promise<void> {
+  const [updated] = await db
+    .update(insightsTable)
+    .set({ archivedAt: new Date(), archivedReason: reason })
+    .where(and(eq(insightsTable.id, id), eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt)))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Insight não encontrado ou já arquivado." });
+    return;
+  }
+  res.json(updated);
+}
+
+// PATCH /insights/:id/dismiss — neutral dismissal (user wants it out of the active queue)
+router.patch("/insights/:id/dismiss", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "ID inválido." }); return; }
+  await softArchive(id, userId, "dismissed", res);
+});
+
+// PATCH /insights/:id/discard — explicit rejection (insight wasn't useful)
+router.patch("/insights/:id/discard", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "ID inválido." }); return; }
+  await softArchive(id, userId, "discarded", res);
+});
+
+// PATCH /insights/:id/archive — archive a pinned mission (reversible)
+router.patch("/insights/:id/archive", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "ID inválido." }); return; }
+  await softArchive(id, userId, "user_archived", res);
+});
+
+// PATCH /insights/:id/restore — undo any soft-archive, return to active state
+router.patch("/insights/:id/restore", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "ID inválido." }); return; }
+
+  const [updated] = await db
+    .update(insightsTable)
+    .set({ archivedAt: null, archivedReason: null })
+    .where(and(eq(insightsTable.id, id), eq(insightsTable.userId, userId)))
+    .returning();
+
+  if (!updated) { res.status(404).json({ error: "Insight não encontrado." }); return; }
+  res.json(updated);
+});
+
+// DELETE /insights/:id — hard delete. Irreversible. Use sparingly.
 router.delete("/insights/:id", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
   const id = parseInt(req.params.id as string, 10);
@@ -362,13 +468,12 @@ router.delete("/insights/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const [updated] = await db
-    .update(insightsTable)
-    .set({ archivedAt: new Date() })
-    .where(and(eq(insightsTable.id, id), eq(insightsTable.userId, userId), isNull(insightsTable.archivedAt)))
+  const [deleted] = await db
+    .delete(insightsTable)
+    .where(and(eq(insightsTable.id, id), eq(insightsTable.userId, userId)))
     .returning({ id: insightsTable.id });
 
-  if (!updated) {
+  if (!deleted) {
     res.status(404).json({ error: "Insight não encontrado." });
     return;
   }

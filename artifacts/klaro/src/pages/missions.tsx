@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
-import { useListInsights, usePatchInsightProgress, getListInsightsQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Trophy, TrendingUp, AlertTriangle, AlertOctagon, Lightbulb, ChevronRight, CheckCircle2, Circle, X, Pencil, Plus, Loader2, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { usePatchInsightProgress, getListInsightsQueryKey } from "@workspace/api-client-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Trophy, TrendingUp, AlertTriangle, AlertOctagon, Lightbulb, ChevronRight, CheckCircle2, Circle, X, Pencil, Plus, Loader2, Trash2, ArrowUp, ArrowDown, Archive, RotateCcw } from "lucide-react";
 import { RichContent } from "@/components/rich-content";
 
 // ─── Reusable steps editor ────────────────────────────────────────────────────
@@ -87,6 +87,8 @@ type PinnedInsight = {
   stepsProgress?: boolean[] | null;
   pinnedAt?: string | null;
   periodLabel?: string | null;
+  archivedAt?: string | null;
+  archivedReason?: string | null;
 };
 
 function MissionCard({
@@ -159,19 +161,51 @@ async function patchInsight(id: number, body: { title?: string; description?: st
   if (!res.ok) throw new Error(`Falha ao atualizar (${res.status})`);
 }
 
+async function lifecycleAction(id: number, action: "archive" | "restore"): Promise<void> {
+  const res = await fetch(`/api/insights/${id}/${action}`, {
+    method: "PATCH",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Falha em ${action} (${res.status})`);
+}
+
+async function deleteInsight(id: number): Promise<void> {
+  const res = await fetch(`/api/insights/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok && res.status !== 204) throw new Error(`Falha ao excluir (${res.status})`);
+}
+
+const MISSIONS_QUERY_KEY = ["missions", "all"] as const;
+
+async function fetchAllForMissions(): Promise<PinnedInsight[]> {
+  const res = await fetch("/api/insights?status=all", { credentials: "include" });
+  if (!res.ok) throw new Error(`Falha ao listar (${res.status})`);
+  return res.json() as Promise<PinnedInsight[]>;
+}
+
 function MissionDetail({
   insight,
   progress,
   onToggle,
   onClose,
   onSaved,
+  onArchive,
+  onRestore,
+  onDelete,
 }: {
   insight: PinnedInsight;
   progress: boolean[];
   onToggle: (i: number) => void;
   onClose: () => void;
   onSaved: () => void;
+  onArchive: () => void;
+  onRestore: () => void;
+  onDelete: () => void;
 }) {
+  const isArchived = !!insight.archivedAt;
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const steps = insight.steps ?? [];
   const done = progress.filter(Boolean).length;
   const total = steps.length;
@@ -334,12 +368,60 @@ function MissionDetail({
         )}
 
         {!editing && (
-          <button
-            onClick={onClose}
-            className="mt-1 w-full py-3 rounded-xl border border-[var(--border)] text-[14px] font-semibold text-[var(--muted)] hover:text-white hover:border-[var(--border-2)] transition-colors"
-          >
-            Fechar
-          </button>
+          <div className="flex flex-col gap-2 mt-1">
+            <div className="flex gap-2">
+              {isArchived ? (
+                <button
+                  onClick={onRestore}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[var(--border)] text-[12.5px] font-medium text-[var(--muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors"
+                >
+                  <RotateCcw size={13} /> Desarquivar
+                </button>
+              ) : (
+                <button
+                  onClick={onArchive}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[var(--border)] text-[12.5px] font-medium text-[var(--muted)] hover:text-white hover:border-[var(--border-2)] transition-colors"
+                  title="Tira a missão da lista ativa — pode ser restaurada depois"
+                >
+                  <Archive size={13} /> Arquivar
+                </button>
+              )}
+              <button
+                onClick={() => setConfirmingDelete(true)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[var(--border)] text-[12.5px] font-medium text-[var(--muted)] hover:text-[#f43f5e] hover:border-[#f43f5e]/40 hover:bg-[rgba(244,63,94,0.05)] transition-colors"
+                title="Exclui permanentemente — não dá pra desfazer"
+              >
+                <Trash2 size={13} /> Excluir
+              </button>
+            </div>
+
+            {confirmingDelete && (
+              <div className="rounded-xl border border-[#f43f5e]/30 bg-[rgba(244,63,94,0.05)] p-3 flex flex-col gap-2">
+                <p className="text-[12px] text-white">Excluir essa missão? Essa ação <strong>não pode ser desfeita</strong>.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmingDelete(false)}
+                    className="flex-1 py-2 rounded-lg border border-[var(--border)] text-[12px] font-medium text-[var(--muted)] hover:text-white"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={onDelete}
+                    className="flex-1 py-2 rounded-lg bg-[#f43f5e] text-white text-[12px] font-semibold hover:brightness-110"
+                  >
+                    Excluir definitivamente
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={onClose}
+              className="w-full py-3 rounded-xl border border-[var(--border)] text-[14px] font-semibold text-[var(--muted)] hover:text-white hover:border-[var(--border-2)] transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -472,16 +554,74 @@ function CreateMissionModal({ onClose, onCreated }: { onClose: () => void; onCre
   );
 }
 
+type Tab = "active" | "completed" | "archived";
+
 export default function Missions() {
   const { isLoading: isAuthLoading } = useRequireAuth();
   const queryClient = useQueryClient();
-  const { data: rawInsights, isLoading } = useListInsights({ query: { refetchOnMount: "always" } });
+  const { data: rawAll, isLoading } = useQuery({
+    queryKey: MISSIONS_QUERY_KEY,
+    queryFn: fetchAllForMissions,
+    refetchOnMount: "always",
+  });
   const patchProgress = usePatchInsightProgress();
   const [selected, setSelected] = useState<PinnedInsight | null>(null);
+  const [tab, setTab] = useState<Tab>("active");
 
-  const insights = Array.isArray(rawInsights) ? (rawInsights as PinnedInsight[]) : [];
-  const pinned = insights.filter((i) => !!i.pinnedAt);
-  const selectedLive = selected ? (pinned.find((i) => i.id === selected.id) ?? selected) : null;
+  const insights = Array.isArray(rawAll) ? rawAll : [];
+  const allMissions = insights.filter((i) => !!i.pinnedAt);
+
+  // Concluída = todos passos marcados (derivado de stepsProgress, sem campo no DB).
+  function isCompleted(m: PinnedInsight): boolean {
+    const steps = m.steps ?? [];
+    const prog = m.stepsProgress ?? steps.map(() => false);
+    return prog.length > 0 && prog.every(Boolean);
+  }
+
+  const archivedMissions = allMissions.filter((m) => !!m.archivedAt);
+  const activeMissions = allMissions.filter((m) => !m.archivedAt && !isCompleted(m));
+  const completedMissions = allMissions.filter((m) => !m.archivedAt && isCompleted(m));
+
+  const tabMissions = tab === "active" ? activeMissions : tab === "completed" ? completedMissions : archivedMissions;
+  const selectedLive = selected ? (allMissions.find((i) => i.id === selected.id) ?? selected) : null;
+
+  function invalidateAll() {
+    queryClient.invalidateQueries({ queryKey: MISSIONS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
+  }
+
+  async function handleArchive() {
+    if (!selectedLive) return;
+    try {
+      await lifecycleAction(selectedLive.id, "archive");
+      invalidateAll();
+      setSelected(null);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleRestore() {
+    if (!selectedLive) return;
+    try {
+      await lifecycleAction(selectedLive.id, "restore");
+      invalidateAll();
+      setSelected(null);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleDelete() {
+    if (!selectedLive) return;
+    try {
+      await deleteInsight(selectedLive.id);
+      invalidateAll();
+      setSelected(null);
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   function getProgress(insight: PinnedInsight): boolean[] {
     const steps = insight.steps ?? [];
@@ -489,46 +629,41 @@ export default function Missions() {
   }
 
   function handleToggle(insightId: number, stepIdx: number) {
-    const insight = pinned.find((i) => i.id === insightId);
+    const insight = allMissions.find((i) => i.id === insightId);
     if (!insight) return;
     const current = getProgress(insight);
     const next = current.map((v, i) => (i === stepIdx ? !v : v));
     patchProgress.mutate({ id: insightId, stepsProgress: next }, {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() }),
+      onSuccess: invalidateAll,
     });
-    // optimistic update
-    queryClient.setQueryData(getListInsightsQueryKey(), (old: PinnedInsight[] | undefined) =>
+    // Optimistic — apply on the missions query cache directly.
+    queryClient.setQueryData(MISSIONS_QUERY_KEY, (old: PinnedInsight[] | undefined) =>
       old?.map((i) => i.id === insightId ? { ...i, stepsProgress: next } : i)
     );
   }
 
-  const completedCount = pinned.filter((i) => {
-    const prog = getProgress(i);
-    return prog.length > 0 && prog.every(Boolean);
-  }).length;
-
   const [creating, setCreating] = useState(false);
 
   function handleSavedEdit() {
-    queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
+    invalidateAll();
   }
 
   function handleCreated() {
     setCreating(false);
-    queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
+    invalidateAll();
   }
 
   if (isAuthLoading) return null;
 
   return (
     <Layout title="Missões">
-      <div className="max-w-2xl mx-auto space-y-6-y-5 max-w-xl">
+      <div className="max-w-2xl mx-auto space-y-5 max-w-xl">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold tracking-tight text-white">Missões</h1>
-            {pinned.length > 0 && (
+            {allMissions.length > 0 && (
               <p className="text-[12.5px] text-[var(--muted)] mt-1">
-                {completedCount} de {pinned.length} concluídas
+                {completedMissions.length} de {activeMissions.length + completedMissions.length} concluídas
               </p>
             )}
           </div>
@@ -540,23 +675,54 @@ export default function Missions() {
           </button>
         </div>
 
+        <div className="flex gap-1 p-0.5 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[var(--border)] w-fit">
+          {([
+            { key: "active",    label: "Em andamento", count: activeMissions.length },
+            { key: "completed", label: "Concluídas",   count: completedMissions.length },
+            { key: "archived",  label: "Arquivadas",   count: archivedMissions.length },
+          ] as const).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-3 py-1.5 text-[12px] font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
+                tab === t.key ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)] hover:text-white"
+              }`}
+            >
+              {t.label}
+              {t.count > 0 && (
+                <span className={`text-[10.5px] tnum ${tab === t.key ? "text-white/70" : "text-[var(--muted)]/70"}`}>
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
         {isLoading ? (
           <div className="glass rounded-2xl p-5 animate-pulse h-32" />
-        ) : pinned.length === 0 ? (
+        ) : tabMissions.length === 0 ? (
           <div className="glass rounded-2xl p-12 flex flex-col items-center gap-4 text-center">
             <div className="w-14 h-14 rounded-2xl bg-[rgba(16,185,129,0.10)] grid place-items-center">
               <Trophy size={22} className="text-[#10b981]" />
             </div>
             <div>
-              <div className="text-[15px] font-semibold text-white">Nenhuma missão ainda</div>
+              <div className="text-[15px] font-semibold text-white">
+                {tab === "active" ? "Nenhuma missão em andamento"
+                  : tab === "completed" ? "Nenhuma missão concluída ainda"
+                  : "Nenhuma missão arquivada"}
+              </div>
               <p className="text-[12.5px] text-[var(--muted)] max-w-xs mt-1 leading-relaxed">
-                Crie uma missão direto pelo botão "Nova missão" ou salve um insight como missão.
+                {tab === "active"
+                  ? "Crie uma direto pelo botão acima ou salve um insight como missão."
+                  : tab === "completed"
+                  ? "Quando você concluir todos os passos de uma missão ela aparece aqui."
+                  : "Missões que você arquivar ficam guardadas aqui."}
               </p>
             </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {pinned.map((insight) => (
+            {tabMissions.map((insight) => (
               <MissionCard
                 key={insight.id}
                 insight={insight}
@@ -575,6 +741,9 @@ export default function Missions() {
           onToggle={(i) => handleToggle(selectedLive.id, i)}
           onClose={() => setSelected(null)}
           onSaved={handleSavedEdit}
+          onArchive={handleArchive}
+          onRestore={handleRestore}
+          onDelete={handleDelete}
         />
       )}
 

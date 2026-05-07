@@ -4,7 +4,6 @@ import { Layout } from "@/components/layout";
 import {
   useListInsights,
   useGenerateInsights,
-  useArchiveInsight,
   usePinInsight,
   useGetMe,
   getListInsightsQueryKey,
@@ -14,13 +13,23 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Lightbulb, RefreshCw, AlertTriangle, AlertOctagon, TrendingUp,
   Upload, Trash2, Trophy, Clock, CheckCircle2, Circle, Info,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, EyeOff,
 } from "lucide-react";
 import type { InsightsCoverage } from "@workspace/api-client-react";
 import { Link, useLocation } from "wouter";
 import { AnamneseCta } from "@/components/anamnese-cta";
 import { GeneratingInsightsOverlay } from "@/components/generating-insights-overlay";
 import { RichContent } from "@/components/rich-content";
+
+// ─── Lifecycle endpoints (direct fetch — bypasses generated client) ──────────
+
+async function lifecycleAction(id: number, action: "dismiss" | "discard" | "archive" | "restore"): Promise<void> {
+  const res = await fetch(`/api/insights/${id}/${action}`, {
+    method: "PATCH",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Falha em ${action} (${res.status})`);
+}
 
 // ── Mini observable store — survives page unmounts, re-renders subscribers ──
 let _genStartedAt: number | null = null;
@@ -184,11 +193,13 @@ function MissionModal({ insight, isPending, onClose }: { insight: Insight; isPen
 
 function InsightCard({
   insight,
-  onArchive,
+  onDismiss,
+  onDiscard,
   onPin,
 }: {
   insight: Insight;
-  onArchive: () => void;
+  onDismiss: () => void;
+  onDiscard: () => void;
   onPin: () => void;
 }) {
   const tone = TONE_CONFIG[insight.tone as InsightTone] ?? TONE_CONFIG.neutral;
@@ -236,16 +247,24 @@ function InsightCard({
         </div>
       )}
 
-      <div className="flex items-center gap-2 pt-1 mt-auto">
+      <div className="flex items-center gap-1.5 pt-1 mt-auto flex-wrap">
         <button
-          onClick={onArchive}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-[var(--muted)] hover:text-[#ef4444] hover:bg-[rgba(239,68,68,0.08)] border border-transparent hover:border-[rgba(239,68,68,0.2)] transition-all"
+          onClick={onDismiss}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11.5px] font-medium text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.04)] border border-transparent hover:border-[var(--border)] transition-all"
+          title="Tirar do carrossel sem descartar — fica disponível no histórico"
+        >
+          <EyeOff size={12} /> Dispensar
+        </button>
+        <button
+          onClick={onDiscard}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11.5px] font-medium text-[var(--muted)] hover:text-[#ef4444] hover:bg-[rgba(239,68,68,0.08)] border border-transparent hover:border-[rgba(239,68,68,0.2)] transition-all"
+          title="Marcar como pouco útil"
         >
           <Trash2 size={12} /> Descartar
         </button>
         <button
           onClick={onPin}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-[var(--muted)] hover:text-[#10b981] hover:bg-[rgba(16,185,129,0.08)] border border-transparent hover:border-[rgba(16,185,129,0.2)] transition-all"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11.5px] font-medium text-[var(--muted)] hover:text-[#10b981] hover:bg-[rgba(16,185,129,0.08)] border border-transparent hover:border-[rgba(16,185,129,0.2)] transition-all ml-auto"
         >
           <Trophy size={12} /> Criar missão
         </button>
@@ -262,7 +281,6 @@ export default function Insights() {
   const { data: user } = useGetMe();
   const { data: rawInsights, isLoading } = useListInsights();
   const generateInsights = useGenerateInsights();
-  const archiveInsight = useArchiveInsight();
   const pinInsight = usePinInsight();
   const [queue, setQueue] = useState<Insight[]>([]);
   const [attempted, setAttempted] = useState(false);
@@ -312,13 +330,17 @@ export default function Insights() {
     });
   };
 
-  const handleArchive = (id: number) => {
-    archiveInsight.mutate(id);
+  // Remove from carousel + fire lifecycle mutation. Optimistic — rollback isn't worth it
+  // for soft actions; if the request fails, the next refetch reconciles state.
+  const handleLifecycle = (id: number, action: "dismiss" | "discard") => {
     setQueue((prev) => {
       const next = prev.filter((i) => i.id !== id);
       setCurrentIndex((ci) => Math.min(ci, Math.max(0, next.length - 1)));
       return next;
     });
+    lifecycleAction(id, action)
+      .then(() => queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() }))
+      .catch((err) => setGenError(err instanceof Error ? err.message : "Erro ao processar ação."));
   };
 
   const handlePin = (item: Insight) => {
@@ -518,7 +540,8 @@ export default function Insights() {
               <div key={currentIndex} className="relative" style={{ zIndex: 2 }}>
                 <InsightCard
                   insight={queue[currentIndex]!}
-                  onArchive={() => handleArchive(queue[currentIndex]!.id)}
+                  onDismiss={() => handleLifecycle(queue[currentIndex]!.id, "dismiss")}
+                  onDiscard={() => handleLifecycle(queue[currentIndex]!.id, "discard")}
                   onPin={() => handlePin(queue[currentIndex]!)}
                 />
               </div>
