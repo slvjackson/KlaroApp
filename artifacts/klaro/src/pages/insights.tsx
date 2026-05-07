@@ -372,9 +372,17 @@ export default function Insights() {
           <GeneratingInsightsOverlay startedAt={genStartedAt} />
         )}
         {/* Header */}
-        <div>
-          <h1 className="text-[22px] font-bold tracking-tight text-white">Insights</h1>
-          <p className="text-[12.5px] text-[var(--muted)] mt-1">Análises automáticas sobre a saúde do seu negócio.</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-[22px] font-bold tracking-tight text-white">Insights</h1>
+            <p className="text-[12.5px] text-[var(--muted)] mt-1">Análises automáticas sobre a saúde do seu negócio.</p>
+          </div>
+          <Link
+            href="/insights/historico"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.04)] border border-[var(--border)] transition-colors shrink-0"
+          >
+            <Clock size={12} /> Histórico
+          </Link>
         </div>
 
         {/* Period selector */}

@@ -17,6 +17,7 @@ import Upload from "@/pages/upload";
 import Review from "@/pages/review";
 import Transactions from "@/pages/transactions";
 import Insights from "@/pages/insights";
+import InsightsHistory from "@/pages/insights-history";
 import Profile from "@/pages/profile";
 import Chat from "@/pages/chat";
 import Anamnese from "@/pages/anamnese";
@@ -75,6 +76,7 @@ function Router() {
       <Route path="/review/:id" component={Review} />
       <Route path="/transactions" component={Transactions} />
       <Route path="/insights" component={Insights} />
+      <Route path="/insights/historico" component={InsightsHistory} />
       <Route path="/profile" component={Profile} />
       <Route path="/chat" component={Chat} />
       <Route path="/anamnese" component={Anamnese} />

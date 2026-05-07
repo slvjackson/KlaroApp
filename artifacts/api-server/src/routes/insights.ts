@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, insightsTable, transactionsTable, usersTable } from "@workspace/db";
-import { eq, isNull, and } from "drizzle-orm";
+import { eq, isNull, isNotNull, and, or, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { generateInsights, generateStepsForInsight, generateTitleForInsight } from "../lib/insights-engine";
 
@@ -42,11 +42,14 @@ function getPeriodStartDate(period: Period, anchor: Date): string {
 // GET /insights — list insights for current user
 //
 // Query params:
-//   status (optional): "active" (default) | "dismissed" | "discarded" | "archived" | "all"
-//     - active:    archivedAt IS NULL (covers both pinned missions and unpinned active insights)
+//   status (optional): "active" (default) | "dismissed" | "discarded" | "archived" | "history" | "all"
+//     - active:    archivedAt IS NULL AND (pinned OR createdAt within 30d) — carousel/missions feed
 //     - dismissed: archivedReason = "dismissed"
 //     - discarded: archivedReason = "discarded"
-//     - archived:  archivedReason = "user_archived"
+//     - archived:  archivedReason = "user_archived" (pinned missions that were archived)
+//     - history:   unpinned insights that fell out of "active" — soft-archived (dismissed/discarded)
+//                  OR auto-stale (older than 30 days, never archived). Records stay in DB; filter is
+//                  the only thing hiding them from the active feed.
 //     - all:       no filter
 //
 // The default of "active" preserves the previous behavior — existing callers (Insights
@@ -56,6 +59,7 @@ router.get("/insights", requireAuth, async (req, res): Promise<void> => {
   const status = (req.query.status as string | undefined) ?? "active";
 
   const baseFilter = eq(insightsTable.userId, userId);
+  const recentCutoff = sql`${insightsTable.createdAt} >= NOW() - INTERVAL '30 days'`;
 
   let where;
   switch (status) {
@@ -68,12 +72,38 @@ router.get("/insights", requireAuth, async (req, res): Promise<void> => {
     case "archived":
       where = and(baseFilter, eq(insightsTable.archivedReason, "user_archived"));
       break;
+    case "history":
+      where = and(
+        baseFilter,
+        isNull(insightsTable.pinnedAt),
+        or(
+          // soft-archived (dismissed/discarded), regardless of age
+          and(
+            isNotNull(insightsTable.archivedAt),
+            or(
+              eq(insightsTable.archivedReason, "dismissed"),
+              eq(insightsTable.archivedReason, "discarded"),
+            ),
+          ),
+          // auto-stale: never archived but older than 30 days
+          and(
+            isNull(insightsTable.archivedAt),
+            sql`${insightsTable.createdAt} < NOW() - INTERVAL '30 days'`,
+          ),
+        ),
+      );
+      break;
     case "all":
       where = baseFilter;
       break;
     case "active":
     default:
-      where = and(baseFilter, isNull(insightsTable.archivedAt));
+      // Pinned missions stay forever; unpinned insights only appear if recent.
+      where = and(
+        baseFilter,
+        isNull(insightsTable.archivedAt),
+        or(isNotNull(insightsTable.pinnedAt), recentCutoff),
+      );
       break;
   }
 
