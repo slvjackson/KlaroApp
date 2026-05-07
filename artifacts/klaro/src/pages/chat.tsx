@@ -17,13 +17,28 @@ const SUGGESTIONS = [
   "Compare entradas e saídas do último mês",
 ];
 
+// Reject bolds that are pure values/labels rather than a real headline.
+// Examples we want to skip: "R$ 2.350", "Hoje (06/05):", "Últimos meses:", "1.240,00".
+function isWeakBold(s: string): boolean {
+  // Mostly digits + currency/punctuation symbols
+  if (/^[\sR$\d.,\-/():%]+$/i.test(s)) return true;
+  // Ends with `:` — AI uses that for section labels, not titles
+  if (/:\s*$/.test(s)) return true;
+  // Date-like patterns: "Hoje (06/05)", "01/05/2026", "Mai/26"
+  if (/^(hoje|ontem|amanhã|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)/i.test(s) && s.length <= 24) return true;
+  // Has fewer than 2 letters total — not a phrase
+  if ((s.match(/[a-záéíóúãõçâêô]/gi) ?? []).length < 4) return true;
+  return false;
+}
+
 function extractTitle(text: string): string {
-  // Prefer the first **bold** phrase — AI commonly highlights the key claim there,
-  // making it a natural headline.
-  const boldMatch = text.match(/\*\*(.+?)\*\*/);
-  if (boldMatch) {
-    const bold = boldMatch[1].trim().replace(/\s+/g, " ").replace(/[.!?…]+$/, "");
-    if (bold.length >= 8 && bold.length <= 80) {
+  // Prefer the first **bold** phrase that actually reads like a headline. We scan all
+  // bolds and skip pure values/labels (numbers, dates, "Hoje:", etc.) which the chat
+  // model uses for emphasis but aren't useful as titles.
+  const boldMatches = [...text.matchAll(/\*\*(.+?)\*\*/g)];
+  for (const m of boldMatches) {
+    const bold = m[1].trim().replace(/\s+/g, " ").replace(/[.!?…]+$/, "");
+    if (bold.length >= 10 && bold.length <= 80 && !isWeakBold(bold)) {
       return bold[0].toUpperCase() + bold.slice(1);
     }
   }

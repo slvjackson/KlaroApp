@@ -370,6 +370,45 @@ Responda APENAS com um array JSON de 4 strings, sem markdown, sem texto adiciona
   }
 }
 
+// ─── Title for a single insight (chat-saved) ────────────────────────────────
+
+/**
+ * Generate a short, descriptive headline (4–8 words) for a chat-saved insight.
+ * Returns null on any failure so the caller can keep the heuristic title.
+ */
+export async function generateTitleForInsight(insight: {
+  description: string;
+}, userId?: number): Promise<string | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const client = new Anthropic({ apiKey });
+    const prompt = `Você lê uma análise financeira e escreve um título curto e descritivo para ela.
+
+Análise:
+${insight.description}
+
+Escreva um título de 4 a 8 palavras que resuma a ideia central da análise. Não use aspas, não use markdown, não use ponto final. Capitalize só a primeira letra. Responda APENAS com o título, nada mais.`;
+
+    const TITLE_MODEL = "claude-haiku-4-5-20251001";
+    const response = await client.messages.create({
+      model: TITLE_MODEL,
+      max_tokens: 64,
+      messages: [{ role: "user", content: prompt }],
+    });
+    if (userId) logTokenUsage(userId, "title", TITLE_MODEL, response.usage.input_tokens, response.usage.output_tokens);
+
+    const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+    const cleaned = raw.replace(/^["'`*\s]+|["'`*.\s]+$/g, "").replace(/\s+/g, " ");
+    if (cleaned.length < 6 || cleaned.length > 90) return null;
+    return cleaned;
+  } catch (err) {
+    logger.error({ err }, "[generateTitleForInsight] failed");
+    return null;
+  }
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function generateInsights(transactions: Transaction[], ctx?: InsightBusinessContext): Promise<GeneratedInsight[]> {

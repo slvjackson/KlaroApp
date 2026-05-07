@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, insightsTable, transactionsTable, usersTable } from "@workspace/db";
 import { eq, isNull, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
-import { generateInsights, generateStepsForInsight } from "../lib/insights-engine";
+import { generateInsights, generateStepsForInsight, generateTitleForInsight } from "../lib/insights-engine";
 
 const router = Router();
 
@@ -406,18 +406,77 @@ router.post("/insights", requireAuth, async (req, res): Promise<void> => {
 
   res.status(201).json(inserted);
 
-  // Background: pre-generate action steps so the future "pin" is instant.
-  // Without this, chat-saved insights trigger a slow AI call at pin time.
-  void generateStepsForInsight(
-    { title: inserted.title, description: inserted.description, recommendation: inserted.recommendation },
-    userId,
-  )
-    .then((steps) =>
-      steps.length > 0
-        ? db.update(insightsTable).set({ steps }).where(eq(insightsTable.id, inserted.id))
-        : null,
-    )
-    .catch(() => { /* best-effort: pin endpoint will retry generation if needed */ });
+  // Background: in parallel, pre-generate action steps and a better title via AI.
+  // - Steps: makes the future "pin" instant (avoids slow AI call at pin time).
+  // - Title: chat content rarely yields a clean headline through heuristics, so
+  //   we ask the model for a 4–8 word title to replace the auto-extracted one.
+  void Promise.allSettled([
+    generateStepsForInsight(
+      { title: inserted.title, description: inserted.description, recommendation: inserted.recommendation },
+      userId,
+    ),
+    generateTitleForInsight({ description: inserted.description }, userId),
+  ])
+    .then(([stepsResult, titleResult]) => {
+      const update: { steps?: string[]; title?: string } = {};
+      if (stepsResult.status === "fulfilled" && stepsResult.value.length > 0) {
+        update.steps = stepsResult.value;
+      }
+      if (titleResult.status === "fulfilled" && titleResult.value) {
+        update.title = titleResult.value;
+      }
+      if (Object.keys(update).length > 0) {
+        return db.update(insightsTable).set(update).where(eq(insightsTable.id, inserted.id));
+      }
+      return null;
+    })
+    .catch(() => { /* best-effort: pin endpoint will retry steps if needed */ });
+});
+
+// PATCH /insights/:id — update editable fields (title, description, periodLabel, steps)
+router.patch("/insights/:id", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const id = parseInt(req.params.id as string, 10);
+
+  if (isNaN(id)) {
+    res.status(400).json({ error: "ID inválido." });
+    return;
+  }
+
+  const body = req.body as {
+    title?: string;
+    description?: string;
+    periodLabel?: string;
+    steps?: string[];
+  };
+
+  const update: { title?: string; description?: string; periodLabel?: string; steps?: string[] } = {};
+
+  if (typeof body.title === "string" && body.title.trim()) update.title = body.title.trim();
+  if (typeof body.description === "string" && body.description.trim()) update.description = body.description.trim();
+  if (typeof body.periodLabel === "string" && body.periodLabel.trim()) update.periodLabel = body.periodLabel.trim();
+  if (Array.isArray(body.steps)) {
+    const cleanSteps = body.steps.filter((s): s is string => typeof s === "string" && s.trim().length > 0).map((s) => s.trim());
+    update.steps = cleanSteps;
+  }
+
+  if (Object.keys(update).length === 0) {
+    res.status(400).json({ error: "Nenhum campo válido para atualizar." });
+    return;
+  }
+
+  const [updated] = await db
+    .update(insightsTable)
+    .set(update)
+    .where(and(eq(insightsTable.id, id), eq(insightsTable.userId, userId)))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Insight não encontrado." });
+    return;
+  }
+
+  res.json(updated);
 });
 
 export default router;
