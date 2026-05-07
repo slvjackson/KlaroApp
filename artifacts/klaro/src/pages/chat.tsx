@@ -72,7 +72,7 @@ function Bubble({ msg, onSave }: { msg: ChatMessage; onSave?: () => void }) {
         <div
           className={`px-3.5 py-2.5 leading-relaxed ${
             isUser
-              ? "text-[12.5px] bg-gradient-to-br from-[#6af82f] to-[#48ba18] text-white bubble-user shadow-[0_8px_24px_-12px_rgba(106,248,47,0.6)]"
+              ? "text-[12.5px] bg-gradient-to-br from-[#6af82f] to-[#48ba18] text-[#09090b] font-medium bubble-user shadow-[0_8px_24px_-12px_rgba(106,248,47,0.6)]"
               : "text-white/90 bubble-bot bg-[rgba(255,255,255,0.04)] border border-[var(--border)]"
           }`}
         >
