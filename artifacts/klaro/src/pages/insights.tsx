@@ -20,6 +20,7 @@ import type { InsightsCoverage } from "@workspace/api-client-react";
 import { Link, useLocation } from "wouter";
 import { AnamneseCta } from "@/components/anamnese-cta";
 import { GeneratingInsightsOverlay } from "@/components/generating-insights-overlay";
+import { RichContent } from "@/components/rich-content";
 
 // ── Mini observable store — survives page unmounts, re-renders subscribers ──
 let _genStartedAt: number | null = null;
@@ -222,14 +223,16 @@ function InsightCard({
         )}
       </div>
 
-      <p className="text-[13px] text-[var(--muted)] leading-relaxed">{insight.description}</p>
+      <div className="text-[var(--muted)] leading-relaxed">
+        <RichContent text={insight.description} />
+      </div>
 
       {insight.recommendation && (
         <div
-          className="px-3 py-2.5 rounded-lg border-l-[3px] text-[12.5px] leading-relaxed"
+          className="px-3 py-2.5 rounded-lg border-l-[3px] leading-relaxed"
           style={{ backgroundColor: `${tone.color}10`, borderColor: tone.color, color: "var(--foreground)" }}
         >
-          {insight.recommendation}
+          <RichContent text={insight.recommendation} />
         </div>
       )}
 
