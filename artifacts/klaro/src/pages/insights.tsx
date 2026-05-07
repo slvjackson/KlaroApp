@@ -333,7 +333,11 @@ export default function Insights() {
         setGenError("Não foi possível criar a missão. Tente novamente.");
       },
     });
-    setQueue((prev) => prev.filter((i) => i.id !== item.id));
+    setQueue((prev) => {
+      const next = prev.filter((i) => i.id !== item.id);
+      setCurrentIndex((ci) => Math.min(ci, Math.max(0, next.length - 1)));
+      return next;
+    });
     setMission(item);
   };
 
