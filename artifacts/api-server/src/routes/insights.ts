@@ -405,6 +405,19 @@ router.post("/insights", requireAuth, async (req, res): Promise<void> => {
     .returning();
 
   res.status(201).json(inserted);
+
+  // Background: pre-generate action steps so the future "pin" is instant.
+  // Without this, chat-saved insights trigger a slow AI call at pin time.
+  void generateStepsForInsight(
+    { title: inserted.title, description: inserted.description, recommendation: inserted.recommendation },
+    userId,
+  )
+    .then((steps) =>
+      steps.length > 0
+        ? db.update(insightsTable).set({ steps }).where(eq(insightsTable.id, inserted.id))
+        : null,
+    )
+    .catch(() => { /* best-effort: pin endpoint will retry generation if needed */ });
 });
 
 export default router;

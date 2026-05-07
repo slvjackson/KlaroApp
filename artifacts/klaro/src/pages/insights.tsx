@@ -327,6 +327,11 @@ export default function Insights() {
         queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
         if (data) setMission(data);
       },
+      onError: () => {
+        queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
+        setMission(null);
+        setGenError("Não foi possível criar a missão. Tente novamente.");
+      },
     });
     setQueue((prev) => prev.filter((i) => i.id !== item.id));
     setMission(item);

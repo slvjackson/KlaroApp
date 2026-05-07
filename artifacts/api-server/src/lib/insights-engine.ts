@@ -315,23 +315,24 @@ function generateRuleBased(transactions: Transaction[]): GeneratedInsight[] {
 
 // ─── Steps for a single insight ──────────────────────────────────────────────
 
+const FALLBACK_STEPS = [
+  "Leia com atenção a recomendação do insight",
+  "Identifique a ação mais urgente a tomar",
+  "Defina um prazo para executar a primeira ação",
+  "Acompanhe o resultado após 30 dias",
+];
+
 export async function generateStepsForInsight(insight: {
   title: string;
   description: string;
   recommendation: string;
 }, userId?: number): Promise<string[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return [
-      "Leia com atenção a recomendação do insight",
-      "Identifique a ação mais urgente a tomar",
-      "Defina um prazo para executar a primeira ação",
-      "Acompanhe o resultado após 30 dias",
-    ];
-  }
+  if (!apiKey) return FALLBACK_STEPS;
 
-  const client = new Anthropic({ apiKey });
-  const prompt = `Você é um consultor financeiro para pequenos negócios no Brasil.
+  try {
+    const client = new Anthropic({ apiKey });
+    const prompt = `Você é um consultor financeiro para pequenos negócios no Brasil.
 
 Com base neste insight financeiro:
 Título: ${insight.title}
@@ -343,18 +344,30 @@ Crie um plano de ação com exatamente 4 passos concretos e práticos, executáv
 Responda APENAS com um array JSON de 4 strings, sem markdown, sem texto adicional:
 ["Passo 1...", "Passo 2...", "Passo 3...", "Passo 4..."]`;
 
-  const STEPS_MODEL = "claude-haiku-4-5-20251001";
-  const response = await client.messages.create({
-    model: STEPS_MODEL,
-    max_tokens: 512,
-    messages: [{ role: "user", content: prompt }],
-  });
-  if (userId) logTokenUsage(userId, "steps", STEPS_MODEL, response.usage.input_tokens, response.usage.output_tokens);
+    const STEPS_MODEL = "claude-haiku-4-5-20251001";
+    const response = await client.messages.create({
+      model: STEPS_MODEL,
+      max_tokens: 512,
+      messages: [{ role: "user", content: prompt }],
+    });
+    if (userId) logTokenUsage(userId, "steps", STEPS_MODEL, response.usage.input_tokens, response.usage.output_tokens);
 
-  const raw = response.content[0].type === "text" ? response.content[0].text.trim() : "[]";
-  const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
-  const parsed = JSON.parse(json) as unknown[];
-  return Array.isArray(parsed) ? parsed.filter((s) => typeof s === "string").map(String).slice(0, 5) : [];
+    const raw = response.content[0].type === "text" ? response.content[0].text : "";
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) {
+      logger.warn({ raw: raw.slice(0, 200) }, "[generateStepsForInsight] no JSON array in response, using fallback");
+      return FALLBACK_STEPS;
+    }
+
+    const parsed = JSON.parse(match[0]) as unknown[];
+    if (!Array.isArray(parsed)) return FALLBACK_STEPS;
+
+    const steps = parsed.filter((s) => typeof s === "string").map(String).slice(0, 5);
+    return steps.length > 0 ? steps : FALLBACK_STEPS;
+  } catch (err) {
+    logger.error({ err }, "[generateStepsForInsight] failed, using fallback");
+    return FALLBACK_STEPS;
+  }
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
