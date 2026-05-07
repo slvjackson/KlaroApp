@@ -350,7 +350,8 @@ router.post("/dashboard/today-card/regenerate", requireAuth, async (req, res): P
     cardCount: generated.cards.length,
     generatedBy: generated.generatedBy,
     seasonalSignature: generated.seasonalSignature,
-    cards: generated.cards.map((c) => ({ id: c.id, narrativeAngle: c.narrativeAngle, blockTypes: c.blocks.map((b) => b.type) })),
+    // Full cards (with blocks) so we can inspect new shapes (ctaPrompt, groupedBar) during debug.
+    cards: generated.cards,
   });
 });
 
