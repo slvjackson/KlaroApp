@@ -67,7 +67,7 @@ export function HealthScoreCard() {
 
   return (
     <div className="glass rounded-2xl p-5 flex flex-col h-full">
-      <div className="text-[13px] font-semibold text-white mb-3">Saúde do Negócio</div>
+      <div className="text-[13px] font-semibold text-white mb-3">Saúde da Gestão</div>
       <div className="flex-1 flex items-center justify-center py-2">
         <ScoreGauge score={data.score} />
       </div>

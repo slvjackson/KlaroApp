@@ -256,11 +256,13 @@ export default function Transactions() {
                 </button>
               ))}
             </div>
-            <select value={month ?? ""} onChange={(e) => setMonth(e.target.value || null)}
-              className="field px-3 py-1.5 text-[12px] rounded-lg flex-1 sm:flex-none" style={{ minWidth: 0 }}>
-              <option value="">Todos os meses</option>
-              {monthOptions.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
-            </select>
+            {monthOptions.length > 0 && (
+              <select value={month ?? ""} onChange={(e) => setMonth(e.target.value || null)}
+                className="field px-3 py-1.5 text-[12px] rounded-lg flex-1 sm:flex-none" style={{ minWidth: 0 }}>
+                <option value="">Todos os meses</option>
+                {monthOptions.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+              </select>
+            )}
           </div>
           <div className="relative w-full">
             <input value={search} onChange={(e) => setSearch(e.target.value)}

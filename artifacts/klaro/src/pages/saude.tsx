@@ -25,7 +25,7 @@ const COMPONENT_META: ComponentMeta[] = [
   { key: "categorizacao", label: "Categorização",       actionLabel: "Revisar transações",     actionHref: "/transactions" },
   { key: "margem",        label: "Margem positiva",     actionLabel: "Ver insights",           actionHref: "/insights" },
   { key: "engajamento",   label: "Rotina diária",       actionLabel: "Ir para dashboard",      actionHref: "/dashboard" },
-  { key: "missoes",       label: "Missões de insights", actionLabel: "Ver insights",           actionHref: "/insights" },
+  { key: "missoes",       label: "Missões de insights", actionLabel: "Ver missões",            actionHref: "/missions" },
 ];
 
 interface ComponentItem { value: number; max: number; [key: string]: unknown }
@@ -74,10 +74,10 @@ export default function Saude() {
   if (isAuthLoading) return null;
 
   return (
-    <Layout title="Saúde do Negócio">
+    <Layout title="Saúde da Gestão">
       <div className="space-y-6 max-w-xl">
         <div>
-          <h1 className="text-[22px] font-bold tracking-tight text-white">Saúde do Negócio</h1>
+          <h1 className="text-[22px] font-bold tracking-tight text-white">Saúde da Gestão</h1>
           <p className="text-[12.5px] text-[var(--muted)] mt-1">
             Entenda o que compõe sua pontuação e o que você pode fazer para melhorá-la.
           </p>
