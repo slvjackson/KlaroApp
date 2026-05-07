@@ -18,8 +18,29 @@ const SUGGESTIONS = [
 ];
 
 function extractTitle(text: string): string {
-  const first = text.replace(/^[#*\-•>\s]+/, "").split(/[.\n]/)[0] ?? "";
-  return first.trim().slice(0, 72) || "Insight do chat";
+  // Prefer the first **bold** phrase — AI commonly highlights the key claim there,
+  // making it a natural headline.
+  const boldMatch = text.match(/\*\*(.+?)\*\*/);
+  if (boldMatch) {
+    const bold = boldMatch[1].trim().replace(/\s+/g, " ").replace(/[.!?…]+$/, "");
+    if (bold.length >= 8 && bold.length <= 80) {
+      return bold[0].toUpperCase() + bold.slice(1);
+    }
+  }
+
+  // Fallback: first sentence. Split only on sentence boundaries (terminator + whitespace
+  // or newline) so values like "R$ 2.350,00" don't get cut at the thousand separator.
+  const stripped = text
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/_(.+?)_/g, "$1")
+    .replace(/^[#*\-•>\s]+/, "");
+  const first = stripped.split(/[.!?]\s+|\n/)[0]?.trim() ?? "";
+  if (!first) return "Insight do chat";
+  if (first.length <= 72) return first;
+
+  const truncated = first.slice(0, 72);
+  const lastSpace = truncated.lastIndexOf(" ");
+  return (lastSpace > 40 ? truncated.slice(0, lastSpace) : truncated) + "…";
 }
 
 // ─── Bubble ───────────────────────────────────────────────────────────────────
