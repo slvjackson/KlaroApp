@@ -242,7 +242,12 @@
       "Bash(node --import tsx/esm -e ' *)",
       "Bash(psql \"postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" -c \"ALTER TABLE daily_card_batches ADD COLUMN IF NOT EXISTS seasonal_signature TEXT NOT NULL DEFAULT '';\")",
       "Bash(psql \"postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" -c \"SELECT id, batch_start_date, generated_by, jsonb_array_length\\(cards::jsonb\\) as card_count, expires_at FROM daily_card_batches WHERE user_id=1 ORDER BY created_at DESC LIMIT 3;\")",
-      "Bash(psql \"postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" -c \"UPDATE daily_card_batches SET expires_at = '1970-01-01' WHERE user_id = 1; SELECT id, generated_by, expires_at FROM daily_card_batches WHERE user_id=1;\")"
+      "Bash(psql \"postgresql://neondb_owner:npg_FoPW06JnciKv@ep-lucky-term-anixgfzg-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" -c \"UPDATE daily_card_batches SET expires_at = '1970-01-01' WHERE user_id = 1; SELECT id, generated_by, expires_at FROM daily_card_batches WHERE user_id=1;\")",
+      "Bash(lsof -nP -iTCP:3001 -sTCP:LISTEN)",
+      "Bash(lsof -nP -iTCP:5173 -sTCP:LISTEN)",
+      "Bash(pnpm dev *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} \\(%{time_total}s\\)\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} \\(%{time_total}s\\) — api health\\\\n\" http://localhost:3001/api/health)"
     ],
     "additionalDirectories": [
       "/tmp"

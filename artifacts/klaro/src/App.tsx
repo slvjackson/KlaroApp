@@ -18,6 +18,14 @@ import Review from "@/pages/review";
 import Transactions from "@/pages/transactions";
 import Insights from "@/pages/insights";
 import InsightsHistory from "@/pages/insights-history";
+import Produto from "@/pages/produto";
+import Precos from "@/pages/precos";
+import Empresa from "@/pages/empresa";
+import SolucoesIndex from "@/pages/solucoes/index";
+import SolucoesImportacao from "@/pages/solucoes/importacao";
+import SolucoesInsightsPage from "@/pages/solucoes/insights";
+import SolucoesChat from "@/pages/solucoes/chat";
+import SolucoesMissoes from "@/pages/solucoes/missoes";
 import Profile from "@/pages/profile";
 import Chat from "@/pages/chat";
 import Anamnese from "@/pages/anamnese";
@@ -34,7 +42,13 @@ import ResetPassword from "@/pages/reset-password";
 const queryClient = new QueryClient();
 
 // Public paths that never need subscription check
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/billing", "/admin", "/terms"]);
+const PUBLIC_PATHS = new Set([
+  "/", "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password",
+  "/billing", "/admin", "/terms",
+  // Landing area — marketing pages are always accessible regardless of subscription state.
+  "/produto", "/precos", "/empresa",
+  "/solucoes", "/solucoes/importacao", "/solucoes/insights", "/solucoes/chat", "/solucoes/missoes",
+]);
 
 const BLOCKED_STATUSES = new Set(["expired"]);
 
@@ -76,6 +90,14 @@ function Router() {
       <Route path="/transactions" component={Transactions} />
       <Route path="/insights" component={Insights} />
       <Route path="/insights/historico" component={InsightsHistory} />
+      <Route path="/produto" component={Produto} />
+      <Route path="/precos" component={Precos} />
+      <Route path="/empresa" component={Empresa} />
+      <Route path="/solucoes" component={SolucoesIndex} />
+      <Route path="/solucoes/importacao" component={SolucoesImportacao} />
+      <Route path="/solucoes/insights" component={SolucoesInsightsPage} />
+      <Route path="/solucoes/chat" component={SolucoesChat} />
+      <Route path="/solucoes/missoes" component={SolucoesMissoes} />
       <Route path="/profile" component={Profile} />
       <Route path="/chat" component={Chat} />
       <Route path="/anamnese" component={Anamnese} />
