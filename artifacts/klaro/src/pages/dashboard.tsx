@@ -274,32 +274,32 @@ function CategoryDonut({ data, selectedMonth }: { data: CatItem[]; selectedMonth
           {donutType === "expense" ? "Sem despesas registradas." : "Sem entradas registradas."}
         </div>
       ) : (
-        <div className="flex items-center gap-5 flex-1 min-h-0">
-          <div className="relative shrink-0" style={{ width: 120, height: 120 }}>
+        <div className="flex flex-col items-center gap-5 flex-1 min-h-0">
+          <div className="relative shrink-0" style={{ width: 168, height: 168 }}>
             <div
               className="w-full h-full rounded-full"
               style={{
                 background: `conic-gradient(${stops})`,
-                mask: "radial-gradient(circle, transparent 42px, #000 43px)",
-                WebkitMask: "radial-gradient(circle, transparent 42px, #000 43px)",
+                mask: "radial-gradient(circle, transparent 60px, #000 61px)",
+                WebkitMask: "radial-gradient(circle, transparent 60px, #000 61px)",
               }}
             />
             <div className="absolute inset-0 grid place-items-center text-center">
               <div>
                 <div className="text-[9px] uppercase tracking-[0.16em] text-[var(--muted)]">Total</div>
-                <div className="text-[13px] font-bold text-white tnum leading-tight">{brl0(total)}</div>
+                <div className="text-[14px] font-bold text-white tnum leading-tight">{brl0(total)}</div>
               </div>
             </div>
           </div>
-          <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="w-full space-y-1">
             {filtered.slice(0, 6).map((c, i) => {
               const pct = total > 0 ? Math.round((c.total / total) * 100) : 0;
               return (
                 <div key={c.category} className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: CAT_COLORS[i % CAT_COLORS.length] }} />
-                  <div className="text-[11px] text-white/80 flex-1 truncate">{c.category}</div>
+                  <div className="text-[10.5px] text-white/80 flex-1 truncate">{c.category}</div>
                   <div className="text-[10px] text-[var(--muted)] w-7 text-right tnum">{pct}%</div>
-                  <div className="text-[11px] font-medium text-white w-16 text-right tnum">{brl0(c.total)}</div>
+                  <div className="text-[10.5px] font-medium text-white w-16 text-right tnum">{brl0(c.total)}</div>
                 </div>
               );
             })}
