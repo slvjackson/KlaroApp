@@ -3,8 +3,71 @@ import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 import { useListInsights, usePatchInsightProgress, getListInsightsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Trophy, TrendingUp, AlertTriangle, AlertOctagon, Lightbulb, ChevronRight, CheckCircle2, Circle, X, Pencil, Plus, Loader2 } from "lucide-react";
+import { Trophy, TrendingUp, AlertTriangle, AlertOctagon, Lightbulb, ChevronRight, CheckCircle2, Circle, X, Pencil, Plus, Loader2, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { RichContent } from "@/components/rich-content";
+
+// ─── Reusable steps editor ────────────────────────────────────────────────────
+
+function StepsEditor({ steps, onChange }: { steps: string[]; onChange: (next: string[]) => void }) {
+  const update = (i: number, v: string) => onChange(steps.map((s, idx) => (idx === i ? v : s)));
+  const remove = (i: number) => onChange(steps.filter((_, idx) => idx !== i));
+  const add = () => onChange([...steps, ""]);
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= steps.length) return;
+    const next = [...steps];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      {steps.map((step, i) => (
+        <div key={i} className="flex items-start gap-2">
+          <span className="text-[11px] text-[var(--muted)] tnum mt-2.5 w-4 text-right shrink-0">{i + 1}.</span>
+          <textarea
+            value={step}
+            onChange={(e) => update(i, e.target.value)}
+            rows={1}
+            placeholder="Descreva o passo…"
+            className="field flex-1 text-[12.5px] resize-none leading-snug py-2"
+          />
+          <div className="flex flex-col gap-0.5 mt-0.5">
+            <button
+              onClick={() => move(i, -1)}
+              disabled={i === 0}
+              className="p-1 rounded text-[var(--muted)] hover:text-white disabled:opacity-20 disabled:pointer-events-none"
+              aria-label="Mover para cima"
+            >
+              <ArrowUp size={12} />
+            </button>
+            <button
+              onClick={() => move(i, 1)}
+              disabled={i === steps.length - 1}
+              className="p-1 rounded text-[var(--muted)] hover:text-white disabled:opacity-20 disabled:pointer-events-none"
+              aria-label="Mover para baixo"
+            >
+              <ArrowDown size={12} />
+            </button>
+          </div>
+          <button
+            onClick={() => remove(i)}
+            className="p-1.5 mt-0.5 rounded-lg text-[var(--muted)] hover:text-[#f43f5e] hover:bg-[rgba(244,63,94,0.08)]"
+            aria-label="Remover passo"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={add}
+        className="self-start flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-colors"
+      >
+        <Plus size={12} /> Adicionar passo
+      </button>
+    </div>
+  );
+}
 
 type Tone = "positive" | "warning" | "critical" | "neutral";
 
@@ -116,12 +179,14 @@ function MissionDetail({
   const [editing, setEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(insight.title);
   const [descDraft, setDescDraft] = useState(insight.description ?? "");
+  const [stepsDraft, setStepsDraft] = useState<string[]>(insight.steps ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function startEdit() {
     setTitleDraft(insight.title);
     setDescDraft(insight.description ?? "");
+    setStepsDraft(insight.steps ?? []);
     setError(null);
     setEditing(true);
   }
@@ -129,10 +194,11 @@ function MissionDetail({
   async function saveEdit() {
     const title = titleDraft.trim();
     if (!title) { setError("O título não pode ficar vazio."); return; }
+    const cleanSteps = stepsDraft.map((s) => s.trim()).filter((s) => s.length > 0);
     setSaving(true);
     setError(null);
     try {
-      await patchInsight(insight.id, { title, description: descDraft.trim() });
+      await patchInsight(insight.id, { title, description: descDraft.trim(), steps: cleanSteps });
       setEditing(false);
       onSaved();
     } catch (err) {
@@ -189,6 +255,12 @@ function MissionDetail({
                 className="field mt-1 text-[12.5px] w-full resize-y leading-relaxed"
                 placeholder="Descreva o contexto da missão. Markdown é suportado."
               />
+            </div>
+            <div>
+              <label className="text-[10.5px] uppercase tracking-wide text-[var(--muted)]">Passos</label>
+              <div className="mt-1.5">
+                <StepsEditor steps={stepsDraft} onChange={setStepsDraft} />
+              </div>
             </div>
             {error && <p className="text-[12px] text-[#f43f5e]">{error}</p>}
             <div className="flex gap-2">
@@ -276,7 +348,7 @@ function MissionDetail({
 
 // ─── Create mission modal ─────────────────────────────────────────────────────
 
-async function createMission(payload: { title: string; description: string }): Promise<void> {
+async function createMission(payload: { title: string; description: string; steps: string[] }): Promise<void> {
   const saveRes = await fetch("/api/insights", {
     method: "POST",
     credentials: "include",
@@ -285,6 +357,12 @@ async function createMission(payload: { title: string; description: string }): P
   });
   if (!saveRes.ok) throw new Error(`Falha ao criar (${saveRes.status})`);
   const saved = await saveRes.json() as { id: number };
+
+  // If user provided manual steps, persist them BEFORE pinning so the pin endpoint
+  // skips AI generation and uses these instead.
+  if (payload.steps.length > 0) {
+    await patchInsight(saved.id, { steps: payload.steps });
+  }
 
   const pinRes = await fetch(`/api/insights/${saved.id}/pin`, {
     method: "PATCH",
@@ -296,6 +374,7 @@ async function createMission(payload: { title: string; description: string }): P
 function CreateMissionModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [steps, setSteps] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -304,10 +383,11 @@ function CreateMissionModal({ onClose, onCreated }: { onClose: () => void; onCre
     const d = description.trim();
     if (!t) { setError("O título é obrigatório."); return; }
     if (!d) { setError("A descrição é obrigatória."); return; }
+    const cleanSteps = steps.map((s) => s.trim()).filter((s) => s.length > 0);
     setSaving(true);
     setError(null);
     try {
-      await createMission({ title: t, description: d });
+      await createMission({ title: t, description: d, steps: cleanSteps });
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar missão.");
@@ -353,9 +433,20 @@ function CreateMissionModal({ onClose, onCreated }: { onClose: () => void; onCre
           />
         </div>
 
-        <p className="text-[11px] text-[var(--muted)] leading-relaxed">
-          Os passos para concluir a missão serão gerados automaticamente pela IA com base no que você descrever.
-        </p>
+        <div>
+          <div className="flex items-baseline justify-between">
+            <label className="text-[10.5px] uppercase tracking-wide text-[var(--muted)]">Passos</label>
+            <span className="text-[10.5px] text-[var(--muted)]">opcional</span>
+          </div>
+          <div className="mt-1.5">
+            <StepsEditor steps={steps} onChange={setSteps} />
+          </div>
+          {steps.length === 0 && (
+            <p className="text-[11px] text-[var(--muted)] leading-relaxed mt-2">
+              Deixe em branco para a IA gerar os passos automaticamente com base na descrição.
+            </p>
+          )}
+        </div>
 
         {error && <p className="text-[12px] text-[#f43f5e]">{error}</p>}
 
