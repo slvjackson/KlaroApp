@@ -82,7 +82,7 @@ export function LevelCard() {
       </div>
 
       <Link
-        href="/conquistas"
+        href="/profile"
         className="text-[11.5px] text-[var(--accent)] hover:brightness-110 transition text-center block"
       >
         Veja suas conquistas →

@@ -407,7 +407,21 @@ router.get("/dashboard/ranking", requireAuth, async (req, res): Promise<void> =>
     isCurrentUser: e.userId === userId,
   }));
 
-  res.json({ userRank, userPts, totalUsers, nearby });
+  // Bucket the user into a friendly "top X%" label. We expose this instead of the
+  // raw count to keep small user bases motivational rather than discouraging.
+  // null = no signal yet (user hasn't earned any activity day).
+  const topPercentileBucket: 10 | 25 | 50 | 75 | null =
+    totalUsers < 1 || userPts === 0
+      ? null
+      : (() => {
+          const pct = (userRank / totalUsers) * 100;
+          if (pct <= 10) return 10;
+          if (pct <= 25) return 25;
+          if (pct <= 50) return 50;
+          return 75;
+        })();
+
+  res.json({ userRank, userPts, totalUsers, nearby, topPercentileBucket });
 });
 
 export default router;

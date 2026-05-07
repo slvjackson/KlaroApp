@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Star, Shield, Zap, Trophy, Lock, Upload, User, Flame, Hash, Target, CheckCircle2, TrendingUp, Tag, Sparkles } from "lucide-react";
+import { Loader2, Star, Shield, Zap, Trophy, Lock, Upload, User, Flame, Hash, Target, CheckCircle2, TrendingUp, Tag, Sparkles, Medal } from "lucide-react";
 
 interface Achievement {
   id: string;
@@ -27,6 +27,25 @@ async function fetchAchievements(): Promise<AchievementsData> {
   if (!res.ok) throw new Error("achievements fetch failed");
   return res.json() as Promise<AchievementsData>;
 }
+
+interface RankingData {
+  topPercentileBucket: 10 | 25 | 50 | 75 | null;
+}
+
+async function fetchRanking(): Promise<RankingData> {
+  const res = await fetch("/api/dashboard/ranking", { credentials: "include" });
+  if (!res.ok) throw new Error("ranking fetch failed");
+  return res.json() as Promise<RankingData>;
+}
+
+// Friendly label per bucket. Lower bucket = more motivational. 75 means "below median",
+// shown as a softer encouragement rather than a "you're at the bottom" framing.
+const BUCKET_META: Record<10 | 25 | 50 | 75, { label: string; sub: string; color: string; bg: string }> = {
+  10: { label: "Top 10% mais ativos",     sub: "Você está entre os mais engajados.", color: "#f59e0b", bg: "rgba(245,158,11,0.10)" },
+  25: { label: "Top 25% mais ativos",     sub: "Acima da maioria — continue assim.",  color: "#a855f7", bg: "rgba(168,85,247,0.10)" },
+  50: { label: "Top 50% mais ativos",     sub: "Mais ativo que metade dos usuários.", color: "#3b82f6", bg: "rgba(59,130,246,0.10)" },
+  75: { label: "Mantendo o ritmo",        sub: "Use mais dias seguidos para subir.",  color: "#94a3b8", bg: "rgba(148,163,184,0.10)" },
+};
 
 const LEVEL_META = [
   { icon: Star,   color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
@@ -117,10 +136,34 @@ function AchievementBadge({ achievement }: { achievement: Achievement }) {
   );
 }
 
+function RankingPill({ bucket }: { bucket: 10 | 25 | 50 | 75 }) {
+  const meta = BUCKET_META[bucket];
+  return (
+    <div
+      className="flex items-center gap-3 p-3 rounded-xl border"
+      style={{ background: meta.bg, borderColor: `${meta.color}33` }}
+    >
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${meta.color}1f` }}>
+        <Medal size={17} style={{ color: meta.color }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-semibold text-white leading-snug">{meta.label}</div>
+        <div className="text-[11px] text-[var(--muted)] mt-0.5">{meta.sub}</div>
+      </div>
+    </div>
+  );
+}
+
 export function AchievementsCard() {
   const { data, isLoading } = useQuery<AchievementsData>({
     queryKey: ["/dashboard/achievements"],
     queryFn: fetchAchievements,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: rankData } = useQuery<RankingData>({
+    queryKey: ["/dashboard/ranking"],
+    queryFn: fetchRanking,
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000,
   });
@@ -137,7 +180,7 @@ export function AchievementsCard() {
 
   return (
     <div className="glass rounded-2xl p-5 space-y-4">
-      <div className="text-[13px] font-semibold text-white">Nível & Conquistas</div>
+      <div className="text-[13px] font-semibold text-white">Nível, Conquistas & Ranking</div>
 
       <LevelBanner data={data} />
 
@@ -146,6 +189,10 @@ export function AchievementsCard() {
           <AchievementBadge key={a.id} achievement={a} />
         ))}
       </div>
+
+      {rankData?.topPercentileBucket != null && (
+        <RankingPill bucket={rankData.topPercentileBucket} />
+      )}
 
       <div className="text-[10px] text-[var(--muted)] pt-1">
         Pontos acumulam com dias de uso e conquistas desbloqueadas.
