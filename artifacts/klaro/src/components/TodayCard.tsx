@@ -13,10 +13,11 @@ type Trend = "up" | "down" | "flat";
 type BarColor = "income" | "expense" | "accent" | "warning" | undefined;
 
 type CardBlock =
-  | { type: "callout";    tone: BlockTone; headline: string; body: string; ctaLabel?: string; ctaHref?: string; icon?: string }
+  | { type: "callout";    tone: BlockTone; headline: string; body: string; ctaLabel?: string; ctaHref?: string; ctaPrompt?: string; icon?: string }
   | { type: "bigNumber";  label: string; value: string; delta?: string; trend?: Trend; sublabel?: string }
   | { type: "text";       tone: BlockTone; content: string }
   | { type: "barChart";   title: string; data: Array<{ label: string; value: number; color?: BarColor }>; unit?: string }
+  | { type: "groupedBar"; title: string; legend: Array<{ name: string; color?: BarColor }>; groups: Array<{ label: string; values: number[] }>; unit?: string }
   | { type: "lineChart";  title: string; data: Array<{ x: string; y: number }>; unit?: string }
   | { type: "comparison"; title: string; left: { label: string; value: string; trend?: Trend }; right: { label: string; value: string; trend?: Trend } }
   | { type: "list";       title: string; items: Array<{ label: string; value: string; subtitle?: string }> };
@@ -124,7 +125,15 @@ function CalloutBlock({ b }: { b: Extract<CardBlock, { type: "callout" }> }) {
       </div>
       {b.ctaLabel && b.ctaHref && (
         <button
-          onClick={() => setLocation(b.ctaHref!)}
+          onClick={() => {
+            // When the CTA leads to chat AND carries a prompt, encode the prompt in the URL.
+            // chat.tsx auto-sends it on mount and clears the param. For non-chat hrefs we just navigate.
+            if (b.ctaHref === "/chat" && b.ctaPrompt) {
+              setLocation(`/chat?prompt=${encodeURIComponent(b.ctaPrompt)}`);
+            } else {
+              setLocation(b.ctaHref!);
+            }
+          }}
           className="inline-flex self-start items-center gap-1.5 text-[12px] font-semibold transition-all hover:gap-2 mt-1"
           style={{ color: meta.color }}
         >
@@ -177,6 +186,51 @@ function BarChartBlock({ b, accent }: { b: Extract<CardBlock, { type: "barChart"
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function GroupedBarBlock({ b, accent }: { b: Extract<CardBlock, { type: "groupedBar" }>; accent: string }) {
+  // Side-by-side bars per group. Use case: comparing the same categories across two periods
+  // (e.g. abr 1-5 vs mai 1-5 by channel) without losing which bar belongs to which period.
+  const max = Math.max(...b.groups.flatMap((g) => g.values), 1);
+  const seriesColors = b.legend.map((l) => (l.color ? BAR_COLOR_MAP[l.color] : accent));
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+        <div className="text-[11px] font-semibold text-white">{b.title}</div>
+        <div className="flex items-center gap-3">
+          {b.legend.map((l, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: seriesColors[i] }} />
+              <span className="text-[10px] text-[var(--muted)]">{l.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2.5">
+        {b.groups.map((g, gi) => (
+          <div key={gi}>
+            <div className="text-[10.5px] text-white/70 mb-1 truncate">{g.label}</div>
+            <div className="space-y-1">
+              {g.values.map((v, vi) => {
+                const pct = (v / max) * 100;
+                const color = seriesColors[vi] ?? accent;
+                return (
+                  <div key={vi} className="flex items-center gap-2">
+                    <div className="w-12 text-[10px] text-[var(--muted)] truncate shrink-0">{b.legend[vi]?.name}</div>
+                    <div className="flex-1 h-[5px] rounded-full bg-white/5 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
+                    </div>
+                    <div className="text-[10.5px] tnum text-white/80 w-12 text-right shrink-0">{fmtCompact(v)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -256,6 +310,7 @@ function renderBlock(b: CardBlock, idx: number, accent: string) {
     case "bigNumber":  return <BigNumberBlock  key={idx} b={b} accent={accent} />;
     case "text":       return <TextBlock       key={idx} b={b} />;
     case "barChart":   return <BarChartBlock   key={idx} b={b} accent={accent} />;
+    case "groupedBar": return <GroupedBarBlock key={idx} b={b} accent={accent} />;
     case "lineChart":  return <LineChartBlock  key={idx} b={b} accent={accent} />;
     case "comparison": return <ComparisonBlock key={idx} b={b} accent={accent} />;
     case "list":       return <ListBlock       key={idx} b={b} />;

@@ -5,10 +5,11 @@ import { pgTable, text, serial, timestamp, integer, json } from "drizzle-orm/pg-
 export type BlockTone = "insight" | "comparison" | "warning" | "celebration";
 
 export type CardBlock =
-  | { type: "callout";      tone: BlockTone; headline: string; body: string; ctaLabel?: string; ctaHref?: string; icon?: string }
+  | { type: "callout";      tone: BlockTone; headline: string; body: string; ctaLabel?: string; ctaHref?: string; ctaPrompt?: string; icon?: string }
   | { type: "bigNumber";    label: string; value: string; delta?: string; trend?: "up" | "down" | "flat"; sublabel?: string }
   | { type: "text";         tone: BlockTone; content: string }
   | { type: "barChart";     title: string; data: Array<{ label: string; value: number; color?: string }>; unit?: string }
+  | { type: "groupedBar";   title: string; legend: Array<{ name: string; color?: string }>; groups: Array<{ label: string; values: number[] }>; unit?: string }
   | { type: "lineChart";    title: string; data: Array<{ x: string; y: number }>; unit?: string }
   | { type: "comparison";   title: string; left: { label: string; value: string; trend?: "up" | "down" | "flat" }; right: { label: string; value: string; trend?: "up" | "down" | "flat" } }
   | { type: "list";         title: string; items: Array<{ label: string; value: string; subtitle?: string }> };

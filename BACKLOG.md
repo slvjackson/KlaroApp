@@ -93,6 +93,16 @@ Cada item lista contexto, motivação pra adiar, e o que destrava a retomada.
 
 ---
 
+## Insights & Missões
+
+### Auto-tagging via IA + filtro por tag no histórico
+**Status:** não iniciado
+**Contexto:** Fase 3 do redesenho de ciclo de vida de insights. A mesma chamada Haiku que hoje gera título/steps em background no `POST /insights` passaria a devolver também 1-2 tags semânticas (`["fornecedores", "food-cost"]`). Coluna `tags: text[]` no schema. Filtro por tag adicional na página de Histórico — usuário não escreve nada e ainda assim consegue achar "todos os insights de fornecedores".
+**Por que adiamos:** Fase 1 (estados de ciclo de vida) + Fase 2 (histórico com search por texto + filtro por tom) já cobrem o caso real. Tag manual era pior (fricção pra 100% dos usuários, valor pra ~5%); tag automática só faz sentido depois que o histórico crescer e search por texto começar a falhar.
+**Destrava:** quando o histórico de algum usuário passar de ~50 itens E houver sinal de que `Ctrl+F` no título/descrição não basta (ex: usuário pedir "tag por categoria" explicitamente, ou heatmap de busca mostrar queries genéricas demais). Adicionar `tags` ao prompt da Haiku que já roda; sem nova chamada de IA.
+
+---
+
 ## Como manter este doc
 
 - Toda decisão de "vamos deixar pra depois" durante implementação vira entrada aqui, com **status / contexto / motivo / destrava**.

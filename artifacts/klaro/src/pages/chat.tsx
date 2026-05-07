@@ -4,6 +4,7 @@ import { Layout } from "@/components/layout";
 import { Paperclip, Mic, Send, Loader, ShieldCheck, CornerDownRight, Bookmark, Check, RotateCcw } from "lucide-react";
 import { useSaveInsight, useGetMe, getListInsightsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { RichContent } from "@/components/rich-content";
 import { AnamneseCta } from "@/components/anamnese-cta";
 import { useChatContext, type ChatMessage } from "@/contexts/chat-context";
@@ -143,6 +144,24 @@ export default function Chat() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
+
+  // Auto-send when arriving via /chat?prompt=... (used by Today Card CTAs that direct
+  // the user to chat with a contextual question already framed). We strip the param
+  // from the URL afterwards so a refresh doesn't re-send the same message.
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    if (isAuthLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    const prompt = params.get("prompt");
+    if (!prompt) return;
+    // Defer one tick so the chat context is ready and we don't fight other mount effects.
+    const t = setTimeout(() => {
+      void ctxSend(prompt);
+      setLocation("/chat", { replace: true });
+    }, 50);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthLoading]);
 
   if (isAuthLoading) return null;
 

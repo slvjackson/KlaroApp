@@ -238,19 +238,23 @@ Regras absolutas:
 7. Quando houver benchmark de segmento, você pode comparar o usuário à mediana — sempre citando "mediana entre N negócios do segmento" pra ser honesto. Se a comparação for desfavorável, use tom "warning" com construtividade. Se favorável, "celebration".
 
 Tipos de bloco disponíveis:
-- callout:    { type, tone, headline, body, ctaLabel?, ctaHref?, icon? }   — cabeçalho narrativo do card
+- callout:    { type, tone, headline, body, ctaLabel?, ctaHref?, ctaPrompt?, icon? } — cabeçalho narrativo do card
 - bigNumber:  { type, label, value, delta?, trend?, sublabel? }            — número-chave com delta
 - text:       { type, tone, content }                                      — parágrafo curto explicativo
-- barChart:   { type, title, data:[{label,value,color?}], unit? }          — comparação por categoria/mês
+- barChart:   { type, title, data:[{label,value,color?}], unit? }          — uma série por categoria
+- groupedBar: { type, title, legend:[{name,color?}], groups:[{label,values:[number]}], unit? } — DUAS ou mais séries por categoria (ex: abr vs mai por canal). Use SEMPRE que estiver comparando dois períodos por categoria — caso contrário a UI mostra só uma das séries.
 - lineChart:  { type, title, data:[{x,y}], unit? }                          — evolução temporal
-- comparison: { type, title, left:{label,value,trend?}, right:{label,value,trend?} } — antes/depois lado a lado
+- comparison: { type, title, left:{label,value,trend?}, right:{label,value,trend?} } — antes/depois lado a lado, totais únicos
 - list:       { type, title, items:[{label,value,subtitle?}] }              — top N
 
-Valores de cor permitidos para barChart: "income" | "expense" | "accent" | "warning" | undefined.
+Valores de cor permitidos para barChart e groupedBar: "income" | "expense" | "accent" | "warning" | undefined.
 Trend: "up" | "down" | "flat".
 Tone: "celebration" | "warning" | "comparison" | "insight".
 
-CTAs (opcionais) podem apontar para: /transactions, /insights, /upload, /anamnese, /dashboard, /saude, /conquistas.
+CTAs (opcionais) no callout:
+- ctaHref: /transactions, /insights, /upload, /anamnese, /dashboard, /saude, /conquistas, /chat
+- Quando ctaHref for "/chat", SEMPRE inclua ctaPrompt: uma mensagem em primeira pessoa que o usuário "envia" para a IA, contextualizando o card e pedindo ajuda concreta. Exemplo: card sobre Dia das Mães → ctaLabel: "Preparar estratégia", ctaHref: "/chat", ctaPrompt: "Quero preparar minha estratégia para o Dia das Mães. Como historicamente eu performo nessa data e o que posso fazer nos próximos dias?". O ctaPrompt deve mencionar números relevantes do card pra IA já entrar com contexto.
+- Use ctaHref "/chat" quando a ação natural é "discutir/planejar/investigar com a IA". Use os outros hrefs quando a ação é "ir consultar X tela do app".
 
 Output: JSON puro (sem markdown), no formato:
 { "cards": [ { "id": "card_0", "narrativeAngle": "string descritivo curto", "blocks": [ ... ] }, ... ] }`;
@@ -425,6 +429,7 @@ function validateCardNumbersDetailed(card: CardEntry, ctx: BusinessContext): { o
     else if (b.type === "bigNumber") { stringsToCheck.push(b.value, b.delta ?? "", b.sublabel ?? ""); }
     else if (b.type === "text") { stringsToCheck.push(b.content); }
     else if (b.type === "barChart") { for (const d of b.data) if (!isAllowedNumber(d.value, allowed)) offending.push(d.value); }
+    else if (b.type === "groupedBar") { for (const g of b.groups) for (const v of g.values) if (!isAllowedNumber(v, allowed)) offending.push(v); }
     else if (b.type === "lineChart") { for (const d of b.data) if (!isAllowedNumber(d.y, allowed)) offending.push(d.y); }
     else if (b.type === "comparison") { stringsToCheck.push(b.left.value, b.right.value); }
     else if (b.type === "list") { for (const it of b.items) stringsToCheck.push(it.value, it.subtitle ?? ""); }
