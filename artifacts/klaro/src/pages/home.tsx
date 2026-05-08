@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { useLocation } from "wouter";
 import {
   Zap, ArrowRight, ArrowDown, CheckCircle2, Check,
@@ -20,10 +20,18 @@ function smoothstep(a: number, b: number, t: number): number {
 
 // Scroll progress within a section: 0 when its top hits the viewport top, 1 when its
 // bottom hits the viewport bottom. Drives the hero's file-funnel → dashboard reveal.
+//
+// Throttled to one update per animation frame via requestAnimationFrame. Without this,
+// scroll events can fire 100+ times per second on a fast trackpad — every fire triggers
+// a React re-render of the whole hero tree (6 file cards + dashboard), blowing the
+// frame budget and making the animation feel choppy.
 function useScrollProgress(ref: React.RefObject<HTMLElement | null>): number {
   const [p, setP] = useState(0);
   useEffect(() => {
-    function onScroll() {
+    let rafId = 0;
+    let pending = false;
+    function compute() {
+      pending = false;
       const el = ref.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -33,9 +41,17 @@ function useScrollProgress(ref: React.RefObject<HTMLElement | null>): number {
       const pr = total > 0 ? clamp(scrolled / total, 0, 1) : 0;
       setP(pr);
     }
+    function onScroll() {
+      if (pending) return;
+      pending = true;
+      rafId = requestAnimationFrame(compute);
+    }
     window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
+    compute();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [ref]);
   return p;
 }
@@ -57,28 +73,16 @@ const FILE_KINDS: Record<FileKind, { color: string; label: string; Icon: React.C
   ocr:   { color: "#a855f7", label: "NOTA", Icon: NotebookPen },
 };
 
-function FileCard({
-  kind, title, x, y, rot, scale, delay = 0,
-}: {
-  kind: FileKind; title: string; x: number; y: number; rot: number; scale: number; delay?: number;
-}) {
+// Inner card content is stable per (kind, title) — memoized so 60+ scroll frames per
+// second don't re-build the table/PDF/OFX subtree just because the wrapper transform
+// changed. Only the outer transform-bearing div re-renders with each frame update.
+const FileCardInner = memo(function FileCardInner({ kind, title }: { kind: FileKind; title: string }) {
   const k = FILE_KINDS[kind];
   return (
     <div
-      className="absolute"
-      style={{
-        left: "50%",
-        top: "50%",
-        transform: `translate(-50%,-50%) translate(${x}px, ${y}px) rotate(${rot}deg) scale(${scale})`,
-        transition: "transform 0.18s cubic-bezier(0.22,1,0.36,1), opacity 0.2s",
-        transitionDelay: `${delay}ms`,
-        transformOrigin: "center center",
-      }}
+      className="rounded-lg overflow-hidden border bg-[#16161a] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] w-[180px]"
+      style={{ borderColor: "#26262c" }}
     >
-      <div
-        className="rounded-lg overflow-hidden border bg-[#16161a] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] w-[180px]"
-        style={{ borderColor: "#26262c" }}
-      >
         <div className="flex items-center gap-2 px-3 py-2 border-b border-[#26262c]" style={{ background: `${k.color}22` }}>
           <div className="w-6 h-6 rounded grid place-items-center shrink-0" style={{ background: k.color }}>
             <k.Icon size={12} className="text-white" />
@@ -143,6 +147,28 @@ function FileCard({
           )}
         </div>
       </div>
+  );
+});
+
+// Wrapper that applies the per-frame transform. Cheap to re-render — no DOM subtree
+// underneath since FileCardInner is memoized.
+function FileCard({
+  kind, title, x, y, rot, scale,
+}: {
+  kind: FileKind; title: string; x: number; y: number; rot: number; scale: number;
+}) {
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: "50%",
+        top: "50%",
+        transform: `translate3d(-50%,-50%,0) translate3d(${x}px,${y}px,0) rotate(${rot}deg) scale(${scale})`,
+        transformOrigin: "center center",
+        willChange: "transform",
+      }}
+    >
+      <FileCardInner kind={kind} title={title} />
     </div>
   );
 }
@@ -168,8 +194,8 @@ function FileFunnel({ progress }: { progress: number }) {
           const cs = lerp(1, 0.45, conv);
           const op = 1 - clamp((conv - 0.75) / 0.15, 0, 1);
           return (
-            <div key={i} style={{ opacity: op }}>
-              <FileCard kind={f.kind} title={f.title} x={cx} y={cy} rot={cr} scale={cs} delay={i * 30} />
+            <div key={i} style={{ opacity: op, willChange: "opacity" }}>
+              <FileCard kind={f.kind} title={f.title} x={cx} y={cy} rot={cr} scale={cs} />
             </div>
           );
         })}
@@ -184,16 +210,24 @@ function FileFunnel({ progress }: { progress: number }) {
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl grid place-items-center"
+          className="absolute left-1/2 top-1/2 rounded-2xl grid place-items-center overflow-hidden"
           style={{
             width: `${lerp(20, 88, conv)}px`,
             height: `${lerp(20, 88, conv)}px`,
+            transform: "translate3d(-50%,-50%,0)",
             background: "linear-gradient(135deg, var(--accent), #4ad11a)",
             opacity: clamp((conv - 0.55) / 0.3, 0, 1),
             boxShadow: "0 0 60px var(--accent-soft), 0 20px 60px -10px rgba(106,248,47,0.4)",
+            willChange: "width, height, opacity",
           }}
         >
-          <span className="font-bold text-black tracking-tight" style={{ fontSize: `${lerp(8, 28, conv)}px` }}>k.</span>
+          <img
+            src="/logo.png"
+            alt="Klaro"
+            className="select-none"
+            draggable={false}
+            style={{ width: `${lerp(12, 56, conv)}px`, height: `${lerp(12, 56, conv)}px`, objectFit: "contain" }}
+          />
         </div>
       </div>
     </div>
@@ -329,8 +363,8 @@ function HeroSection({ go }: { go: (path: string) => void }) {
             <div
               style={{
                 opacity: dashOpacity,
-                transform: `scale(${dashScale})`,
-                transition: "transform 0.2s cubic-bezier(0.22,1,0.36,1)",
+                transform: `scale3d(${dashScale}, ${dashScale}, 1)`,
+                willChange: "transform, opacity",
               }}
             >
               <FauxDashboard opacity={dashOpacity} />
@@ -338,13 +372,6 @@ function HeroSection({ go }: { go: (path: string) => void }) {
           </div>
         </div>
 
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 z-20 hidden md:flex flex-col items-center gap-3">
-          <div className="text-[9px] text-white/30 uppercase tracking-[0.2em] [writing-mode:vertical-rl] rotate-180">progresso</div>
-          <div className="w-px h-32 bg-white/10 relative overflow-hidden">
-            <div className="absolute top-0 inset-x-0" style={{ height: `${p * 100}%`, background: "linear-gradient(180deg, var(--accent), transparent)" }} />
-          </div>
-          <div className="text-[10px] tnum text-white/50 font-semibold">{Math.round(p * 100)}%</div>
-        </div>
       </div>
     </section>
   );

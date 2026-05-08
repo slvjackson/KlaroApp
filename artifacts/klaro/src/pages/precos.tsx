@@ -135,7 +135,7 @@ export default function Precos() {
             ))}
           </div>
           <p className="text-center text-[12px] text-white/40 mt-8">
-            Sem cartão de crédito pra começar · Trial de 14 dias · Cancelamento livre
+            Sem cartão de crédito pra começar · Trial de 7 dias · Cancelamento livre
           </p>
         </div>
       </section>
@@ -180,7 +180,7 @@ export default function Precos() {
           </div>
           <div className="space-y-4">
             {[
-              { q: "Tem trial?", a: "Sim. 14 dias grátis em qualquer plano. Sem cartão de crédito pra começar." },
+              { q: "Tem trial?", a: "Sim. 7 dias grátis em qualquer plano. Sem cartão de crédito pra começar." },
               { q: "Posso trocar de plano depois?", a: "Pode. Migra de mensal pra semestral ou anual a qualquer hora — o crédito proporcional é considerado." },
               { q: "E se cancelar antes do ciclo terminar?", a: "Cancela quando quiser. No semestral e anual, você usa até o fim do período já pago. Não cobramos taxa de saída." },
               { q: "Tem limite de transações ou de uploads?", a: "Não pra uso normal de PME. Caso a gente identifique uso muito acima do padrão (ex: contador agregando dezenas de empresas), a gente conversa antes de qualquer mudança." },

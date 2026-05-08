@@ -409,7 +409,7 @@ export default function Produto() {
             Quer ver com seus próprios dados?
           </h2>
           <p className="text-[15px] text-white/60 max-w-xl mx-auto mb-8 leading-relaxed">
-            14 dias grátis em qualquer plano. Sem cartão pra começar.
+            7 dias grátis em qualquer plano. Sem cartão pra começar.
           </p>
           <button
             onClick={() => setLocation("/signup")}

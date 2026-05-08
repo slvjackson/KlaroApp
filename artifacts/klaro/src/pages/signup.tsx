@@ -3,7 +3,8 @@ import { Link, useLocation } from "wouter";
 import { useSignup } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { KlaroMark } from "@/components/KlaroMark";
-import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, ArrowLeft } from "lucide-react";
+
 
 export default function Signup() {
   const [, setLocation] = useLocation();
@@ -41,6 +42,7 @@ export default function Signup() {
   }
 
   return (
+    
     <div
       className="min-h-screen flex items-center justify-center p-4"
       style={{
@@ -49,9 +51,21 @@ export default function Signup() {
           radial-gradient(800px 500px at -5% 110%, rgba(106,248,47,0.08), transparent 60%),
           #09090b
         `,
+        
       }}
     >
+
       <div className="w-full max-w-[380px]">
+        <div className="mb-8">
+          <button
+            onClick={() => setLocation("/")}
+            className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={15} />
+            Voltar à página inicial
+          </button>
+        </div>
+
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <KlaroMark size={44} />
