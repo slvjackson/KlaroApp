@@ -32,15 +32,20 @@ async function issueVerificationEmail(userId: number, email: string, name: strin
 }
 
 function isMissingOnboardingColumn(err: unknown): boolean {
-  return typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "42703";
+  let cur: unknown = err;
+  while (cur && typeof cur === "object") {
+    if ("code" in cur && (cur as { code?: string }).code === "42703") return true;
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return false;
 }
 
 async function getOnboardingCompleted(userId: number): Promise<boolean> {
   try {
-    const [row] = await db.execute<{ onboarding_completed: boolean }>(
+    const result = await db.execute<{ onboarding_completed: boolean }>(
       sql`select onboarding_completed from users where id = ${userId} limit 1`
     );
-    return row?.onboarding_completed ?? false;
+    return result.rows[0]?.onboarding_completed ?? false;
   } catch (err) {
     if (isMissingOnboardingColumn(err)) return true;
     throw err;
