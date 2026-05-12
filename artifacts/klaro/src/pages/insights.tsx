@@ -531,13 +531,13 @@ export default function Insights() {
 
   return (
     <Layout title="Insights">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="space-y-5 md:space-y-6">
         {genStartedAt !== null && (
           <GeneratingInsightsOverlay startedAt={genStartedAt} />
         )}
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
-          <div>
+          <div className="max-w-4xl">
             <h1 className="text-[22px] font-bold tracking-tight text-white">Insights</h1>
             <p className="text-[12.5px] text-[var(--muted)] mt-1">Análises automáticas sobre a saúde do seu negócio.</p>
           </div>
@@ -677,7 +677,7 @@ export default function Insights() {
           // ── Deck view ──────────────────────────────────────────────────────
           <div>
             {/* Stacked layers behind the active card */}
-            <div className="relative pb-2">
+              <div className="relative pb-2 xl:max-w-4xl">
               {queue.length > 2 && (
                 <div
                   className="absolute inset-x-6 top-2 bottom-0 rounded-2xl border border-[var(--border)]"

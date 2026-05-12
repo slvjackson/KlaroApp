@@ -243,7 +243,7 @@ export default function Profile() {
 
   return (
     <Layout title="Perfil">
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6">
         <div>
           <h1 className="text-[22px] font-bold tracking-tight text-white">Perfil do Negócio</h1>
           <p className="text-[12.5px] text-[var(--muted)] mt-1">Essas informações melhoram a leitura dos arquivos e os insights gerados.</p>
@@ -308,34 +308,36 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Avatar + account */}
-        <GlassSection title="Dados da conta">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#6af82f] to-[#6af82f] grid place-items-center text-[20px] font-bold text-white shrink-0">
-              {initials}
-            </div>
-            <div>
-              <div className="text-[14px] font-semibold text-white">{user?.name}</div>
-              <div className="text-[12px] text-[var(--muted)]">{user?.email}</div>
-            </div>
-          </div>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] xl:items-start">
+          <div className="space-y-5">
+            {/* Avatar + account */}
+            <GlassSection title="Dados da conta">
+              <div className="flex items-center gap-4 mb-2">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#6af82f] to-[#6af82f] grid place-items-center text-[20px] font-bold text-white shrink-0">
+                  {initials}
+                </div>
+                <div>
+                  <div className="text-[14px] font-semibold text-white">{user?.name}</div>
+                  <div className="text-[12px] text-[var(--muted)]">{user?.email}</div>
+                </div>
+              </div>
 
-          <div>
-            <FieldLabel label="Nome" />
-            <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
-          </div>
-          <div>
-            <FieldLabel label="Email" />
-            <input className="field opacity-60" value={user?.email ?? ""} disabled />
-          </div>
-        </GlassSection>
+              <div>
+                <FieldLabel label="Nome" />
+                <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
+              </div>
+              <div>
+                <FieldLabel label="Email" />
+                <input className="field opacity-60" value={user?.email ?? ""} disabled />
+              </div>
+            </GlassSection>
 
-        {/* Business identity */}
-        <GlassSection title="Identidade do negócio">
-          <div>
-            <FieldLabel label="Nome do negócio" />
-            <input className="field" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Ex: Lanchonete da Maria" />
-          </div>
+            {/* Business identity */}
+            <GlassSection title="Identidade do negócio">
+              <div>
+                <FieldLabel label="Nome do negócio" />
+                <input className="field" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Ex: Lanchonete da Maria" />
+              </div>
 
           <div>
             <FieldLabel label="Segmento" />
@@ -505,6 +507,9 @@ export default function Profile() {
             </div>
           )}
         </div>
+          </div>
+
+          <div className="space-y-5 xl:sticky xl:top-24">
 
         {/* Subscription */}
         <GlassSection title="Assinatura">
@@ -578,6 +583,8 @@ export default function Profile() {
             Excluir minha conta
           </button>
         </GlassSection>
+          </div>
+        </div>
       </div>
 
       {/* Change password dialog */}

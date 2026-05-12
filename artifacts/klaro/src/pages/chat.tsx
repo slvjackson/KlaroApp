@@ -197,7 +197,7 @@ export default function Chat() {
   return (
     <Layout title="Chat Klaro">
       <SaveToast visible={showToast} />
-      <div className="max-w-3xl mx-auto h-[calc(100vh-120px)] flex flex-col">
+      <div className="h-[calc(100vh-120px)] md:h-[calc(100vh-128px)] flex flex-col">
         <div className="glass-strong rounded-2xl flex flex-col overflow-hidden h-full relative">
           {/* Brand glow */}
           <div className="pointer-events-none absolute -top-24 -right-24 w-60 h-60 rounded-full bg-[rgba(106,248,47,0.22)] blur-3xl" />
