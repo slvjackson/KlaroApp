@@ -11,4 +11,5 @@ export interface User {
   name: string;
   email: string;
   createdAt: Date;
+  onboardingCompleted?: boolean;
 }

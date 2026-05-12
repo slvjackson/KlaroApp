@@ -18,6 +18,7 @@ export const usersTable = pgTable("users", {
   passwordResetExpiresAt: timestamp("password_reset_expires_at", { withTimezone: true }),
   isAdmin: boolean("is_admin").notNull().default(false),
   status: text("status").$type<UserStatus>().notNull().default("active"),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true });

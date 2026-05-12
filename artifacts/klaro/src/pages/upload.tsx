@@ -194,7 +194,7 @@ export default function Upload() {
 
   return (
     <Layout title="Upload">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="space-y-5 md:space-y-6">
         <div>
           <h1 className="text-[22px] font-bold tracking-tight text-white">Upload de Dados</h1>
           <p className="text-[12.5px] text-[var(--muted)] mt-1 leading-relaxed">
@@ -202,74 +202,78 @@ export default function Upload() {
           </p>
         </div>
 
-        {/* Drop zone */}
-        <div
-          className={`glass rounded-2xl transition-all ${isDragging ? "border-[var(--accent)] shadow-[0_0_0_3px_rgba(106,248,47,0.15)]" : ""}`}
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDrop={onDrop}
-        >
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.8fr)] lg:items-start">
+          {/* Drop zone */}
           <div
-            className={`border-2 border-dashed rounded-2xl p-6 sm:p-14 text-center flex flex-col items-center gap-5 transition-colors ${
-              isDragging
-                ? "border-[var(--accent)] bg-[var(--accent-soft)]"
-                : "border-[var(--border-2)] hover:border-[var(--border)]"
-            }`}
+            className={`glass rounded-2xl transition-all ${isDragging ? "border-[var(--accent)] shadow-[0_0_0_3px_rgba(106,248,47,0.15)]" : ""}`}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
           >
-            <div className={`w-16 h-16 rounded-2xl grid place-items-center transition-colors ${isDragging ? "bg-[var(--accent-soft)]" : "bg-white/5"}`}>
-              <UploadCloud size={28} className={isDragging ? "text-[#90f048]" : "text-[var(--muted)]"} />
-            </div>
-
-            <div>
-              <div className="text-[15px] font-semibold text-white">
-                {isDragging ? "Solte o arquivo aqui" : "Arraste um arquivo ou clique para selecionar"}
+            <div
+              className={`min-h-[360px] border-2 border-dashed rounded-2xl p-6 sm:p-14 text-center flex flex-col items-center justify-center gap-5 transition-colors ${
+                isDragging
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+                  : "border-[var(--border-2)] hover:border-[var(--border)]"
+              }`}
+            >
+              <div className={`w-16 h-16 rounded-2xl grid place-items-center transition-colors ${isDragging ? "bg-[var(--accent-soft)]" : "bg-white/5"}`}>
+                <UploadCloud size={28} className={isDragging ? "text-[#90f048]" : "text-[var(--muted)]"} />
               </div>
-              <p className="text-[12.5px] text-[var(--muted)] mt-1">Suporta CSV, Excel, PDF, OFX (extrato bancário) e imagens</p>
-            </div>
 
-            <label className={`cursor-pointer ${uploading ? "pointer-events-none opacity-50" : ""}`}>
-              <div className="btn-primary px-6 py-2.5 rounded-xl text-[13px] font-semibold inline-block">
-                Selecionar arquivo
+              <div>
+                <div className="text-[15px] font-semibold text-white">
+                  {isDragging ? "Solte o arquivo aqui" : "Arraste um arquivo ou clique para selecionar"}
+                </div>
+                <p className="text-[12.5px] text-[var(--muted)] mt-1">Suporta CSV, Excel, PDF, OFX (extrato bancário) e imagens</p>
               </div>
-              <input
-                type="file"
-                className="hidden"
-                accept=".csv,.xlsx,.xls,.pdf,.ofx,.qfx,.qbo,image/*"
-                onChange={onFileInput}
-                disabled={uploading}
-              />
-            </label>
 
-            {uploadError && (
-              <p className="text-[12.5px] text-[var(--expense)]">{uploadError}</p>
-            )}
+              <label className={`cursor-pointer ${uploading ? "pointer-events-none opacity-50" : ""}`}>
+                <div className="btn-primary px-6 py-2.5 rounded-xl text-[13px] font-semibold inline-block">
+                  Selecionar arquivo
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".csv,.xlsx,.xls,.pdf,.ofx,.qfx,.qbo,image/*"
+                  onChange={onFileInput}
+                  disabled={uploading}
+                />
+              </label>
+
+              {uploadError && (
+                <p className="text-[12.5px] text-[var(--expense)]">{uploadError}</p>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Supported formats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {SUPPORTED.map(({ icon: Icon, label }) => (
-            <div key={label} className="glass rounded-xl p-4 flex sm:flex-col items-center gap-3 sm:gap-2 sm:text-center">
-              <div className="w-9 h-9 rounded-lg bg-white/5 grid place-items-center">
-                <Icon size={16} className="text-[var(--muted)]" />
-              </div>
-              <div className="text-[12px] font-medium text-white">{label}</div>
+          <div className="space-y-3">
+            {/* Supported formats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
+              {SUPPORTED.map(({ icon: Icon, label }) => (
+                <div key={label} className="glass rounded-xl p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-white/5 grid place-items-center">
+                    <Icon size={16} className="text-[var(--muted)]" />
+                  </div>
+                  <div className="text-[12px] font-medium text-white">{label}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Info card */}
-        <div className="glass rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] grid place-items-center shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#90f048" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
-            </svg>
-          </div>
-          <div>
-            <div className="text-[13px] font-semibold text-white">Extração com IA</div>
-            <p className="text-[12px] text-[var(--muted)] leading-relaxed mt-0.5">
-              Nossa IA lê automaticamente valores, datas e categorias. Você revisa e confirma antes de salvar.
-            </p>
+            {/* Info card */}
+            <div className="glass rounded-2xl p-4 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] grid place-items-center shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#90f048" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+                </svg>
+              </div>
+              <div>
+                <div className="text-[13px] font-semibold text-white">Extração com IA</div>
+                <p className="text-[12px] text-[var(--muted)] leading-relaxed mt-0.5">
+                  Nossa IA lê automaticamente valores, datas e categorias. Você revisa e confirma antes de salvar.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -4,7 +4,12 @@ import { Gift, AlertTriangle, CheckCircle2, X } from "lucide-react";
 import type { BillingStatus } from "@workspace/api-client-react";
 
 const STORAGE_KEY = "trial_welcome_shown_date";
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/billing", "/verify-email", "/forgot-password", "/reset-password"]);
+const PUBLIC_PATHS = new Set([
+  "/", "/login", "/signup", "/billing", "/verify-email", "/forgot-password", "/reset-password",
+  "/admin", "/terms",
+  "/produto", "/precos", "/empresa",
+  "/solucoes", "/solucoes/importacao", "/solucoes/insights", "/solucoes/chat", "/solucoes/missoes",
+]);
 
 function todayStr() {
   return new Date().toISOString().split("T")[0]!;

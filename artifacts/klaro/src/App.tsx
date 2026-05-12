@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +7,7 @@ import { ChatProvider } from "@/contexts/chat-context";
 import { UploadProvider, useUploadContext } from "@/contexts/upload-context";
 import { useGetMe, useGetBillingStatus } from "@workspace/api-client-react";
 import { TrialWelcomeModal } from "@/components/trial-welcome-modal";
+import { FirstLoginOnboarding, hasCompletedFirstLoginOnboarding } from "@/components/first-login-onboarding";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
@@ -134,13 +135,25 @@ function Router() {
 
 function AppInner() {
   const { uploading, uploadingFileName, cancel } = useUploadContext();
-  const { data: user } = useGetMe({ query: { queryKey: ["me"], retry: false } });
-  const { data: billing } = useGetBillingStatus({ query: { queryKey: ["billingStatus"], enabled: !!user, retry: false } });
+  const [location] = useLocation();
+  const { data: user } = useGetMe({ query: { retry: false } });
+  const { data: billing } = useGetBillingStatus({ query: { enabled: !!user, retry: false } });
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setOnboardingDone(user ? hasCompletedFirstLoginOnboarding(user) : true);
+  }, [user]);
+
+  const shouldShowOnboarding = !!user && onboardingDone === false && !PUBLIC_PATHS.has(location);
+
   return (
     <SubscriptionGuard>
       <Router />
       {uploading && <GlobalUploadOverlay fileName={uploadingFileName} onCancel={cancel} />}
-      {billing && <TrialWelcomeModal billing={billing} />}
+      {shouldShowOnboarding && (
+        <FirstLoginOnboarding user={user} onDone={() => setOnboardingDone(true)} />
+      )}
+      {user && billing && onboardingDone === true && <TrialWelcomeModal billing={billing} />}
     </SubscriptionGuard>
   );
 }

@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db, usersTable, subscriptionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { SignupBody, LoginBody } from "@workspace/api-zod";
 import { requireAuth, signJwt } from "../middlewares/auth";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email";
@@ -31,6 +31,36 @@ async function issueVerificationEmail(userId: number, email: string, name: strin
   );
 }
 
+function isMissingOnboardingColumn(err: unknown): boolean {
+  let cur: unknown = err;
+  while (cur && typeof cur === "object") {
+    if ("code" in cur && (cur as { code?: string }).code === "42703") return true;
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+async function getOnboardingCompleted(userId: number): Promise<boolean> {
+  try {
+    const result = await db.execute<{ onboarding_completed: boolean }>(
+      sql`select onboarding_completed from users where id = ${userId} limit 1`
+    );
+    return result.rows[0]?.onboarding_completed ?? false;
+  } catch (err) {
+    if (isMissingOnboardingColumn(err)) return true;
+    throw err;
+  }
+}
+
+async function markOnboardingCompleted(userId: number, value: boolean): Promise<void> {
+  try {
+    await db.execute(sql`update users set onboarding_completed = ${value} where id = ${userId}`);
+  } catch (err) {
+    if (isMissingOnboardingColumn(err)) return;
+    throw err;
+  }
+}
+
 // ─── Signup (web session) ──────────────────────────────────────────────────────
 
 router.post("/auth/signup", async (req, res): Promise<void> => {
@@ -42,7 +72,7 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
 
   const { name, email, password } = parsed.data;
 
-  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email));
   if (existing) {
     res.status(409).json({ error: "Este email já está cadastrado." });
     return;
@@ -76,7 +106,20 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 
   const { email, password } = parsed.data;
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  const [user] = await db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      passwordHash: usersTable.passwordHash,
+      emailVerifiedAt: usersTable.emailVerifiedAt,
+      businessProfile: usersTable.businessProfile,
+      createdAt: usersTable.createdAt,
+      isAdmin: usersTable.isAdmin,
+      status: usersTable.status,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
   if (!user) {
     res.status(401).json({ error: "Email ou senha inválidos." });
     return;
@@ -95,7 +138,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 
   req.session.userId = user.id;
 
-  const { passwordHash: _, ...safeUser } = user;
+  const { passwordHash: _, ...safeUserBase } = user;
+  const safeUser = { ...safeUserBase, onboardingCompleted: await getOnboardingCompleted(user.id) };
   res.json({ user: safeUser, message: "Login realizado com sucesso!" });
 });
 
@@ -110,7 +154,20 @@ router.post("/auth/token", async (req, res): Promise<void> => {
 
   const { email, password } = parsed.data;
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  const [user] = await db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      passwordHash: usersTable.passwordHash,
+      emailVerifiedAt: usersTable.emailVerifiedAt,
+      businessProfile: usersTable.businessProfile,
+      createdAt: usersTable.createdAt,
+      isAdmin: usersTable.isAdmin,
+      status: usersTable.status,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
   if (!user) {
     res.status(401).json({ error: "Email ou senha inválidos." });
     return;
@@ -128,7 +185,8 @@ router.post("/auth/token", async (req, res): Promise<void> => {
   }
 
   const token = signJwt(user.id);
-  const { passwordHash: _, ...safeUser } = user;
+  const { passwordHash: _, ...safeUserBase } = user;
+  const safeUser = { ...safeUserBase, onboardingCompleted: await getOnboardingCompleted(user.id) };
 
   res.json({ token, user: safeUser, message: "Login realizado com sucesso!" });
 });
@@ -144,7 +202,7 @@ router.post("/auth/token/signup", async (req, res): Promise<void> => {
 
   const { name, email, password } = parsed.data;
 
-  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email));
   if (existing) {
     res.status(409).json({ error: "Este email já está cadastrado." });
     return;
@@ -176,7 +234,12 @@ router.get("/auth/verify-email", async (req, res): Promise<void> => {
   }
 
   const [user] = await db
-    .select()
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      emailVerificationExpiresAt: usersTable.emailVerificationExpiresAt,
+    })
     .from(usersTable)
     .where(eq(usersTable.emailVerificationToken, token));
 
@@ -196,7 +259,10 @@ router.get("/auth/verify-email", async (req, res): Promise<void> => {
 // ─── Resend verification email ────────────────────────────────────────────────
 
 router.post("/auth/resend-verification", requireAuth, async (req, res): Promise<void> => {
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId!));
+  const [user] = await db
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt })
+    .from(usersTable)
+    .where(eq(usersTable.id, req.session.userId!));
   if (!user) {
     res.status(401).json({ error: "Sessão inválida." });
     return;
@@ -220,7 +286,10 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   }
 
   // Always respond the same — prevents email enumeration
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  const [user] = await db
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
   if (user) {
     const token = verificationToken();
     await db
@@ -245,7 +314,7 @@ router.post("/auth/reset-password", async (req, res): Promise<void> => {
   }
 
   const [user] = await db
-    .select()
+    .select({ id: usersTable.id, passwordResetExpiresAt: usersTable.passwordResetExpiresAt })
     .from(usersTable)
     .where(eq(usersTable.passwordResetToken, token));
 
@@ -285,7 +354,7 @@ router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(user);
+  res.json({ ...user, onboardingCompleted: await getOnboardingCompleted(user.id) });
 });
 
 // ─── Change password ──────────────────────────────────────────────────────────
@@ -297,7 +366,10 @@ router.post("/auth/change-password", requireAuth, async (req, res): Promise<void
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId!));
+  const [user] = await db
+    .select({ id: usersTable.id, passwordHash: usersTable.passwordHash })
+    .from(usersTable)
+    .where(eq(usersTable.id, req.session.userId!));
   if (!user) { res.status(401).json({ error: "Sessão inválida." }); return; }
 
   const match = await bcrypt.compare(currentPassword, user.passwordHash);
@@ -321,9 +393,9 @@ router.delete("/auth/me", requireAuth, async (req, res): Promise<void> => {
 
 router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
-  const { name, businessProfile } = req.body;
+  const { name, businessProfile, onboardingCompleted } = req.body;
 
-  if (name === undefined && businessProfile === undefined) {
+  if (name === undefined && businessProfile === undefined && onboardingCompleted === undefined) {
     res.status(400).json({ error: "Nenhum dado enviado." });
     return;
   }
@@ -339,14 +411,22 @@ router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
     const existing = (current?.businessProfile as Record<string, unknown> | null) ?? {};
     patch.businessProfile = { ...existing, ...businessProfile };
   }
+  if (onboardingCompleted !== undefined) {
+    await markOnboardingCompleted(userId, Boolean(onboardingCompleted));
+  }
 
-  const [updated] = await db
-    .update(usersTable)
-    .set(patch)
-    .where(eq(usersTable.id, userId))
-    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt });
+  const [updated] = Object.keys(patch).length > 0
+    ? await db
+        .update(usersTable)
+        .set(patch)
+        .where(eq(usersTable.id, userId))
+        .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt })
+    : await db
+        .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId));
 
-  res.json({ user: updated });
+  res.json({ user: { ...updated, onboardingCompleted: await getOnboardingCompleted(userId) } });
 });
 
 export default router;

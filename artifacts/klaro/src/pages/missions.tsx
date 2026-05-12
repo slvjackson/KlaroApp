@@ -657,7 +657,7 @@ export default function Missions() {
 
   return (
     <Layout title="Missões">
-      <div className="max-w-2xl mx-auto space-y-5 max-w-xl">
+      <div className="space-y-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold tracking-tight text-white">Missões</h1>
@@ -721,7 +721,7 @@ export default function Missions() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
             {tabMissions.map((insight) => (
               <MissionCard
                 key={insight.id}

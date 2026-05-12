@@ -37,6 +37,7 @@ export interface User {
   createdAt: string;
   isAdmin?: boolean;
   status?: string;
+  onboardingCompleted?: boolean;
 }
 
 export interface AuthResponse {
