@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Lightbulb, RefreshCw, AlertTriangle, AlertOctagon, TrendingUp,
   Upload, Trash2, Trophy, Clock, CheckCircle2, Circle, Info,
-  ChevronLeft, ChevronRight, EyeOff,
+  ChevronLeft, ChevronRight, EyeOff, CalendarRange,
 } from "lucide-react";
 import type { InsightsCoverage } from "@workspace/api-client-react";
 import { Link, useLocation } from "wouter";
@@ -292,6 +292,7 @@ export default function Insights() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
   const anamneseCompleted = !!bp?.anamneseCompleted;
+  const selectedPeriodInfo = PERIODS.find((p) => p.key === selectedPeriod) ?? PERIODS[1];
 
   useEffect(() => {
     if (!isLoading && rawInsights) {
@@ -386,57 +387,70 @@ export default function Insights() {
         </div>
 
         {/* Period selector */}
-        <div className="glass rounded-2xl p-5 flex flex-col gap-4 border border-[var(--border)]">
-          <div>
-            <p className="text-[13.5px] font-semibold text-white">Qual período a IA deve analisar?</p>
-            <p className="text-[12px] text-[var(--muted)] mt-1 leading-relaxed">
-              A IA vai usar as transações desse período como fonte de dados para identificar padrões e gerar recomendações para o seu negócio.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            {PERIODS.map((p) => {
-              const selected = selectedPeriod === p.key;
-              return (
-                <button
-                  key={p.key}
-                  onClick={() => setSelectedPeriod(p.key)}
-                  disabled={generateInsights.isPending}
-                  className={`flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all disabled:pointer-events-none ${
-                    selected
-                      ? "border-[var(--accent)] bg-[var(--accent-soft)]"
-                      : "border-[var(--border)] bg-[rgba(255,255,255,0.02)] hover:border-[var(--border-2)]"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className={`text-[14px] font-bold ${selected ? "text-[#90f048]" : "text-white"}`}>
-                      {p.label}
+        <div className="glass rounded-2xl p-3 sm:p-3.5 border border-[var(--border)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 items-center gap-2.5 sm:w-44 sm:shrink-0">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[rgba(106,248,47,0.24)] bg-[rgba(106,248,47,0.10)] text-[#90f048]">
+                <CalendarRange size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Período</p>
+                  {selectedPeriodInfo.recommended && (
+                    <span className="rounded-full bg-[rgba(106,248,47,0.12)] px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-[#90f048] ring-1 ring-[rgba(106,248,47,0.24)]">
+                      Rec.
                     </span>
-                    {p.recommended && (
-                      <span className="text-[9px] font-bold uppercase tracking-wide text-[#90f048] bg-[rgba(106,248,47,0.12)] px-1.5 py-0.5 rounded-full border border-[rgba(106,248,47,0.3)]">
-                        Recomendado
-                      </span>
+                  )}
+                </div>
+                <p className="truncate text-[13px] font-semibold text-white">{selectedPeriodInfo.range}</p>
+              </div>
+            </div>
+
+            <div
+              role="radiogroup"
+              aria-label="Período da análise"
+              className="grid grid-cols-4 gap-1 rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.025)] p-1 sm:flex-1"
+            >
+              {PERIODS.map((p) => {
+                const selected = selectedPeriod === p.key;
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setSelectedPeriod(p.key)}
+                    disabled={generateInsights.isPending}
+                    title={p.description}
+                    className={`relative h-9 rounded-lg px-2 text-[11.5px] font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 ${
+                      selected
+                        ? "bg-[var(--accent)] text-[#09090b] shadow-[0_8px_22px_-16px_rgba(106,248,47,0.9)]"
+                        : "text-[var(--muted)] hover:bg-[rgba(255,255,255,0.04)] hover:text-white"
+                    }`}
+                  >
+                    {p.recommended && !selected && (
+                      <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#90f048]" />
                     )}
-                  </div>
-                  <span className={`text-[11px] font-medium ${selected ? "text-[#90f048]/80" : "text-[var(--muted)]"}`}>
-                    {p.range}
-                  </span>
-                  <span className="text-[11px] text-[var(--muted)] leading-snug mt-0.5">
-                    {p.description}
-                  </span>
-                </button>
-              );
-            })}
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={handleGenerate}
+              disabled={generateInsights.isPending}
+              className="btn-primary flex h-10 w-full items-center justify-center gap-2 rounded-xl px-4 text-[13px] font-semibold disabled:opacity-50 sm:w-auto sm:shrink-0"
+            >
+              <RefreshCw size={14} className={generateInsights.isPending ? "animate-spin" : ""} />
+              <span>{generateInsights.isPending ? "Analisando…" : "Gerar"}</span>
+              <span className="hidden sm:inline">insights</span>
+            </button>
           </div>
 
-          <button
-            onClick={handleGenerate}
-            disabled={generateInsights.isPending}
-            className="btn-primary w-full py-3 rounded-xl text-[13.5px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            <RefreshCw size={14} className={generateInsights.isPending ? "animate-spin" : ""} />
-            {generateInsights.isPending ? "Analisando…" : "Gerar insights"}
-          </button>
+          <p className="mt-2.5 border-t border-[var(--border)] pt-2.5 text-[11.5px] leading-relaxed text-[var(--muted)] sm:ml-[11.5rem]">
+            {selectedPeriodInfo.description}
+          </p>
         </div>
 
         {/* Coverage warning */}
