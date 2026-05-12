@@ -5,6 +5,7 @@ import {
   Linkedin, Twitter, Instagram, Youtube,
 } from "lucide-react";
 import { KlaroMark } from "@/components/KlaroMark";
+import { useEffect } from "react";
 
 // Shell wrapping every landing-area page. Provides the top nav, footer, and the
 // dark background. Subpages render their own content as children.
@@ -22,10 +23,10 @@ export function LandingShell({ children }: { children: React.ReactNode }) {
 // ─── Solutions catalogue (single source of truth — used in nav + soluções page) ─
 
 export const SOLUTIONS = [
-  { Icon: FileSearch,    label: "Lê qualquer arquivo",     desc: "PDF, foto, planilha, OFX. Klaro entende e organiza.",      slug: "importacao" },
-  { Icon: Sparkles,      label: "Insights por IA",         desc: "Análises e padrões revelados a partir do seu histórico.", slug: "insights" },
-  { Icon: MessageSquare, label: "Chat consultor",          desc: "Pergunte qualquer coisa do caixa em português.",          slug: "chat" },
-  { Icon: Target,        label: "Missões que ajudam",      desc: "Vire insight em ação concreta com passos do seu lado.",   slug: "missoes" },
+  { Icon: FileSearch,    label: "Lê qualquer arquivo",                desc: "PDF, foto, planilha, OFX. Klaro entende e organiza.",      slug: "importacao" },
+  { Icon: Sparkles,      label: "Insights por IA",                    desc: "Análises e padrões revelados a partir do seu histórico.", slug: "insights" },
+  { Icon: MessageSquare, label: "Chat consultor",                     desc: "Pergunte qualquer coisa do caixa em português.",          slug: "chat" },
+  { Icon: Target,        label: "Missões que te fazem crescer",       desc: "Cada missão te faz caminhar para a direção certa rumo ao crescimento.",   slug: "missoes" },
 ] as const;
 
 // ─── Top nav ─────────────────────────────────────────────────────────────────
@@ -43,10 +44,10 @@ export function TopNav() {
             <KlaroMark size={20} />
           </Link>
           <div className="hidden lg:flex items-center gap-7 text-[13px] text-white/65">
-            <Link href="/produto" className="hover:text-white transition-colors">Produto</Link>
+            <Link href="/" className="hover:text-white transition-colors">Home</Link>
             <div className="relative" onMouseEnter={() => setSolucoesOpen(true)} onMouseLeave={() => setSolucoesOpen(false)}>
               <Link href="/solucoes" className="hover:text-white flex items-center gap-1 transition-colors">
-                Soluções <ChevronDown size={11} />
+                Produto <ChevronDown size={11} />
               </Link>
               {solucoesOpen && (
                 <div className="absolute top-full left-0 pt-2 w-[280px]">
@@ -72,7 +73,8 @@ export function TopNav() {
               )}
             </div>
             <Link href="/precos" className="hover:text-white transition-colors">Preços</Link>
-            <Link href="/empresa" className="hover:text-white transition-colors">Empresa</Link>
+            <Link href="/empresa" className="hover:text-white transition-colors">Nosso Propósito</Link>
+            <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -92,10 +94,10 @@ export function TopNav() {
 
 export function RichFooter() {
   const cols: Array<{ title: string; links: Array<[string, string]> }> = [
-    { title: "Produto",  links: [["Visão geral", "/produto"], ["Importação", "/solucoes/importacao"], ["Insights", "/solucoes/insights"], ["Chat", "/solucoes/chat"], ["Missões", "/solucoes/missoes"]] },
-    { title: "Soluções", links: SOLUTIONS.map((s) => [s.label, `/solucoes/${s.slug}`] as [string, string]) },
-    { title: "Empresa",  links: [["Sobre", "/empresa"], ["Missão e valores", "/empresa"], ["Preços", "/precos"]] },
-    { title: "Legal",    links: [["Termos", "/terms"], ["Privacidade", "/terms"]] },
+    { title: "Home",  links: [["Visão geral", "/"], ["Preços", "/precos"]] },
+    { title: "Produto", links: SOLUTIONS.map((s) => [s.label, `/solucoes/${s.slug}`] as [string, string]) },
+    { title: "NOSSO PROPÓSITO",  links: [["Sobre", "/empresa"], ["Missão e valores", "/empresa"]] },
+    { title: "Legal",    links: [["Termos", "/terms"], ["Privacidade", "/privacy"]] },
   ];
   return (
     <footer className="bg-[#050506] border-t border-white/10 pt-16 pb-8">
@@ -107,10 +109,10 @@ export function RichFooter() {
               <KlaroMark size={20} />
             </Link>
             <p className="text-[13px] text-white/50 leading-relaxed mb-5">
-              Inteligência financeira para PMEs brasileiras. Do extrato ao insight em minutos.
+              Inteligência de negócios na palma de sua mão. Clareza nos números. Resultado no bolso. 
             </p>
             <div className="flex items-center gap-3">
-              {[Linkedin, Twitter, Instagram, Youtube].map((Ic, i) => (
+              {[Linkedin, Instagram].map((Ic, i) => (
                 <span key={i} className="w-8 h-8 rounded-md border border-white/10 grid place-items-center text-white/50 hover:text-white hover:border-white/30 cursor-pointer transition-colors">
                   <Ic size={13} />
                 </span>
@@ -134,7 +136,7 @@ export function RichFooter() {
           <p className="text-[11.5px] text-white/35">© 2026 Klaro. Todos os direitos reservados.</p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11.5px] text-white/40">
             <Link href="/terms" className="hover:text-white">Termos</Link>
-            <Link href="/terms" className="hover:text-white">Privacidade</Link>
+            <Link href="/privacy" className="hover:text-white">Privacidade</Link>
           </div>
         </div>
       </div>

@@ -162,7 +162,7 @@ function FileCard({
       className="absolute"
       style={{
         left: "50%",
-        top: "50%",
+        top: "80%",
         transform: `translate3d(-50%,-50%,0) translate3d(${x}px,${y}px,0) rotate(${rot}deg) scale(${scale})`,
         transformOrigin: "center center",
         willChange: "transform",
@@ -189,7 +189,7 @@ function FileFunnel({ progress }: { progress: number }) {
       <div className="relative w-full h-full">
         {FILE_DECK.map((f, i) => {
           const cx = lerp(f.x, 0, smoothstep(0, 1, conv));
-          const cy = lerp(f.y, 0, smoothstep(0, 1, conv));
+          const cy = lerp(f.y, -500, smoothstep(0, 1, conv));
           const cr = lerp(f.rot, 0, conv);
           const cs = lerp(1, 0.45, conv);
           const op = 1 - clamp((conv - 0.75) / 0.15, 0, 1);
@@ -200,7 +200,7 @@ function FileFunnel({ progress }: { progress: number }) {
           );
         })}
         <div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none"
+          className="absolute left-1/2 top-[62%] -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none"
           style={{
             width: `${lerp(40, 240, conv)}px`,
             height: `${lerp(40, 240, conv)}px`,
@@ -210,7 +210,7 @@ function FileFunnel({ progress }: { progress: number }) {
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 rounded-2xl grid place-items-center overflow-hidden"
+          className="absolute left-1/2 top-[62%]R rounded-2xl grid place-items-center overflow-hidden"
           style={{
             width: `${lerp(20, 88, conv)}px`,
             height: `${lerp(20, 88, conv)}px`,
@@ -319,14 +319,14 @@ function HeroSection({ go }: { go: (path: string) => void }) {
             className="inline-flex items-center gap-1.5 text-[10.5px] font-bold tracking-[0.16em] uppercase px-3 py-1.5 rounded-full mb-5"
             style={{ color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid rgba(106,248,47,0.3)" }}
           >
-            <Zap size={11} /> Qualquer formato entra. Clareza sai.
+            <Zap size={11} /> TRANSFORME SUA BAGUNÇA EM CLAREZA!
           </div>
-          <h1 className="font-bold tracking-[-0.025em] leading-[0.95] mx-auto max-w-5xl text-white" style={{ fontSize: "clamp(36px, 6vw, 80px)" }}>
-            Planilha, PDF, OFX,<br />
-            até foto do <span style={{ color: "var(--accent)" }}>caderno</span>.
+          <h1 className="font-bold tracking-[-0.025em] leading-[0.95] mx-auto max-w-5xl text-white" style={{ fontSize: "clamp(30px, 6vw, 70px)" }}>
+            Planilha, Extrato Bancário, Fatura do Cartão,<br />
+            até suas próprias anotações.
           </h1>
           <p className="text-[16px] md:text-[18px] text-white/60 mt-6 max-w-xl mx-auto leading-relaxed">
-            Mande qualquer formato. Klaro lê, normaliza e devolve um dashboard pronto — com insights gerados por IA.
+            Envie seus dados da forma como organiza hoje. O Klaro organiza tudo automaticamente e mostra onde sua empresa pode economizar, crescer e tomar decisões melhores.
           </p>
           <div className="text-[11px] text-white/30 uppercase tracking-[0.18em] mt-8 flex items-center justify-center gap-2 pointer-events-auto">
             <span>Role para ver a transformação</span>
@@ -372,38 +372,6 @@ function HeroSection({ go }: { go: (path: string) => void }) {
           </div>
         </div>
 
-      </div>
-    </section>
-  );
-}
-
-// ─── Big numbers — capability metrics, not vanity tração ──────────────────────
-
-function NumbersSection() {
-  const stats = [
-    { n: "6",       l: "formatos suportados (Excel, PDF, CSV, OFX, foto, OCR)" },
-    { n: "<60s",    l: "do upload ao painel pronto" },
-    { n: "9 em 10", l: "transações categorizadas pela IA, sem você mexer" },
-    { n: "0",       l: "colunas pra mapear na importação" },
-    { n: "1",       l: "análise nova todo dia, feita por IA" },
-  ];
-  return (
-    <section id="numeros" className="border-t border-white/10 py-24 bg-[#0a0a0b]">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="mb-14">
-          <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: "var(--accent)" }}>O que muda no seu dia</p>
-          <h2 className="font-bold tracking-tight max-w-3xl text-white" style={{ fontSize: "clamp(28px,3.6vw,48px)", lineHeight: 1.05 }}>
-            Menos planilha, mais decisão.
-          </h2>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-px bg-white/10">
-          {stats.map((s, i) => (
-            <div key={i} className="bg-[#0a0a0b] p-7 hover:bg-[#101012] transition-colors">
-              <div className="font-bold tnum tracking-tight" style={{ fontSize: "clamp(32px,3.8vw,56px)", color: "var(--accent)", lineHeight: 1 }}>{s.n}</div>
-              <div className="text-[12.5px] text-white/55 mt-3 leading-snug max-w-[18ch]">{s.l}</div>
-            </div>
-          ))}
-        </div>
       </div>
     </section>
   );
@@ -466,10 +434,27 @@ function MiniViz({ kind }: { kind: MiniVizKind }) {
   );
   if (kind === "chat") return (
     <div className="absolute inset-0 p-4 flex flex-col justify-center gap-1.5">
-      <div className="self-end max-w-[70%] text-[10px] px-3 py-1.5 rounded-2xl rounded-br-sm bg-white/10 text-white/80">Quanto gastei com fornecedores?</div>
-      <div className="self-start max-w-[70%] text-[10px] px-3 py-1.5 rounded-2xl rounded-bl-sm" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
-        R$ 4.220 em abril (-12% vs março).
-      </div>
+      <div className="self-end max-w-[70%] text-[10px] px-3 py-1.5 rounded-2xl rounded-br-sm bg-white/10 text-white/80">
+  Consigo contratar alguém esse mês?
+</div>
+
+<div
+  className="self-start max-w-[70%] text-[10px] px-3 py-1.5 rounded-2xl rounded-bl-sm"
+  style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+>
+  Se mantiver o ritmo atual de caixa, sim. Mas abril fechará com margem apertada.
+</div>
+
+<div className="self-end max-w-[70%] text-[10px] px-3 py-1.5 rounded-2xl rounded-br-sm bg-white/10 text-white/80">
+  E quanto preciso vender pra bater minha meta?
+</div>
+
+<div
+  className="self-start max-w-[70%] text-[10px] px-3 py-1.5 rounded-2xl rounded-bl-sm"
+  style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+>
+  Faltam R$8.420 para atingir sua meta de maio.
+</div>
     </div>
   );
   return null;
@@ -480,9 +465,9 @@ function AreasSection() {
     { title: "Importação inteligente", description: "PDFs, Excel, CSVs e fotos de extratos. A IA lê, classifica e estrutura tudo — sem você mapear coluna nenhuma.", Icon: UploadCloud,      viz: "upload" },
     { title: "Painel em tempo real",   description: "Saldo, receitas, despesas e tendências. Visualize seu mês em segundos.",                                       Icon: LayoutDashboard, viz: "dash" },
     { title: "Insights por IA",        description: "Análises automáticas com recomendação prática baseada no seu histórico — uma análise nova todo dia.",          Icon: Sparkles,        viz: "insights" },
-    { title: "Missões de ação",        description: "Vire insight em missão com passos concretos e marque o que já fez. Clareza vira progresso.",                   Icon: CheckCircle2,    viz: "missions" },
+    { title: "Missões de ação",        description: "Crie automaticamente missões com passos concretos e acompanhe o andamento. Clareza vira progresso.",                   Icon: CheckCircle2,    viz: "missions" },
     { title: "Categorização contínua", description: "O modelo aprende seu padrão e melhora a precisão a cada upload.",                                                Icon: Layers,          viz: "categorization" },
-    { title: "Chat financeiro",        description: "Pergunte qualquer coisa sobre seu caixa em linguagem natural — em português, claro.",                            Icon: MessageSquare,   viz: "chat" },
+    { title: "Chat Inteligente",        description: "Pergunte sobre finanças, metas, fornecedores ou marketing — e receba respostas claras em segundos.",                            Icon: MessageSquare,   viz: "chat" },
   ];
   return (
     <section id="produto" className="py-24 bg-[#09090b]">
@@ -491,7 +476,7 @@ function AreasSection() {
           <div>
             <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: "var(--accent)" }}>O que tem dentro</p>
             <h2 className="font-bold tracking-tight max-w-3xl text-white" style={{ fontSize: "clamp(28px,3.6vw,48px)", lineHeight: 1.05 }}>
-              Um produto pequeno o suficiente pra você usar todo dia.
+              Tudo que você precisa para entender seu negócio.
             </h2>
           </div>
         </div>
@@ -512,81 +497,6 @@ function AreasSection() {
               </div>
             </div>
           ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─── AI section ──────────────────────────────────────────────────────────────
-
-function AISection() {
-  const inputs = ["PDF / Excel", "Foto de caixa", "Extrato bancário", "Texto livre"];
-  const outputs = ["Categorização", "Insights", "Missões", "Resposta no chat"];
-  return (
-    <section id="ia" className="border-t border-white/10 py-24 bg-[#0a0a0b]">
-      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-[1fr_1.2fr] gap-14 items-center">
-        <div>
-          <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: "var(--accent)" }}>IA aplicada, sem mistério</p>
-          <h2 className="font-bold tracking-tight mb-5 text-white" style={{ fontSize: "clamp(28px,3.4vw,44px)", lineHeight: 1.06 }}>
-            Uma IA que fala português e entende seu negócio.
-          </h2>
-          <p className="text-[15px] text-white/60 leading-relaxed mb-6">
-            Combinamos modelos de extração, classificação e raciocínio pra transformar lançamento cru em métrica, padrão e recomendação. Em escala, em português, sem alucinar.
-          </p>
-          <ul className="space-y-3">
-            {[
-              "Extração que lê PDF, planilha e foto sem você ajustar nada",
-              "Classificação contextual que aprende seu padrão de gastos",
-              "Insight diário gerado a partir do seu próprio histórico",
-              "Você nunca treina nosso modelo com seus dados sem permissão",
-            ].map((t, i) => (
-              <li key={i} className="flex items-start gap-2.5 text-[14px] text-white/75">
-                <CheckCircle2 size={15} className="mt-0.5 shrink-0" style={{ color: "var(--accent)" }} />
-                {t}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="relative bg-[#09090b] border border-white/10 rounded-2xl p-8 aspect-[1.2/1] flex items-center justify-center overflow-hidden">
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              backgroundImage: "linear-gradient(rgba(255,255,255,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.05) 1px,transparent 1px)",
-              backgroundSize: "24px 24px",
-            }}
-          />
-          <div className="relative grid grid-cols-3 gap-6 items-center w-full">
-            <div className="space-y-2">
-              {inputs.map((i, idx) => (
-                <div key={idx} className="text-[12px] font-medium px-3 py-2 rounded-lg border border-white/10 bg-white/[0.03] text-white/70 text-right">
-                  {i}
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <div
-                className="w-full h-32 rounded-2xl grid place-items-center relative"
-                style={{ background: "radial-gradient(circle at 50% 50%, rgba(106,248,47,0.25), transparent 70%)", border: "1px solid rgba(106,248,47,0.3)" }}
-              >
-                <div className="absolute inset-0 rounded-2xl animate-pulse" style={{ boxShadow: "inset 0 0 60px rgba(106,248,47,0.15)" }} />
-                <div className="text-center relative">
-                  <div className="text-[10px] uppercase tracking-[0.18em] font-bold mb-1" style={{ color: "var(--accent)" }}>Klaro AI</div>
-                  <div className="text-[18px] font-bold text-white leading-tight">Pensa em PT-BR</div>
-                  <div className="text-[10px] text-white/40 mt-0.5">Treinada para PMEs</div>
-                </div>
-              </div>
-              <ArrowRight size={14} className="text-white/30 -my-1" />
-            </div>
-            <div className="space-y-2">
-              {outputs.map((o, idx) => (
-                <div key={idx} className="text-[12px] font-medium px-3 py-2 rounded-lg border" style={{ borderColor: "rgba(106,248,47,0.25)", background: "var(--accent-soft)", color: "var(--accent)" }}>
-                  {o}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -655,18 +565,14 @@ function AlternatingSection() {
       eyebrow: "Para quem vende",
       title: "Mais clareza, menos planilha.",
       description:
-        "Klaro elimina a tarefa repetitiva de organizar lançamento. Você foca em vender; a gente cuida do quanto entrou, saiu e sobrou.",
-      cta: "Ver como funciona",
-      anchorId: "produto",
+        "O Klaro entende entradas, saídas, categorias e movimentações automaticamente — sem planilhas manuais e sem gestão no achismo. Assim, você volta a focar no que realmente importa: fazer seu negócio crescer.",
       mock: "sell" as const,
     },
     {
       eyebrow: "Para quem decide",
-      title: "Decisão baseada no seu próprio dado.",
+      title: "O Klaro encontra oportunidades escondidas no seu negócio.",
       description:
-        "Insights da IA do Klaro identificam padrão antes invisível. Saiba onde cortar custo, qual fornecedor renegociar e quando o caixa vai apertar — antes do problema acontecer.",
-      cta: "Ver insights de exemplo",
-      anchorId: "ia",
+        "O Klaro cruza seus dados automaticamente para revelar custos escondidos, gastos fora do padrão e oportunidades de melhoria que normalmente passam despercebidas.",
       mock: "decide" as const,
     },
   ];
@@ -681,13 +587,7 @@ function AlternatingSection() {
             <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: "var(--accent)" }}>{b.eyebrow}</p>
             <h3 className="font-bold tracking-tight mb-4 text-white" style={{ fontSize: "clamp(26px,3vw,40px)", lineHeight: 1.08 }}>{b.title}</h3>
             <p className="text-[15px] text-white/60 leading-relaxed max-w-md mb-6">{b.description}</p>
-            <button
-              onClick={() => scrollToId(b.anchorId)}
-              className="text-[13px] font-semibold inline-flex items-center gap-1.5 hover:gap-2 transition-all"
-              style={{ color: "var(--accent)" }}
-            >
-              {b.cta} <ArrowRight size={13} />
-            </button>
+            
           </div>
           <div className="relative aspect-[5/4] rounded-2xl border border-white/10 overflow-hidden" style={{ background: "linear-gradient(135deg,#101013,#1a1a1d)" }}>
             {b.mock === "sell" ? <SellMock /> : <DecideMock />}
@@ -702,10 +602,10 @@ function AlternatingSection() {
 
 function PersonasSection() {
   const personas = [
-    { Icon: Coffee,      title: "Comércio e bar",       desc: "Padaria, mercearia, bar, restaurante. Caixa diário virando dashboard sem digitar uma linha." },
-    { Icon: ShoppingBag, title: "Loja física e online", desc: "Vendas no balcão, no iFood, no PIX, no cartão. Tudo conciliado, tudo num lugar só." },
-    { Icon: Hammer,      title: "Construção e ofício",  desc: "Obra com fornecedor diferente toda semana? Importa nota, foto, recibo — a IA categoriza." },
-    { Icon: Briefcase,   title: "Profissional liberal", desc: "Médico, advogado, designer, consultor. Receita previsível com despesa que escapa? Aqui ela aparece." },
+    { Icon: Coffee,      title: "Quem vende no dia a dia",       desc: "PIX, cartão, delivery, dinheiro, fornecedor. O dia acaba e você ainda não sabe quanto realmente lucrou." },
+    { Icon: ShoppingBag, title: "Quem vende online", desc: "Venda no Instagram, site, marketplace, PIX ou cartão. O dinheiro entra de vários lados, mas a clareza não acompanha." },
+    { Icon: Hammer,      title: "Quem vive na correria da operação",  desc: "Fornecedor, material, frete, recibo, pagamento atrasado. No meio da correria, o financeiro vira bagunça — e o prejuízo passa despercebido." },
+    { Icon: Briefcase,   title: "Quem trabalha por conta própria", desc: "O dinheiro entra, mas nunca parece sobrar. Você cuida dos clientes. O Klaro cuida dos números." },
   ];
   return (
     <section id="solucoes" className="border-t border-white/10 py-24 bg-[#0a0a0b]">
@@ -713,7 +613,7 @@ function PersonasSection() {
         <div className="mb-12">
           <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: "var(--accent)" }}>Para quem é o Klaro</p>
           <h2 className="font-bold tracking-tight max-w-3xl text-white" style={{ fontSize: "clamp(28px,3.4vw,44px)", lineHeight: 1.06 }}>
-            Pequeno negócio brasileiro que quer entender os próprios números.
+            Para quem precisa de clareza e crescimento, não de mais planilhas que não servem pra nada.
           </h2>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-px bg-white/10 border border-white/10 rounded-2xl overflow-hidden">
@@ -754,7 +654,7 @@ function CTASection({ go }: { go: (path: string) => void }) {
           Pronto pra construir <span style={{ color: "var(--accent)" }}>clareza</span> com a gente?
         </h2>
         <p className="text-[16px] md:text-[18px] text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed">
-          Cadastro em menos de 1 minuto. Importe sua primeira planilha. Veja a transformação acontecer.
+          Cadastre-se em menos de 1 minuto, importe seus primeiros dados e veja a transformação acontecer.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
@@ -785,9 +685,7 @@ export default function Home() {
   return (
     <LandingShell>
       <HeroSection go={go} />
-      <NumbersSection />
       <AreasSection />
-      <AISection />
       <AlternatingSection />
       <PersonasSection />
       <CTASection go={go} />

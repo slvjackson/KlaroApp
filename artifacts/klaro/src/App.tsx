@@ -9,7 +9,6 @@ import { useGetMe, useGetBillingStatus } from "@workspace/api-client-react";
 import { TrialWelcomeModal } from "@/components/trial-welcome-modal";
 import { FirstLoginOnboarding, hasCompletedFirstLoginOnboarding } from "@/components/first-login-onboarding";
 import NotFound from "@/pages/not-found";
-
 import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
@@ -34,18 +33,20 @@ import Missions from "@/pages/missions";
 import Billing from "@/pages/billing";
 import Admin from "@/pages/admin";
 import Terms from "@/pages/terms";
+import Privacy from "@/pages/privacy";
 import Saude from "@/pages/saude";
 import { GlobalUploadOverlay } from "@/pages/upload";
 import VerifyEmail from "@/pages/verify-email";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
+import faq from "@/pages/faq";
 
 const queryClient = new QueryClient();
 
 // Public paths that never need subscription check
 const PUBLIC_PATHS = new Set([
   "/", "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password",
-  "/billing", "/admin", "/terms",
+  "/billing", "/admin", "/terms", "/privacy", "/faq",
   // Landing area — marketing pages are always accessible regardless of subscription state.
   "/produto", "/precos", "/empresa",
   "/solucoes", "/solucoes/importacao", "/solucoes/insights", "/solucoes/chat", "/solucoes/missoes",
@@ -55,9 +56,10 @@ const BLOCKED_STATUSES = new Set(["expired"]);
 
 function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { data: user, isLoading: authLoading } = useGetMe({ query: { retry: false } });
+  const { data: user, isLoading: authLoading } = useGetMe({ query: { queryKey: ["me"], retry: false } });
   const { data: billing, isLoading: billingLoading } = useGetBillingStatus({
     query: {
+      queryKey: ["billingStatus"],
       enabled: !!user,
       retry: false,
     },
@@ -78,8 +80,23 @@ function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Return to the top when redirect
+
+function ScrollToTop() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
+
+  return null;
+}
+
 function Router() {
   return (
+    <>
+    <ScrollToTop />
+
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
@@ -105,12 +122,14 @@ function Router() {
       <Route path="/missions" component={Missions} />
       <Route path="/admin" component={Admin} />
       <Route path="/terms" component={Terms} />
+      <Route path="/privacy" component={Privacy} />
       <Route path="/saude" component={Saude} />
       <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
-      <Route component={NotFound} />
-    </Switch>
+      <Route path="/faq" component={faq} />
+        </Switch>
+  </>
   );
 }
 

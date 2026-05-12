@@ -87,6 +87,88 @@ export default function Empresa() {
         </div>
       </section>
 
+      {/* Fundadores */}
+<section className="border-t border-white/10 py-20 bg-[#09090b]">
+  <div className="max-w-5xl mx-auto px-6">
+    <div className="mb-12 text-center">
+      <p
+        className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3"
+        style={{ color: "var(--accent)" }}
+      >
+        Quem está construindo?
+      </p>
+
+      <h2
+        className="font-bold tracking-tight text-white"
+        style={{
+          fontSize: "clamp(28px,3.4vw,44px)",
+          lineHeight: 1.06,
+        }}
+      >
+        Criamos o Klaro porque vimos de perto quantas empresas tomam decisões importantes sem clareza financeira.
+      </h2>
+    </div>
+
+    <div className="grid md:grid-cols-2 gap-6">
+      <div className="glass rounded-2xl p-8 border border-white/10">
+        <div className="flex items-center gap-4 mb-5">
+          <div
+            className="w-12 h-12 rounded-xl grid place-items-center text-[18px] font-bold"
+            style={{
+              background: "var(--accent-soft)",
+              color: "var(--accent)",
+            }}
+          >
+            G
+          </div>
+
+          <div>
+            <h3 className="text-[18px] font-semibold text-white">
+              Gabriel Souza
+            </h3>
+
+            <p className="text-[13px] text-white/45">
+              Dados & Inteligência de Negócios
+            </p>
+          </div>
+        </div>
+
+        <p className="text-[14px] text-white/60 leading-relaxed">
+          Especialista em dados e inteligência de negócios, com 10 anos de experiência em grandes empresas e foco em transformar números complexos em decisões simples.
+        </p>
+      </div>
+
+      <div className="glass rounded-2xl p-8 border border-white/10">
+        <div className="flex items-center gap-4 mb-5">
+          <div
+            className="w-12 h-12 rounded-xl grid place-items-center text-[18px] font-bold"
+            style={{
+              background: "var(--accent-soft)",
+              color: "var(--accent)",
+            }}
+          >
+            J
+          </div>
+
+          <div>
+            <h3 className="text-[18px] font-semibold text-white">
+              Jackson Silva
+            </h3>
+
+            <p className="text-[13px] text-white/45">
+              Engenharia & Produto
+            </p>
+          </div>
+        </div>
+
+        <p className="text-[14px] text-white/60 leading-relaxed">
+          Engenheiro de software focado em produto e tecnologia, construindo experiências simples para resolver problemas reais de pequenos, médios e grandes negócios.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
       {/* CTA */}
       <section className="border-t border-white/10 py-24 relative overflow-hidden">
         <div
