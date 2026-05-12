@@ -11,14 +11,13 @@ export default function SolucoesIndex() {
             className="inline-flex items-center gap-1.5 text-[10.5px] font-bold tracking-[0.16em] uppercase px-3 py-1.5 rounded-full mb-6"
             style={{ color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid rgba(106,248,47,0.3)" }}
           >
-            Soluções
+            PRODUTO
           </div>
           <h1 className="font-bold tracking-[-0.025em] text-white" style={{ fontSize: "clamp(36px,5vw,68px)", lineHeight: 1.02 }}>
             4 jeitos de o Klaro<br />tirar peso do seu dia.
           </h1>
           <p className="text-[16px] md:text-[18px] text-white/60 mt-6 max-w-2xl mx-auto leading-relaxed">
-            Você não precisa virar contador. Cada feature foi pensada pra resolver uma dor concreta —
-            e funciona junto, no mesmo lugar.
+            Você não precisa virar contador. Cada funcionalidade foi pensada pra resolver uma dor concreta e funciona junto, no mesmo lugar.
           </p>
         </div>
       </section>

@@ -12,7 +12,7 @@ const SOURCES = [
   { Icon: Camera,          label: "Foto",     note: "Foto de extrato, recibo ou caderno de caixa." },
   { Icon: Landmark,        label: "OFX",      note: "Direto do internet banking, sem precisar converter." },
   { Icon: FileText,        label: "CSV",      note: "Exportado de qualquer ERP ou sistema de venda." },
-  { Icon: NotebookPen,     label: "Caderno",  note: "Manuscrito do caixa? OCR lê e estrutura." },
+  { Icon: NotebookPen,     label: "Caderno",  note: "Até seu controle no caderninho funciona, nossa IA interpreta e armazena seus dados." },
 ];
 
 // Animated import flow: file lands → IA processes → categorized rows appear
@@ -113,11 +113,10 @@ export default function SolucoesImportacao() {
               <FileSearch size={11} className="inline mr-1.5 -mt-0.5" /> Importação universal
             </p>
             <h1 className="font-bold tracking-[-0.025em] text-white" style={{ fontSize: "clamp(34px,4.4vw,60px)", lineHeight: 1.02 }}>
-              Sobe o que <span style={{ color: "var(--accent)" }}>você tem</span>.<br />A IA cuida do resto.
+              Sobe o que <span style={{ color: "var(--accent)" }}>você tem</span>,<br />o Klaro cuida do resto.
             </h1>
             <p className="text-[15px] md:text-[17px] text-white/60 mt-6 max-w-lg leading-relaxed">
-              A maior parte dos sistemas de gestão exige planilha no formato deles. O Klaro vai pelo caminho oposto:
-              aceita o arquivo do jeito que está, lê com IA, e devolve seu painel pronto.
+              A maior parte dos sistemas de gestão exige planilha no formato deles ou de forma manual. O Klaro vai pelo caminho oposto: aceita o arquivo do jeito que está, interpreta, organiza e devolve seu dashboard pronto cheio de insights.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 mt-8">
               <button
@@ -170,7 +169,7 @@ export default function SolucoesImportacao() {
             {[
               { t: "Zero coluna pra mapear", d: "A IA reconhece o que é data, descrição, valor, categoria — mesmo se vier em ordem invertida ou com nome estranho." },
               { t: "Aprende seu padrão", d: "A cada upload, o modelo melhora a categorização baseado nas suas correções anteriores." },
-              { t: "Funciona com foto", d: "Caderno do caixa, recibo amassado, extrato impresso. OCR do Klaro lê e estrutura como se fosse digital." },
+              { t: "Funciona com foto", d: "Caderno do caixa, recibo amassado, extrato impresso. A Inteligência do Klaro lê e estrutura como se fosse digital." },
               { t: "Sem perder nada", d: "Linha duplicada, valor faltando, descrição vazia — Klaro sinaliza, você decide. Nada some sem você ver." },
             ].map((b, i) => (
               <li key={i} className="flex items-start gap-4 pb-5 border-b border-white/5 last:border-0">

@@ -44,14 +44,13 @@ const PLANS = [
 ] as const;
 
 const FEATURES_INCLUDED = [
-  { Icon: UploadCloud,    title: "Importação universal",      desc: "Excel, PDF, CSV, OFX, foto e até OCR de caderno. Tudo lido pela IA." },
+  { Icon: UploadCloud,    title: "Importação universal",      desc: "Excel, PDF, CSV, OFX, foto e até foto de caderno. Tudo lido pela IA." },
   { Icon: LayoutDashboard, title: "Painel em tempo real",     desc: "Saldo, receita, despesa, tendência e categoria. Atualizado conforme você sobe dado." },
   { Icon: Sparkles,       title: "Insights por IA",           desc: "Uma análise nova todo dia, gerada a partir do seu próprio histórico." },
   { Icon: Target,         title: "Missões com passos",        desc: "Vire insight em ação concreta com checklist do que fazer." },
-  { Icon: MessageSquare,  title: "Chat consultor",            desc: "Pergunte qualquer coisa do caixa em português. Resposta com seus números reais." },
-  { Icon: Layers,         title: "Categorização contínua",    desc: "9 em cada 10 transações categorizadas automaticamente. Aprende seu padrão." },
-  { Icon: FileSearch,     title: "Reconciliação automática",  desc: "Match de extrato bancário com lançamentos sem trabalho manual." },
-  { Icon: Check,          title: "Suporte humano",            desc: "Quando bater dúvida, fala com gente que conhece o produto e o seu segmento." },
+  { Icon: MessageSquare,  title: "Chat Inteligente",            desc: "Pergunte qualquer coisa sobre seu negócio e tenha respostas com seus dados reais." },
+  { Icon: Layers,         title: "Categorização contínua",    desc: "Transações categorizadas automaticamente. Aprende seu padrão." },
+  { Icon: Check,          title: "Suporte humano",            desc: "Quando bater dúvida, fala com gente que conhece o produto e pode te ajudar." },
 ];
 
 function PriceCard({ plan, popular }: { plan: typeof PLANS[number]; popular: boolean }) {
