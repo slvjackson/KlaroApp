@@ -53,7 +53,7 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
   const [user] = await db
     .insert(usersTable)
     .values({ name, email, passwordHash })
-    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, createdAt: usersTable.createdAt });
+    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, createdAt: usersTable.createdAt, onboardingCompleted: usersTable.onboardingCompleted });
 
   await issueVerificationEmail(user.id, user.email, user.name);
 
@@ -154,7 +154,7 @@ router.post("/auth/token/signup", async (req, res): Promise<void> => {
   const [user] = await db
     .insert(usersTable)
     .values({ name, email, passwordHash })
-    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt });
+    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt, onboardingCompleted: usersTable.onboardingCompleted });
 
   await issueVerificationEmail(user.id, user.email, user.name);
 
@@ -275,7 +275,7 @@ router.post("/auth/logout", (req, res): void => {
 
 router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
   const [user] = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt, isAdmin: usersTable.isAdmin, status: usersTable.status })
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt, isAdmin: usersTable.isAdmin, status: usersTable.status, onboardingCompleted: usersTable.onboardingCompleted })
     .from(usersTable)
     .where(eq(usersTable.id, req.session.userId!));
 
@@ -321,9 +321,9 @@ router.delete("/auth/me", requireAuth, async (req, res): Promise<void> => {
 
 router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
-  const { name, businessProfile } = req.body;
+  const { name, businessProfile, onboardingCompleted } = req.body;
 
-  if (name === undefined && businessProfile === undefined) {
+  if (name === undefined && businessProfile === undefined && onboardingCompleted === undefined) {
     res.status(400).json({ error: "Nenhum dado enviado." });
     return;
   }
@@ -339,12 +339,13 @@ router.patch("/auth/me", requireAuth, async (req, res): Promise<void> => {
     const existing = (current?.businessProfile as Record<string, unknown> | null) ?? {};
     patch.businessProfile = { ...existing, ...businessProfile };
   }
+  if (onboardingCompleted !== undefined) patch.onboardingCompleted = Boolean(onboardingCompleted);
 
   const [updated] = await db
     .update(usersTable)
     .set(patch)
     .where(eq(usersTable.id, userId))
-    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt });
+    .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, businessProfile: usersTable.businessProfile, createdAt: usersTable.createdAt, onboardingCompleted: usersTable.onboardingCompleted });
 
   res.json({ user: updated });
 });

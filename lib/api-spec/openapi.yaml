@@ -597,6 +597,8 @@ components:
         createdAt:
           type: string
           format: date-time
+        onboardingCompleted:
+          type: boolean
       required:
         - id
         - name
