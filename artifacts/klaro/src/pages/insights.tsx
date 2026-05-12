@@ -182,6 +182,99 @@ function buildCoverageNotice(coverage: InsightsCoverage) {
   };
 }
 
+// ─── Period generate modal ───────────────────────────────────────────────────
+
+function PeriodGenerateModal({
+  period,
+  isPending,
+  onChangePeriod,
+  onClose,
+  onGenerate,
+}: {
+  period: Period;
+  isPending: boolean;
+  onChangePeriod: (period: Period) => void;
+  onClose: () => void;
+  onGenerate: () => void;
+}) {
+  const selected = PERIODS.find((p) => p.key === period) ?? PERIODS[1];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={isPending ? undefined : onClose} />
+      <div className="relative w-full rounded-t-3xl border border-[var(--border-2)] p-4 sm:max-w-md sm:rounded-2xl sm:p-5 glass-strong">
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--muted)]/40 sm:hidden" />
+
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[rgba(106,248,47,0.24)] bg-[rgba(106,248,47,0.10)] text-[#90f048]">
+              <CalendarRange size={17} />
+            </div>
+            <div>
+              <h2 className="text-[15px] font-bold text-white">Gerar insights</h2>
+              <p className="mt-0.5 text-[12px] text-[var(--muted)]">Escolha o recorte da análise.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPending}
+            className="grid h-8 w-8 place-items-center rounded-lg text-[20px] leading-none text-[var(--muted)] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-white disabled:opacity-40"
+            aria-label="Fechar"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {PERIODS.map((p) => {
+            const active = p.key === period;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => onChangePeriod(p.key)}
+                disabled={isPending}
+                className={`min-h-[76px] rounded-xl border p-3 text-left transition-all disabled:pointer-events-none disabled:opacity-50 ${
+                  active
+                    ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+                    : "border-[var(--border)] bg-[rgba(255,255,255,0.025)] hover:border-[var(--border-2)] hover:bg-[rgba(255,255,255,0.04)]"
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[13px] font-bold ${active ? "text-[#90f048]" : "text-white"}`}>{p.label}</span>
+                  {p.recommended && (
+                    <span className="rounded-full bg-[rgba(106,248,47,0.12)] px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-[#90f048] ring-1 ring-[rgba(106,248,47,0.24)]">
+                      Rec.
+                    </span>
+                  )}
+                </div>
+                <p className={`mt-1 text-[11px] font-medium ${active ? "text-[#90f048]/85" : "text-[var(--muted)]"}`}>
+                  {p.range}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.025)] px-3 py-2.5">
+          <p className="text-[11.5px] leading-relaxed text-[var(--muted)]">{selected.description}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onGenerate}
+          disabled={isPending}
+          className="btn-primary mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[13.5px] font-semibold disabled:opacity-50"
+        >
+          <RefreshCw size={14} className={isPending ? "animate-spin" : ""} />
+          {isPending ? "Analisando…" : `Gerar com ${selected.label}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Mission modal ─────────────────────────────────────────────────────────────
 
 function MissionModal({ insight, isPending, onClose }: { insight: Insight; isPending: boolean; onClose: () => void }) {
@@ -344,6 +437,8 @@ export default function Insights() {
   const [attempted, setAttempted] = useState(false);
   const [mission, setMission] = useState<Insight | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
+  const [draftPeriod, setDraftPeriod] = useState<Period>("3m");
+  const [periodFormOpen, setPeriodFormOpen] = useState(false);
   const [coverage, setCoverage] = useState<InsightsCoverage | null>(null);
   const [coverageDetailsOpen, setCoverageDetailsOpen] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -353,6 +448,11 @@ export default function Insights() {
   const anamneseCompleted = !!bp?.anamneseCompleted;
   const selectedPeriodInfo = PERIODS.find((p) => p.key === selectedPeriod) ?? PERIODS[1];
   const coverageNotice = coverage?.hasGap ? buildCoverageNotice(coverage) : null;
+
+  const openPeriodForm = () => {
+    setDraftPeriod(selectedPeriod);
+    setPeriodFormOpen(true);
+  };
 
   useEffect(() => {
     if (!isLoading && rawInsights) {
@@ -372,10 +472,12 @@ export default function Insights() {
     return () => window.removeEventListener("keydown", onKey);
   }, [queue.length]);
 
-  const handleGenerate = () => {
+  const handleGenerate = (period: Period = selectedPeriod) => {
+    setSelectedPeriod(period);
+    setPeriodFormOpen(false);
     genStart();
     setGenError(null);
-    generateInsights.mutate({ period: selectedPeriod }, {
+    generateInsights.mutate({ period }, {
       onSuccess: (data) => {
         genEnd();
         queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
@@ -447,71 +549,28 @@ export default function Insights() {
           </Link>
         </div>
 
-        {/* Period selector */}
-        <div className="glass rounded-2xl p-3 sm:p-3.5 border border-[var(--border)]">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 items-center gap-2.5 sm:w-44 sm:shrink-0">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[rgba(106,248,47,0.24)] bg-[rgba(106,248,47,0.10)] text-[#90f048]">
-                <CalendarRange size={16} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Período</p>
-                  {selectedPeriodInfo.recommended && (
-                    <span className="rounded-full bg-[rgba(106,248,47,0.12)] px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-[#90f048] ring-1 ring-[rgba(106,248,47,0.24)]">
-                      Rec.
-                    </span>
-                  )}
-                </div>
-                <p className="truncate text-[13px] font-semibold text-white">{selectedPeriodInfo.range}</p>
-              </div>
-            </div>
+        {/* Generate action */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={openPeriodForm}
+            disabled={generateInsights.isPending}
+            className="btn-primary flex h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-[13.5px] font-semibold disabled:opacity-50 sm:w-auto"
+          >
+            <RefreshCw size={14} className={generateInsights.isPending ? "animate-spin" : ""} />
+            {generateInsights.isPending ? "Analisando…" : "Gerar insights"}
+          </button>
 
-            <div
-              role="radiogroup"
-              aria-label="Período da análise"
-              className="grid grid-cols-4 gap-1 rounded-xl border border-[var(--border)] bg-[rgba(255,255,255,0.025)] p-1 sm:flex-1"
-            >
-              {PERIODS.map((p) => {
-                const selected = selectedPeriod === p.key;
-                return (
-                  <button
-                    key={p.key}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => setSelectedPeriod(p.key)}
-                    disabled={generateInsights.isPending}
-                    title={p.description}
-                    className={`relative h-9 rounded-lg px-2 text-[11.5px] font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 ${
-                      selected
-                        ? "bg-[var(--accent)] text-[#09090b] shadow-[0_8px_22px_-16px_rgba(106,248,47,0.9)]"
-                        : "text-[var(--muted)] hover:bg-[rgba(255,255,255,0.04)] hover:text-white"
-                    }`}
-                  >
-                    {p.recommended && !selected && (
-                      <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#90f048]" />
-                    )}
-                    {p.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={handleGenerate}
-              disabled={generateInsights.isPending}
-              className="btn-primary flex h-10 w-full items-center justify-center gap-2 rounded-xl px-4 text-[13px] font-semibold disabled:opacity-50 sm:w-auto sm:shrink-0"
-            >
-              <RefreshCw size={14} className={generateInsights.isPending ? "animate-spin" : ""} />
-              <span>{generateInsights.isPending ? "Analisando…" : "Gerar"}</span>
-              <span className="hidden sm:inline">insights</span>
-            </button>
-          </div>
-
-          <p className="mt-2.5 border-t border-[var(--border)] pt-2.5 text-[11.5px] leading-relaxed text-[var(--muted)] sm:ml-[11.5rem]">
-            {selectedPeriodInfo.description}
-          </p>
+          <button
+            type="button"
+            onClick={openPeriodForm}
+            disabled={generateInsights.isPending}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[rgba(255,255,255,0.025)] px-3 py-2 text-[11.5px] font-medium text-[var(--muted)] transition-colors hover:border-[var(--border-2)] hover:text-white disabled:opacity-50 sm:justify-start"
+            title="Alterar período da próxima análise"
+          >
+            <CalendarRange size={13} />
+            Última escolha: <span className="text-white">{selectedPeriodInfo.label}</span>
+          </button>
         </div>
 
         {/* Coverage details */}
@@ -585,7 +644,7 @@ export default function Insights() {
                     <Upload size={13} /> Fazer upload
                   </Link>
                   <button
-                    onClick={handleGenerate}
+                    onClick={openPeriodForm}
                     disabled={generateInsights.isPending}
                     className="px-5 py-2 rounded-xl text-[13px] font-medium border border-[var(--border)] text-[var(--muted)] hover:text-white hover:border-[var(--border-2)] transition-colors disabled:opacity-50"
                   >
@@ -605,7 +664,7 @@ export default function Insights() {
                   </p>
                 </div>
                 <button
-                  onClick={handleGenerate}
+                  onClick={openPeriodForm}
                   disabled={generateInsights.isPending}
                   className="btn-primary px-5 py-2 rounded-xl text-[13px] font-semibold disabled:opacity-50"
                 >
@@ -685,6 +744,16 @@ export default function Insights() {
           </div>
         )}
       </div>
+
+      {periodFormOpen && (
+        <PeriodGenerateModal
+          period={draftPeriod}
+          isPending={generateInsights.isPending}
+          onChangePeriod={setDraftPeriod}
+          onClose={() => setPeriodFormOpen(false)}
+          onGenerate={() => handleGenerate(draftPeriod)}
+        />
+      )}
 
       {mission && (
         <MissionModal
