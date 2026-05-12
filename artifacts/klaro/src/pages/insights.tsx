@@ -124,6 +124,64 @@ function isStale(createdAt: string | undefined): boolean {
   return Date.now() - new Date(createdAt).getTime() > STALE_MS;
 }
 
+const PERIOD_DAYS: Record<Period, number> = {
+  "30d": 30,
+  "3m": 90,
+  "6m": 180,
+  "12m": 365,
+};
+
+function formatCoverageDate(date?: string | null): string {
+  if (!date) return "?";
+  return new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+function buildCoverageNotice(coverage: InsightsCoverage) {
+  const requestedLabel = PERIODS.find((p) => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod;
+  const availablePeriods = coverage.actualDays > 0
+    ? PERIODS
+        .filter((p) => PERIOD_DAYS[p.key] <= coverage.actualDays + 2)
+        .map((p) => p.label)
+    : [];
+
+  const foundLabel = coverage.actualDays === 0
+    ? "Sem transações"
+    : coverage.actualStart === coverage.actualEnd
+      ? `${coverage.actualDays} dia em ${formatCoverageDate(coverage.actualStart)}`
+      : `${coverage.actualDays} dias · ${formatCoverageDate(coverage.actualStart)} a ${formatCoverageDate(coverage.actualEnd)}`;
+
+  if (coverage.actualDays === 0) {
+    return {
+      title: `Sem dados em ${requestedLabel}`,
+      requestedLabel,
+      foundLabel,
+      detail: coverage.lastDataDate
+        ? `Último registro: ${formatCoverageDate(coverage.lastDataDate)}.`
+        : "Nenhum lançamento encontrado ainda.",
+      availability: "Envie dados recentes ou escolha um período que inclua seus lançamentos.",
+    };
+  }
+
+  const detail = coverage.endGapDays >= 14 && coverage.startGapDays < 7
+    ? `Últimos ${coverage.endGapDays} dias sem registros.`
+    : coverage.startGapDays >= 7 && coverage.endGapDays < 14
+      ? "Os registros começam depois do início solicitado."
+      : "Há lacunas no começo e no fim do período.";
+
+  return {
+    title: `Dados parciais em ${requestedLabel}`,
+    requestedLabel,
+    foundLabel,
+    detail,
+    availability: availablePeriods.length > 0
+      ? `Melhor cobertura: ${availablePeriods.join(", ")}.`
+      : "Cobertura parcial para qualquer período.",
+  };
+}
+
 // ─── Mission modal ─────────────────────────────────────────────────────────────
 
 function MissionModal({ insight, isPending, onClose }: { insight: Insight; isPending: boolean; onClose: () => void }) {
@@ -293,6 +351,7 @@ export default function Insights() {
   const bp = (user as unknown as { businessProfile?: Record<string, unknown> } | undefined)?.businessProfile;
   const anamneseCompleted = !!bp?.anamneseCompleted;
   const selectedPeriodInfo = PERIODS.find((p) => p.key === selectedPeriod) ?? PERIODS[1];
+  const coverageNotice = coverage?.hasGap ? buildCoverageNotice(coverage) : null;
 
   useEffect(() => {
     if (!isLoading && rawInsights) {
@@ -454,31 +513,34 @@ export default function Insights() {
         </div>
 
         {/* Coverage warning */}
-        {coverage?.hasGap && (
-          <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.07)]">
-            <Info size={15} className="text-[#f59e0b] shrink-0 mt-0.5" />
-            <p className="text-[12.5px] text-[#f59e0b] leading-relaxed">
-              <span className="font-semibold">Dados insuficientes para o período solicitado. </span>
-              {(() => {
-                const label = PERIODS.find(p => p.key === coverage.requestedPeriod)?.label ?? coverage.requestedPeriod;
-                const fmtDate = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-
-                if (coverage.actualDays === 0) {
-                  // No data at all in the requested window
-                  return <>Você pediu <span className="font-semibold">{label}</span>, mas não há transações registradas nesse intervalo.{coverage.lastDataDate && <> Seus dados mais recentes são de <span className="font-semibold">{fmtDate(coverage.lastDataDate)}</span>.</>}</>;
-                }
-                if (coverage.endGapDays >= 14 && coverage.startGapDays < 7) {
-                  // Data is present but doesn't reach close to today (gap at the end)
-                  return <>Você pediu <span className="font-semibold">{label}</span>, mas seus dados mais recentes neste período são de <span className="font-semibold">{coverage.actualEnd ? fmtDate(coverage.actualEnd) : "?"}</span> — os últimos <span className="font-semibold">{coverage.endGapDays} dias</span> não têm registros. Os insights foram gerados com os dados disponíveis.</>;
-                }
-                if (coverage.startGapDays >= 7 && coverage.endGapDays < 14) {
-                  // Gap at the beginning only
-                  return <>Você pediu <span className="font-semibold">{label}</span>, mas seus registros cobrem apenas <span className="font-semibold">{coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}</span> desse período. Os insights foram gerados com os dados disponíveis.</>;
-                }
-                // Both gaps
-                return <>Você pediu <span className="font-semibold">{label}</span>, mas seus dados nesse período vão de <span className="font-semibold">{coverage.actualStart ? fmtDate(coverage.actualStart) : "?"}</span> a <span className="font-semibold">{coverage.actualEnd ? fmtDate(coverage.actualEnd) : "?"}</span> ({coverage.actualDays} {coverage.actualDays === 1 ? "dia" : "dias"}). Os insights foram gerados com os dados disponíveis.</>;
-              })()}
-            </p>
+        {coverageNotice && (
+          <div className="rounded-xl border border-[rgba(245,158,11,0.24)] bg-[rgba(245,158,11,0.06)] px-3.5 py-3">
+            <div className="flex items-start gap-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[rgba(245,158,11,0.12)] text-[#f59e0b]">
+                <Info size={15} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[12.5px] font-semibold text-[#fbbf24]">{coverageNotice.title}</p>
+                    <p className="mt-0.5 text-[11.5px] leading-snug text-[#f59e0b]/85">
+                      {coverageNotice.detail} Insights gerados com os dados encontrados.
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-1.5">
+                    <span className="rounded-full border border-[rgba(245,158,11,0.22)] bg-[rgba(0,0,0,0.12)] px-2 py-1 text-[10.5px] font-medium text-[#fbbf24]">
+                      Pedido: {coverageNotice.requestedLabel}
+                    </span>
+                    <span className="rounded-full border border-[rgba(245,158,11,0.22)] bg-[rgba(0,0,0,0.12)] px-2 py-1 text-[10.5px] font-medium text-[#fbbf24]">
+                      Dados: {coverageNotice.foundLabel}
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-2 text-[11px] leading-snug text-[var(--muted)]">
+                  {coverageNotice.availability}
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
