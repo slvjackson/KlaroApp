@@ -121,7 +121,7 @@ function AppInner() {
     <SubscriptionGuard>
       <Router />
       {uploading && <GlobalUploadOverlay fileName={uploadingFileName} onCancel={cancel} />}
-      {billing && <TrialWelcomeModal billing={billing} />}
+      {user && billing && <TrialWelcomeModal billing={billing} />}
     </SubscriptionGuard>
   );
 }
