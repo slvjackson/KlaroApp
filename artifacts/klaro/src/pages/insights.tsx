@@ -345,6 +345,7 @@ export default function Insights() {
   const [mission, setMission] = useState<Insight | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("3m");
   const [coverage, setCoverage] = useState<InsightsCoverage | null>(null);
+  const [coverageDetailsOpen, setCoverageDetailsOpen] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const genStartedAt = useGenStartedAt();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -379,6 +380,7 @@ export default function Insights() {
         genEnd();
         queryClient.invalidateQueries({ queryKey: getListInsightsQueryKey() });
         setCoverage(data.coverage ?? null);
+        setCoverageDetailsOpen(false);
         setQueue((data.insights ?? []).filter((i) => !i.pinnedAt));
         setAttempted(true);
       },
@@ -512,26 +514,34 @@ export default function Insights() {
           </p>
         </div>
 
-        {/* Coverage warning */}
+        {/* Coverage details */}
         {coverageNotice && (
-          <div className="rounded-xl border border-[rgba(245,158,11,0.24)] bg-[rgba(245,158,11,0.06)] px-3.5 py-3">
-            <div className="flex items-start gap-3">
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[rgba(245,158,11,0.12)] text-[#f59e0b]">
-                <Info size={15} />
-              </div>
-              <div className="min-w-0 flex-1">
+          <div className="flex flex-col items-start gap-2">
+            <button
+              type="button"
+              onClick={() => setCoverageDetailsOpen((open) => !open)}
+              aria-expanded={coverageDetailsOpen}
+              className="group inline-flex items-center gap-2 rounded-full border border-[rgba(245,158,11,0.22)] bg-[rgba(245,158,11,0.055)] px-3 py-1.5 text-[11.5px] font-semibold text-[#fbbf24] transition-all hover:border-[rgba(245,158,11,0.38)] hover:bg-[rgba(245,158,11,0.09)]"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-35" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f59e0b]" />
+              </span>
+              {coverageNotice.title}
+              <Info size={13} className="opacity-70 transition-opacity group-hover:opacity-100" />
+            </button>
+
+            {coverageDetailsOpen && (
+              <div className="fadeUp w-full rounded-xl border border-[rgba(245,158,11,0.22)] bg-[rgba(20,20,24,0.84)] px-3.5 py-3 shadow-[0_14px_40px_-28px_rgba(0,0,0,0.9)]">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-[12.5px] font-semibold text-[#fbbf24]">{coverageNotice.title}</p>
-                    <p className="mt-0.5 text-[11.5px] leading-snug text-[#f59e0b]/85">
-                      {coverageNotice.detail} Insights gerados com os dados encontrados.
-                    </p>
-                  </div>
+                  <p className="text-[11.5px] leading-snug text-[#f59e0b]/90">
+                    {coverageNotice.detail} Insights gerados com os dados encontrados.
+                  </p>
                   <div className="flex shrink-0 flex-wrap gap-1.5">
-                    <span className="rounded-full border border-[rgba(245,158,11,0.22)] bg-[rgba(0,0,0,0.12)] px-2 py-1 text-[10.5px] font-medium text-[#fbbf24]">
+                    <span className="rounded-full border border-[rgba(245,158,11,0.18)] bg-[rgba(245,158,11,0.07)] px-2 py-1 text-[10.5px] font-medium text-[#fbbf24]">
                       Pedido: {coverageNotice.requestedLabel}
                     </span>
-                    <span className="rounded-full border border-[rgba(245,158,11,0.22)] bg-[rgba(0,0,0,0.12)] px-2 py-1 text-[10.5px] font-medium text-[#fbbf24]">
+                    <span className="rounded-full border border-[rgba(245,158,11,0.18)] bg-[rgba(245,158,11,0.07)] px-2 py-1 text-[10.5px] font-medium text-[#fbbf24]">
                       Dados: {coverageNotice.foundLabel}
                     </span>
                   </div>
@@ -540,7 +550,7 @@ export default function Insights() {
                   {coverageNotice.availability}
                 </p>
               </div>
-            </div>
+            )}
           </div>
         )}
 
