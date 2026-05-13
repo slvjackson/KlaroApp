@@ -8,6 +8,28 @@ import { useLocation } from "wouter";
 import { RichContent } from "@/components/rich-content";
 import { AnamneseCta } from "@/components/anamnese-cta";
 import { useChatContext, type ChatMessage } from "@/contexts/chat-context";
+import { FeatureTutorial, TutorialButton, type TutorialStep } from "@/components/feature-tutorial";
+
+const CHAT_TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    title: "Comece por uma sugestão",
+    body: "Os chips abaixo da mensagem inicial mostram perguntas comuns. Clicar dispara a pergunta direto — sem precisar digitar.",
+    tip: "Comece simples: 'Qual minha margem este mês?'. Cada resposta abre espaço pra próxima pergunta.",
+    target: "#tutorial-chat-suggestions",
+  },
+  {
+    title: "Pergunte em português normal",
+    body: "Sem prompt técnico. Escreva como se estivesse falando com seu contador. O modelo entende contexto e tem acesso aos seus números reais.",
+    tip: "Use perguntas comparativas: 'Onde gastei mais este mês vs. o passado?'.",
+    target: "#tutorial-chat-input",
+  },
+  {
+    title: "Transforme resposta em missão",
+    body: "Quando uma resposta da IA traz uma ação prática (renegociar, cortar, monitorar), salve como missão direto pelo botão de bookmark — vira uma checklist em Missões.",
+    tip: "Toda recomendação que você salvar vai aparecer com passos prontos pra executar.",
+    target: "#tutorial-chat-messages",
+  },
+];
 
 const SUGGESTIONS = [
   "Qual foi minha receita este mês?",
@@ -138,6 +160,7 @@ export default function Chat() {
   const [showToast, setShowToast] = useState(false);
   const [input, setInput] = useState("");
   const [focused, setFocused] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -215,20 +238,23 @@ export default function Chat() {
               </div>
               <div className="text-[11px] text-[var(--muted)]">Consultor financeiro do seu negócio</div>
             </div>
-            {messages.length > 0 && (
-              <button
-                onClick={clearChat}
-                title="Nova conversa"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-[var(--muted)] hover:text-white hover:bg-white/5 transition-colors"
-              >
-                <RotateCcw size={12} />
-                Nova conversa
-              </button>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              <TutorialButton onClick={() => setTutorialOpen(true)} />
+              {messages.length > 0 && (
+                <button
+                  onClick={clearChat}
+                  title="Nova conversa"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-[var(--muted)] hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  <RotateCcw size={12} />
+                  Nova conversa
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto klaro-scroll px-5 py-5 space-y-3.5 relative">
+          <div id="tutorial-chat-messages" ref={scrollRef} className="flex-1 overflow-y-auto klaro-scroll px-5 py-5 space-y-3.5 relative">
             {isEmpty ? (
               <div className="h-full flex flex-col items-center justify-center text-center gap-5 pb-6">
                 <img src="/logo.png" alt="Klaro" className="w-14 h-14 rounded-xl object-cover" />
@@ -238,7 +264,7 @@ export default function Chat() {
                     Seu assistente entende suas transações, categorias e tendências.
                   </div>
                 </div>
-                <div className="w-full space-y-1.5 max-w-xs">
+                <div id="tutorial-chat-suggestions" className="w-full space-y-1.5 max-w-xs">
                   <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]/70 font-semibold text-left pl-1">Sugestões</div>
                   {SUGGESTIONS.slice(0, 4).map((s) => (
                     <button
@@ -292,7 +318,7 @@ export default function Chat() {
           )}
 
           {/* Input */}
-          <div className="px-4 pt-2 pb-4 border-t border-[var(--border)] shrink-0">
+          <div id="tutorial-chat-input" className="px-4 pt-2 pb-4 border-t border-[var(--border)] shrink-0">
             <form
               onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
               className={`chat-input flex items-end gap-2 px-3 py-2 rounded-2xl border bg-[rgba(255,255,255,0.02)] transition-all ${
@@ -336,6 +362,12 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      <FeatureTutorial
+        open={tutorialOpen}
+        steps={CHAT_TUTORIAL_STEPS}
+        onClose={() => setTutorialOpen(false)}
+      />
     </Layout>
   );
 }

@@ -7,6 +7,28 @@ import { getListTransactionsQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { Pencil, Plus, Search, X, Inbox, ArrowUp, ArrowDown, CheckSquare, Square, Trash2, Check, Loader2 } from "lucide-react";
 import { TransactionDialog, type TransactionData } from "@/components/TransactionDialog";
+import { FeatureTutorial, TutorialButton, type TutorialStep } from "@/components/feature-tutorial";
+
+const TRANSACTIONS_TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    title: "Filtre rápido pelo tipo",
+    body: "Alterne entre receitas, despesas e ambos. Combinado com o seletor de mês, isola o que importa em segundos.",
+    tip: "Veja só despesas do mês passado para encontrar gastos fora do padrão.",
+    target: "#tutorial-tx-filters",
+  },
+  {
+    title: "Busca textual livre",
+    body: "Procure por descrição ou categoria. Funciona enquanto você digita — sem precisar dar enter.",
+    tip: "Digite o nome de um fornecedor para ver tudo que pagou pra ele no período.",
+    target: "#tutorial-tx-search",
+  },
+  {
+    title: "Edição em massa",
+    body: "Selecione várias linhas (checkbox na esquerda) e mude categorias em lote. A IA aprende com cada ajuste e melhora a próxima categorização.",
+    tip: "Categorizou 5 PIX do mesmo cliente como 'Vendas'? No próximo upload, ela acerta sozinha.",
+    target: "#tutorial-tx-table",
+  },
+];
 
 type FilterType = "all" | "income" | "expense";
 
@@ -59,6 +81,7 @@ export default function Transactions() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState<string | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   // Single-item action sheet
   const [actionItem, setActionItem] = useState<TransactionData | null>(null);
@@ -238,13 +261,16 @@ export default function Transactions() {
     <Layout title="Transações">
       <div className="space-y-5">
         {/* Header */}
-        <div>
-          <h1 className="text-[22px] font-bold tracking-tight text-white">Transações</h1>
-          <p className="text-[12.5px] text-[var(--muted)] mt-1">Todas as suas transações confirmadas.</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-[22px] font-bold tracking-tight text-white">Transações</h1>
+            <p className="text-[12.5px] text-[var(--muted)] mt-1">Todas as suas transações confirmadas.</p>
+          </div>
+          <TutorialButton onClick={() => setTutorialOpen(true)} />
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col gap-2.5">
+        <div id="tutorial-tx-filters" className="flex flex-col gap-2.5">
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="flex gap-1 p-0.5 rounded-md bg-[rgba(255,255,255,0.04)] border border-[var(--border)]">
               {FILTERS.map((f) => (
@@ -264,7 +290,7 @@ export default function Transactions() {
               </select>
             )}
           </div>
-          <div className="relative w-full">
+          <div id="tutorial-tx-search" className="relative w-full">
             <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Filtrar por descrição ou categoria…"
               className="field py-2 text-[12.5px] w-full"
@@ -386,7 +412,7 @@ export default function Transactions() {
         )}
 
         {/* Transaction list */}
-        <div className="glass rounded-2xl overflow-hidden">
+        <div id="tutorial-tx-table" className="glass rounded-2xl overflow-hidden">
           {!isLoading && filtered.length > 0 && (
             <div className="flex items-center gap-3 px-5 py-2 border-b border-[var(--border)] bg-white/[0.015]">
               <button onClick={toggleAll} className="text-[var(--muted)] hover:text-white transition-colors">
@@ -572,6 +598,12 @@ export default function Transactions() {
       })()}
 
       <TransactionDialog open={dialogOpen} editing={editing} onClose={() => setDialogOpen(false)} />
+
+      <FeatureTutorial
+        open={tutorialOpen}
+        steps={TRANSACTIONS_TUTORIAL_STEPS}
+        onClose={() => setTutorialOpen(false)}
+      />
     </Layout>
   );
 }

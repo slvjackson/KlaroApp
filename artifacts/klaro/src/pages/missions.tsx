@@ -5,6 +5,28 @@ import { usePatchInsightProgress, getListInsightsQueryKey } from "@workspace/api
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trophy, TrendingUp, AlertTriangle, AlertOctagon, Lightbulb, ChevronRight, CheckCircle2, Circle, X, Pencil, Plus, Loader2, Trash2, ArrowUp, ArrowDown, Archive, RotateCcw } from "lucide-react";
 import { RichContent } from "@/components/rich-content";
+import { FeatureTutorial, TutorialButton, type TutorialStep } from "@/components/feature-tutorial";
+
+const MISSIONS_TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    title: "O ciclo da missão",
+    body: "Cada missão nasce de um insight: vira uma checklist com passos concretos. Marca o que fez, ela mede o progresso e completa quando todos os passos estão feitos.",
+    tip: "O ganho de uma missão não é o ✓ — é a ação real (renegociar, cortar, abrir conta). Trate como um plano semanal.",
+    target: "#tutorial-missions-tabs",
+  },
+  {
+    title: "Crie suas próprias",
+    body: "Quase tudo que vem na Klaro é gerado pela IA, mas você também pode criar missões customizadas. Útil pra metas internas que a IA não viu.",
+    tip: "Ex: 'Cobrar 3 clientes inadimplentes esta semana' — não precisa esperar a IA sugerir.",
+    target: "#tutorial-missions-create",
+  },
+  {
+    title: "Acompanhe o backlog",
+    body: "As abas separam em Andamento, Concluídas e Arquivadas. Arquive missões que perderam relevância sem deletar o histórico.",
+    tip: "Revise as Concluídas no fim do mês — é onde mora a sensação real de progresso.",
+    target: "#tutorial-missions-tabs",
+  },
+];
 
 // ─── Reusable steps editor ────────────────────────────────────────────────────
 
@@ -643,6 +665,7 @@ export default function Missions() {
   }
 
   const [creating, setCreating] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   function handleSavedEdit() {
     invalidateAll();
@@ -667,15 +690,19 @@ export default function Missions() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => setCreating(true)}
-            className="btn-primary px-3 py-2 rounded-xl text-[12.5px] font-semibold flex items-center gap-1.5 shrink-0"
-          >
-            <Plus size={14} /> Nova missão
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <TutorialButton onClick={() => setTutorialOpen(true)} />
+            <button
+              id="tutorial-missions-create"
+              onClick={() => setCreating(true)}
+              className="btn-primary px-3 py-2 rounded-xl text-[12.5px] font-semibold flex items-center gap-1.5"
+            >
+              <Plus size={14} /> Nova missão
+            </button>
+          </div>
         </div>
 
-        <div className="flex gap-1 p-0.5 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[var(--border)] w-fit">
+        <div id="tutorial-missions-tabs" className="flex gap-1 p-0.5 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[var(--border)] w-fit">
           {([
             { key: "active",    label: "Em andamento", count: activeMissions.length },
             { key: "completed", label: "Concluídas",   count: completedMissions.length },
@@ -753,6 +780,12 @@ export default function Missions() {
           onCreated={handleCreated}
         />
       )}
+
+      <FeatureTutorial
+        open={tutorialOpen}
+        steps={MISSIONS_TUTORIAL_STEPS}
+        onClose={() => setTutorialOpen(false)}
+      />
     </Layout>
   );
 }

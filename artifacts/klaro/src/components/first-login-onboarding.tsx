@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, ArrowLeft, CheckCircle2, LayoutDashboard, Lightbulb, Sparkles, Upload, X } from "lucide-react";
+import { ArrowRight, ArrowLeft, ArrowLeftRight, LayoutDashboard, Lightbulb, MessageSquare, Sparkles, Trophy, Upload, X } from "lucide-react";
 import { getGetMeQueryKey, type User } from "@workspace/api-client-react";
 import { useOnboardingHighlight } from "@/contexts/onboarding-highlight-context";
 
@@ -23,11 +23,32 @@ const STEPS = [
     menuLabel: "Dashboard",
   },
   {
+    title: "Revise as transações",
+    description: "Em Transações você ajusta categorias, busca movimentações e exporta tudo. A IA aprende com seus ajustes.",
+    Icon: ArrowLeftRight,
+    menuHref: "/transactions",
+    menuLabel: "Transações",
+  },
+  {
     title: "Gere insights",
     description: "A IA encontra padrões e transforma análises em recomendações práticas.",
     Icon: Lightbulb,
     menuHref: "/insights",
     menuLabel: "Insights",
+  },
+  {
+    title: "Aceite missões",
+    description: "Cada insight vira uma missão acionável com passos concretos. Clareza vira progresso.",
+    Icon: Trophy,
+    menuHref: "/missions",
+    menuLabel: "Missões",
+  },
+  {
+    title: "Pergunte ao Chat",
+    description: "Tire dúvidas sobre o seu caixa em português. O Chat conhece seus números em tempo real.",
+    Icon: MessageSquare,
+    menuHref: "/chat",
+    menuLabel: "Chat Klaro",
   },
   {
     title: "Personalize a IA",

@@ -20,6 +20,28 @@ import { Link, useLocation } from "wouter";
 import { AnamneseCta } from "@/components/anamnese-cta";
 import { GeneratingInsightsOverlay } from "@/components/generating-insights-overlay";
 import { RichContent } from "@/components/rich-content";
+import { FeatureTutorial, TutorialButton, type TutorialStep } from "@/components/feature-tutorial";
+
+const INSIGHTS_TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    title: "Gere uma nova análise",
+    body: "A IA varre suas transações no período e devolve insights práticos. Análises são geradas sob demanda — só quando você pede.",
+    tip: "Rode toda segunda de manhã. Cinco minutos depois você tem o panorama da semana passada.",
+    target: "#tutorial-insights-generate",
+  },
+  {
+    title: "Mude o período",
+    body: "Aqui você define qual recorte a IA analisa: último mês, 3 meses, 6 meses ou customizado. A profundidade da análise muda com a janela.",
+    tip: "Períodos maiores acham padrões; períodos curtos achampam o que mudou recentemente.",
+    target: "#tutorial-insights-period",
+  },
+  {
+    title: "Consulte o histórico",
+    body: "Toda análise gerada fica salva. Use o histórico para comparar como o negócio evoluiu mês a mês.",
+    tip: "Reabra um insight antigo antes de gerar um novo — assim você vê o que melhorou (ou piorou).",
+    target: "#tutorial-insights-history",
+  },
+];
 
 // ─── Lifecycle endpoints (direct fetch — bypasses generated client) ──────────
 
@@ -440,6 +462,7 @@ export default function Insights() {
   const [draftPeriod, setDraftPeriod] = useState<Period>("3m");
   const [periodFormOpen, setPeriodFormOpen] = useState(false);
   const [coverage, setCoverage] = useState<InsightsCoverage | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [coverageDetailsOpen, setCoverageDetailsOpen] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const genStartedAt = useGenStartedAt();
@@ -541,17 +564,22 @@ export default function Insights() {
             <h1 className="text-[22px] font-bold tracking-tight text-white">Insights</h1>
             <p className="text-[12.5px] text-[var(--muted)] mt-1">Análises automáticas sobre a saúde do seu negócio.</p>
           </div>
-          <Link
-            href="/insights/historico"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.04)] border border-[var(--border)] transition-colors shrink-0"
-          >
-            <Clock size={12} /> Histórico
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <TutorialButton onClick={() => setTutorialOpen(true)} />
+            <Link
+              id="tutorial-insights-history"
+              href="/insights/historico"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.04)] border border-[var(--border)] transition-colors"
+            >
+              <Clock size={12} /> Histórico
+            </Link>
+          </div>
         </div>
 
         {/* Generate action */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <button
+            id="tutorial-insights-generate"
             type="button"
             onClick={openPeriodForm}
             disabled={generateInsights.isPending}
@@ -562,6 +590,7 @@ export default function Insights() {
           </button>
 
           <button
+            id="tutorial-insights-period"
             type="button"
             onClick={openPeriodForm}
             disabled={generateInsights.isPending}
@@ -762,6 +791,12 @@ export default function Insights() {
           onClose={() => setMission(null)}
         />
       )}
+
+      <FeatureTutorial
+        open={tutorialOpen}
+        steps={INSIGHTS_TUTORIAL_STEPS}
+        onClose={() => setTutorialOpen(false)}
+      />
     </Layout>
   );
 }

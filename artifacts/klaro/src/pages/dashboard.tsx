@@ -13,6 +13,34 @@ import { HealthScoreCard } from "@/components/HealthScoreCard";
 import { LevelCard } from "@/components/LevelCard";
 import { TodayCard } from "@/components/TodayCard";
 import { Link } from "wouter";
+import { FeatureTutorial, TutorialButton, type TutorialStep } from "@/components/feature-tutorial";
+
+const DASHBOARD_TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    title: "Visão geral em um lance",
+    body: "O card principal mostra saldo, receitas e despesas do período. A linha tracejada compara com o mês anterior.",
+    tip: "Toque no valor para alternar entre saldo, receitas e despesas.",
+    target: "#tutorial-dashboard-hero",
+  },
+  {
+    title: "Hoje, em tempo real",
+    body: "O card 'Hoje' rotaciona destaques do dia: novas transações, alertas e movimentações importantes.",
+    tip: "Confira no início do dia — ele dá a temperatura antes de você abrir qualquer relatório.",
+    target: "#tutorial-dashboard-today",
+  },
+  {
+    title: "Mês a mês",
+    body: "O gráfico mostra a evolução do caixa nos últimos meses. Clique em uma barra para filtrar os outros cards por aquele mês.",
+    tip: "Veja se o resultado do mês atual está acima ou abaixo da média antes de tomar decisões.",
+    target: "#tutorial-dashboard-monthly",
+  },
+  {
+    title: "Categorias que pesam",
+    body: "O donut revela onde seu dinheiro entra e sai. Cores quentes = despesa, verde = receita.",
+    tip: "Se uma fatia cresceu de repente, vá em Transações filtrar essa categoria para entender o motivo.",
+    target: "#tutorial-dashboard-categories",
+  },
+];
 import { TrendingUp, TrendingDown, Upload } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -315,6 +343,7 @@ function CategoryDonut({ data, selectedMonth }: { data: CatItem[]; selectedMonth
 export default function Dashboard() {
   const { isLoading: isAuthLoading } = useRequireAuth();
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const { data: summary, isLoading: isSummaryLoading } = useGetDashboardSummary();
   const { data: monthlyTrend, isLoading: isMonthlyLoading } = useGetMonthlyTrend();
@@ -364,25 +393,33 @@ export default function Dashboard() {
     <Layout title="Dashboard">
       <div className="space-y-4 md:space-y-5">
 
+        <div className="flex items-center justify-end">
+          <TutorialButton onClick={() => setTutorialOpen(true)} />
+        </div>
+
         {/* ── Row 1: Hero balance ── */}
-        <HeroBalanceCard
-          balance={netBalance}
-          income={totalIncome}
-          expenses={totalExpenses}
-          txCount={txCount}
-          delta={balanceDelta}
-          sparkPoints={incomePoints.length >= 2 ? incomePoints : undefined}
-          loading={isSummaryLoading}
-          selectedMonth={selectedMonth}
-        />
+        <div id="tutorial-dashboard-hero">
+          <HeroBalanceCard
+            balance={netBalance}
+            income={totalIncome}
+            expenses={totalExpenses}
+            txCount={txCount}
+            delta={balanceDelta}
+            sparkPoints={incomePoints.length >= 2 ? incomePoints : undefined}
+            loading={isSummaryLoading}
+            selectedMonth={selectedMonth}
+          />
+        </div>
 
         {/* ── Row 1.5: Card "Hoje" rotativo ── */}
-        <TodayCard />
+        <div id="tutorial-dashboard-today">
+          <TodayCard />
+        </div>
 
         {/* ── Row 2: Analysis ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
           {/* Fluxo mensal */}
-          <div className="min-h-[260px]">
+          <div id="tutorial-dashboard-monthly" className="min-h-[260px]">
             {isMonthlyLoading ? (
               <div className="glass rounded-2xl h-full animate-pulse" />
             ) : monthly.length === 0 ? (
@@ -406,7 +443,7 @@ export default function Dashboard() {
         {/* ── Row 3: Category + Routine ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
           {/* Por categoria */}
-          <div className="min-h-[240px]">
+          <div id="tutorial-dashboard-categories" className="min-h-[240px]">
             {isCategoryLoading ? (
               <div className="glass rounded-2xl h-full animate-pulse" />
             ) : (
@@ -421,6 +458,12 @@ export default function Dashboard() {
         </div>
 
       </div>
+
+      <FeatureTutorial
+        open={tutorialOpen}
+        steps={DASHBOARD_TUTORIAL_STEPS}
+        onClose={() => setTutorialOpen(false)}
+      />
     </Layout>
   );
 }
