@@ -32,8 +32,24 @@ const INSIGHTS_TUTORIAL_STEPS: TutorialStep[] = [
   {
     title: "Mude o período",
     body: "Aqui você define qual recorte a IA analisa: último mês, 3 meses, 6 meses ou customizado. A profundidade da análise muda com a janela.",
-    tip: "Períodos maiores acham padrões; períodos curtos achampam o que mudou recentemente.",
+    tip: "Períodos maiores acham padrões; períodos curtos acham o que mudou recentemente.",
     target: "#tutorial-insights-period",
+  },
+  {
+    title: "Anatomia do insight",
+    body: (
+      <>
+        Cada card tem um título, uma análise e — quando faz sentido — uma <b>recomendação prática</b>.
+        Embaixo, três ações:
+        <ul className="mt-2 space-y-1 list-disc pl-5">
+          <li><b>Dispensar</b>: tira do carrossel mas mantém no histórico, caso queira revisitar depois.</li>
+          <li><b>Descartar</b>: marca como pouco útil — a IA aprende com isso e ajusta as próximas.</li>
+          <li><b>Criar missão</b>: transforma a recomendação em checklist acionável em Missões.</li>
+        </ul>
+      </>
+    ),
+    tip: "No desktop, use ← e → para navegar entre os insights sem tirar a mão do teclado.",
+    target: "#tutorial-insights-card",
   },
   {
     title: "Consulte o histórico",
@@ -719,7 +735,7 @@ export default function Insights() {
                   style={{ background: "var(--card)", opacity: 0.6, zIndex: 1 }}
                 />
               )}
-              <div key={currentIndex} className="relative" style={{ zIndex: 2 }}>
+              <div id="tutorial-insights-card" key={currentIndex} className="relative" style={{ zIndex: 2 }}>
                 <InsightCard
                   insight={queue[currentIndex]!}
                   onDismiss={() => handleLifecycle(queue[currentIndex]!.id, "dismiss")}

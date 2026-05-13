@@ -35,10 +35,28 @@ const DASHBOARD_TUTORIAL_STEPS: TutorialStep[] = [
     target: "#tutorial-dashboard-monthly",
   },
   {
+    title: "Saúde da gestão",
+    body: "Um score que mistura cobertura de uploads, consistência de categorização e revisão de transações. Subir esse número é o sinal mais simples de que você está com a casa em ordem.",
+    tip: "Score baixo? Geralmente é falta de upload recente ou transações sem categoria. Atacando isso ele sobe rápido.",
+    target: "#tutorial-dashboard-health",
+  },
+  {
+    title: "Nível e ranking",
+    body: "Cada ação no Klaro (upload, revisão, missão concluída) soma XP. O nível mostra sua evolução como gestor — e desbloqueia recursos conforme avança.",
+    tip: "Faça pelo menos uma ação por dia. Pequenas pontuações regulares te levam mais longe que um pico isolado.",
+    target: "#tutorial-dashboard-level",
+  },
+  {
     title: "Categorias que pesam",
     body: "O donut revela onde seu dinheiro entra e sai. Cores quentes = despesa, verde = receita.",
     tip: "Se uma fatia cresceu de repente, vá em Transações filtrar essa categoria para entender o motivo.",
     target: "#tutorial-dashboard-categories",
+  },
+  {
+    title: "Tarefas diárias + streak",
+    body: "Pequenas missões que aparecem a cada dia: revisar uma transação, conferir um insight, marcar uma meta. Cumprir mantém o streak — sua sequência consecutiva.",
+    tip: "Streak não é vaidade — ele força o hábito de abrir o Klaro todo dia, o que multiplica o valor do produto.",
+    target: "#tutorial-dashboard-routine",
   },
 ];
 import { TrendingUp, TrendingDown, Upload } from "lucide-react";
@@ -435,8 +453,12 @@ export default function Dashboard() {
 
           {/* Saúde + Nível */}
           <div className="flex flex-col gap-4">
-            <HealthScoreCard />
-            <LevelCard />
+            <div id="tutorial-dashboard-health">
+              <HealthScoreCard />
+            </div>
+            <div id="tutorial-dashboard-level">
+              <LevelCard />
+            </div>
           </div>
         </div>
 
@@ -452,7 +474,7 @@ export default function Dashboard() {
           </div>
 
           {/* Rotina diária */}
-          <div className="glass rounded-2xl p-5">
+          <div id="tutorial-dashboard-routine" className="glass rounded-2xl p-5">
             <DailyHeader />
           </div>
         </div>

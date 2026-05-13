@@ -24,9 +24,9 @@ const TRANSACTIONS_TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     title: "Edição em massa",
-    body: "Selecione várias linhas (checkbox na esquerda) e mude categorias em lote. A IA aprende com cada ajuste e melhora a próxima categorização.",
+    body: "Marque o checkbox da linha e abre um painel com ações em lote — mudar categoria, ajustar data, deletar. A IA aprende com cada ajuste.",
     tip: "Categorizou 5 PIX do mesmo cliente como 'Vendas'? No próximo upload, ela acerta sozinha.",
-    target: "#tutorial-tx-table",
+    target: "#tutorial-tx-rows",
   },
 ];
 
@@ -412,7 +412,7 @@ export default function Transactions() {
         )}
 
         {/* Transaction list */}
-        <div id="tutorial-tx-table" className="glass rounded-2xl overflow-hidden">
+        <div className="glass rounded-2xl overflow-hidden">
           {!isLoading && filtered.length > 0 && (
             <div className="flex items-center gap-3 px-5 py-2 border-b border-[var(--border)] bg-white/[0.015]">
               <button onClick={toggleAll} className="text-[var(--muted)] hover:text-white transition-colors">
@@ -450,50 +450,58 @@ export default function Transactions() {
                 Adicionar manualmente
               </button>
             </div>
-          ) : (
-            <div className="divide-y divide-[var(--border)]">
-              {filtered.map((t) => {
-                const isIn = t.type === "income";
-                const isChecked = selected.has(t.id);
-                return (
-                  <div key={t.id}
-                    onClick={() => { setActionItem(t); setConfirmDelete(false); }}
-                    className={`group flex items-center gap-3 px-5 py-3 transition-colors cursor-pointer ${
-                      isChecked ? "bg-[var(--accent-soft)]/20" : "hover:bg-white/[0.025]"
-                    }`}>
-                    <button onClick={(e) => toggleRow(t.id, e)}
-                      className="shrink-0 text-[var(--muted)] hover:text-white transition-colors">
-                      {isChecked
-                        ? <CheckSquare size={14} className="text-[var(--accent)]" />
-                        : <Square size={14} />}
-                    </button>
-                    <div className={`w-9 h-9 rounded-lg grid place-items-center text-base shrink-0 ${isIn ? "bg-[var(--income-soft)]" : "bg-white/5"}`}>
-                      {catIcon(t.category)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-medium text-white truncate">{t.description}</div>
-                      <div className="text-[11px] text-[var(--muted)] flex items-center gap-1.5 mt-0.5">
-                        <span>{t.category}</span>
-                        <span>·</span>
-                        <span>{format(new Date(t.date.slice(0, 10) + "T12:00:00"), "dd/MM/yyyy")}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className={`text-[13.5px] font-semibold tnum ${isIn ? "text-[var(--income)]" : "text-white"}`}>
-                        {isIn ? "+ " : "− "}{brl(Math.abs(t.amount))}
-                      </div>
-                      <div className={`w-5 h-5 rounded-full grid place-items-center ${isIn ? "bg-[var(--income-soft)] text-[var(--income)]" : "bg-[var(--expense-soft)] text-[var(--expense)]"}`}>
-                        {isIn ? <ArrowDown size={11} /> : <ArrowUp size={11} />}
-                      </div>
-                      <div className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--muted)] transition-all">
-                        <Pencil size={13} />
-                      </div>
+          ) : (() => {
+            const renderRow = (t: typeof filtered[number]) => {
+              const isIn = t.type === "income";
+              const isChecked = selected.has(t.id);
+              return (
+                <div key={t.id}
+                  onClick={() => { setActionItem(t); setConfirmDelete(false); }}
+                  className={`group flex items-center gap-3 px-5 py-3 transition-colors cursor-pointer ${
+                    isChecked ? "bg-[var(--accent-soft)]/20" : "hover:bg-white/[0.025]"
+                  }`}>
+                  <button onClick={(e) => toggleRow(t.id, e)}
+                    className="shrink-0 text-[var(--muted)] hover:text-white transition-colors">
+                    {isChecked
+                      ? <CheckSquare size={14} className="text-[var(--accent)]" />
+                      : <Square size={14} />}
+                  </button>
+                  <div className={`w-9 h-9 rounded-lg grid place-items-center text-base shrink-0 ${isIn ? "bg-[var(--income-soft)]" : "bg-white/5"}`}>
+                    {catIcon(t.category)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium text-white truncate">{t.description}</div>
+                    <div className="text-[11px] text-[var(--muted)] flex items-center gap-1.5 mt-0.5">
+                      <span>{t.category}</span>
+                      <span>·</span>
+                      <span>{format(new Date(t.date.slice(0, 10) + "T12:00:00"), "dd/MM/yyyy")}</span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className={`text-[13.5px] font-semibold tnum ${isIn ? "text-[var(--income)]" : "text-white"}`}>
+                      {isIn ? "+ " : "− "}{brl(Math.abs(t.amount))}
+                    </div>
+                    <div className={`w-5 h-5 rounded-full grid place-items-center ${isIn ? "bg-[var(--income-soft)] text-[var(--income)]" : "bg-[var(--expense-soft)] text-[var(--expense)]"}`}>
+                      {isIn ? <ArrowDown size={11} /> : <ArrowUp size={11} />}
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--muted)] transition-all">
+                      <Pencil size={13} />
+                    </div>
+                  </div>
+                </div>
+              );
+            };
+            return (
+              <div className="divide-y divide-[var(--border)]">
+                {/* Only the first 5 rows are wrapped, so the tutorial spotlight docks
+                    on a fixed-size area instead of growing to fit the whole list. */}
+                <div id="tutorial-tx-rows" className="divide-y divide-[var(--border)]">
+                  {filtered.slice(0, 5).map(renderRow)}
+                </div>
+                {filtered.slice(5).map(renderRow)}
+              </div>
+            );
+          })()}
         </div>
       </div>
 

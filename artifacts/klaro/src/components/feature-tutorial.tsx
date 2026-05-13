@@ -18,7 +18,14 @@ type Rect = { top: number; left: number; width: number; height: number };
 
 const PADDING = 10;
 const TOOLTIP_WIDTH = 340;
+// Rough average height of the tooltip card (title + body + tip + nav). Used only
+// to decide whether a side can fit the tooltip; the real height is whatever the
+// content renders to.
+const TOOLTIP_HEIGHT_EST = 320;
 const TOOLTIP_GAP = 14;
+const VIEWPORT_MARGIN = 12;
+
+type Placement = "top" | "bottom" | "left" | "right" | "center";
 
 function getRect(selector: string | undefined): Rect | null {
   if (!selector) return null;
@@ -29,33 +36,50 @@ function getRect(selector: string | undefined): Rect | null {
   return { top: r.top, left: r.left, width: r.width, height: r.height };
 }
 
-function pickPlacement(rect: Rect, preferred: TutorialStep["placement"]): "top" | "bottom" | "left" | "right" {
-  if (preferred && preferred !== "auto") return preferred;
+function pickPlacement(rect: Rect, preferred: TutorialStep["placement"]): Placement {
   const vh = window.innerHeight;
   const vw = window.innerWidth;
   const spaceBelow = vh - (rect.top + rect.height);
   const spaceAbove = rect.top;
   const spaceRight = vw - (rect.left + rect.width);
   const spaceLeft = rect.left;
-  const best = Math.max(spaceBelow, spaceAbove, spaceRight, spaceLeft);
-  if (best === spaceBelow) return "bottom";
-  if (best === spaceAbove) return "top";
-  if (best === spaceRight) return "right";
-  return "left";
+
+  const reqV = TOOLTIP_HEIGHT_EST + TOOLTIP_GAP + VIEWPORT_MARGIN;
+  const reqH = TOOLTIP_WIDTH + TOOLTIP_GAP + VIEWPORT_MARGIN;
+
+  const candidates: Array<{ p: Placement; space: number; ok: boolean }> = [
+    { p: "bottom", space: spaceBelow, ok: spaceBelow >= reqV },
+    { p: "top",    space: spaceAbove, ok: spaceAbove >= reqV },
+    { p: "right",  space: spaceRight, ok: spaceRight >= reqH },
+    { p: "left",   space: spaceLeft,  ok: spaceLeft  >= reqH },
+  ];
+
+  // Honor an explicit preference only if it fits — otherwise fall through to auto.
+  if (preferred && preferred !== "auto") {
+    const match = candidates.find((c) => c.p === preferred);
+    if (match?.ok) return preferred;
+  }
+
+  const okSides = candidates.filter((c) => c.ok).sort((a, b) => b.space - a.space);
+  if (okSides.length > 0) return okSides[0].p;
+
+  // No side has room. Sit on top of the target (spotlight is still visible
+  // around the tooltip via the un-dimmed cutout).
+  return "center";
 }
 
-function tooltipPosition(rect: Rect | null, placement: ReturnType<typeof pickPlacement>) {
-  if (!rect) {
+function tooltipPosition(rect: Rect | null, placement: Placement) {
+  if (!rect || placement === "center") {
     return {
-      top: `calc(50% - 120px)`,
+      top: `calc(50% - ${TOOLTIP_HEIGHT_EST / 2}px)`,
       left: `calc(50% - ${TOOLTIP_WIDTH / 2}px)`,
     };
   }
   switch (placement) {
     case "bottom":
-      return { top: rect.top + rect.height + TOOLTIP_GAP, left: clamp(rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2, 12, window.innerWidth - TOOLTIP_WIDTH - 12) };
+      return { top: rect.top + rect.height + TOOLTIP_GAP, left: clamp(rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2, VIEWPORT_MARGIN, window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_MARGIN) };
     case "top":
-      return { top: rect.top - TOOLTIP_GAP, left: clamp(rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2, 12, window.innerWidth - TOOLTIP_WIDTH - 12), transform: "translateY(-100%)" };
+      return { top: rect.top - TOOLTIP_GAP, left: clamp(rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2, VIEWPORT_MARGIN, window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_MARGIN), transform: "translateY(-100%)" };
     case "right":
       return { top: rect.top + rect.height / 2, left: rect.left + rect.width + TOOLTIP_GAP, transform: "translateY(-50%)" };
     case "left":
@@ -78,9 +102,14 @@ export function FeatureTutorial({
 }) {
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
-  const current = steps[step] ?? steps[0];
+  // Steps whose `target` selector exists in the DOM right now (or have no target
+  // and are always usable). Recomputed each time the tutorial opens — that's when
+  // empty-state branches typically settle. Steps for sections the user hasn't
+  // populated yet (no transactions, no insights, etc.) are skipped silently.
+  const [availableSteps, setAvailableSteps] = useState<TutorialStep[]>(steps);
+  const current = availableSteps[step] ?? availableSteps[0];
   const isFirst = step === 0;
-  const isLast = step === steps.length - 1;
+  const isLast = step === availableSteps.length - 1;
 
   // Lock body scroll while the overlay is up.
   useEffect(() => {
@@ -89,6 +118,14 @@ export function FeatureTutorial({
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
   }, [open]);
+
+  // Filter out steps whose target isn't in the DOM. Runs on open so we capture
+  // the current empty-state of each section.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const next = steps.filter((s) => !s.target || document.querySelector(s.target));
+    setAvailableSteps(next.length > 0 ? next : steps);
+  }, [open, steps]);
 
   // Recompute target rect on step change, scroll, or resize. useLayoutEffect so the
   // spotlight doesn't paint at the previous step's position on transitions.
@@ -116,7 +153,7 @@ export function FeatureTutorial({
     wasOpen.current = open;
   }, [open]);
 
-  if (!open || steps.length === 0) return null;
+  if (!open || availableSteps.length === 0) return null;
 
   const placement = rect ? pickPlacement(rect, current.placement) : "bottom";
   const tipPos = tooltipPosition(rect, placement);
@@ -186,7 +223,7 @@ export function FeatureTutorial({
         </button>
 
         <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[#90f048]">
-          Dica {step + 1} de {steps.length}
+          Dica {step + 1} de {availableSteps.length}
         </p>
         <h3 className="mt-1 text-[15px] font-bold tracking-tight text-white pr-7">{current.title}</h3>
         <div className="mt-2 text-[12.5px] leading-relaxed text-[var(--muted)]">{current.body}</div>
@@ -199,7 +236,7 @@ export function FeatureTutorial({
         )}
 
         <div className="mt-4 flex items-center gap-1.5">
-          {steps.map((_, i) => (
+          {availableSteps.map((_, i) => (
             <button
               key={i}
               type="button"
