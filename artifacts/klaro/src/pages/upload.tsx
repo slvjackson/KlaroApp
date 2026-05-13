@@ -5,6 +5,28 @@ import { useListUploads } from "@workspace/api-client-react";
 import { useUploadContext } from "@/contexts/upload-context";
 import { UploadCloud, Loader2, FileImage, FileSpreadsheet, FileText, AlertTriangle, Sparkles, Brain, CheckCircle2, X } from "lucide-react";
 import { format } from "date-fns";
+import { FeatureTutorial, TutorialButton, type TutorialStep } from "@/components/feature-tutorial";
+
+const UPLOAD_TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    title: "Onde tudo começa",
+    body: "Solte qualquer arquivo aqui — extrato bancário, planilha de vendas, fatura, ou até uma foto do caderno do caixa.",
+    tip: "Você pode arrastar direto do Finder/Explorer. Não precisa renomear nem reformatar.",
+    target: "#tutorial-upload-dropzone",
+  },
+  {
+    title: "Formatos suportados",
+    body: "A Klaro lê CSV, Excel, PDF, OFX e imagens. Cada formato é interpretado de forma diferente pela IA.",
+    tip: "PDF e imagens passam por OCR. OFX importa direto do extrato bancário sem perda.",
+    target: "#tutorial-upload-formats",
+  },
+  {
+    title: "A IA faz o trabalho pesado",
+    body: "Depois do upload, o modelo extrai datas, valores e categorias automaticamente. Você só revisa antes de salvar.",
+    tip: "Comece pelo extrato do mês passado — é o caminho mais rápido pra ver o dashboard ganhar vida.",
+    target: "#tutorial-upload-info",
+  },
+];
 
 // ─── Phases ────────────────────────────────────────────────────────────────────
 
@@ -142,6 +164,7 @@ export default function Upload() {
   const { data: existingUploads } = useListUploads();
   const { uploading, uploadError, startUpload, dismissError } = useUploadContext();
   const [isDragging, setIsDragging] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   // Duplicate confirmation state
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -195,16 +218,20 @@ export default function Upload() {
   return (
     <Layout title="Upload">
       <div className="space-y-5 md:space-y-6">
-        <div>
-          <h1 className="text-[22px] font-bold tracking-tight text-white">Upload de Dados</h1>
-          <p className="text-[12.5px] text-[var(--muted)] mt-1 leading-relaxed">
-            Envie extratos bancários, planilhas ou fotos de anotações. A IA fará a leitura e organização automaticamente.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[22px] font-bold tracking-tight text-white">Upload de Dados</h1>
+            <p className="text-[12.5px] text-[var(--muted)] mt-1 leading-relaxed">
+              Envie extratos bancários, planilhas ou fotos de anotações. A IA fará a leitura e organização automaticamente.
+            </p>
+          </div>
+          <TutorialButton onClick={() => setTutorialOpen(true)} />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.8fr)] lg:items-start">
           {/* Drop zone */}
           <div
+            id="tutorial-upload-dropzone"
             className={`glass rounded-2xl transition-all ${isDragging ? "border-[var(--accent)] shadow-[0_0_0_3px_rgba(106,248,47,0.15)]" : ""}`}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
@@ -249,7 +276,7 @@ export default function Upload() {
 
           <div className="space-y-3">
             {/* Supported formats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
+            <div id="tutorial-upload-formats" className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
               {SUPPORTED.map(({ icon: Icon, label }) => (
                 <div key={label} className="glass rounded-xl p-4 flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-white/5 grid place-items-center">
@@ -261,7 +288,7 @@ export default function Upload() {
             </div>
 
             {/* Info card */}
-            <div className="glass rounded-2xl p-4 flex items-start gap-3">
+            <div id="tutorial-upload-info" className="glass rounded-2xl p-4 flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] grid place-items-center shrink-0">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#90f048" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
@@ -310,6 +337,12 @@ export default function Upload() {
           </div>
         </div>
       )}
+
+      <FeatureTutorial
+        open={tutorialOpen}
+        steps={UPLOAD_TUTORIAL_STEPS}
+        onClose={() => setTutorialOpen(false)}
+      />
     </Layout>
   );
 }

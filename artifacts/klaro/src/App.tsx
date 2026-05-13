@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChatProvider } from "@/contexts/chat-context";
 import { UploadProvider, useUploadContext } from "@/contexts/upload-context";
+import { OnboardingHighlightProvider } from "@/contexts/onboarding-highlight-context";
 import { useGetMe, useGetBillingStatus } from "@workspace/api-client-react";
 import { TrialWelcomeModal } from "@/components/trial-welcome-modal";
 import { FirstLoginOnboarding, hasCompletedFirstLoginOnboarding } from "@/components/first-login-onboarding";
@@ -165,7 +166,9 @@ function App() {
         <ChatProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <UploadProvider>
-              <AppInner />
+              <OnboardingHighlightProvider>
+                <AppInner />
+              </OnboardingHighlightProvider>
             </UploadProvider>
           </WouterRouter>
           <Toaster />

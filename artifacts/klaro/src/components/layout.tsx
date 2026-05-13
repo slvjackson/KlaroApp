@@ -5,6 +5,7 @@ import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LayoutDashboard, Upload, ArrowLeftRight, Lightbulb, Sparkles, User, LogOut, Trophy, Mail, X, Menu } from "lucide-react";
 import { KlaroMark } from "@/components/KlaroMark";
+import { useOnboardingHighlight } from "@/contexts/onboarding-highlight-context";
 
 const NAV_ITEMS = [
   { href: "/dashboard",    label: "Dashboard",  icon: LayoutDashboard },
@@ -29,6 +30,7 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
   const logout = useLogout();
   const queryClient = useQueryClient();
   const { data: user } = useGetMe();
+  const { highlight } = useOnboardingHighlight();
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendDone, setResendDone] = useState(false);
@@ -72,12 +74,15 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
           <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]/70 px-2 mb-1.5">Geral</div>
           {NAV_ITEMS.map(({ href, label, icon: Icon, badge }) => {
             const isActive = location === href || location.startsWith(href + "/");
+            const isHighlighted = highlight === href;
             return (
               <Link
                 key={href}
                 href={href}
                 className={`nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
-                  isActive
+                  isHighlighted
+                    ? "nav-highlight"
+                    : isActive
                     ? "text-white bg-[rgba(106,248,47,0.12)] active"
                     : "text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.03)]"
                 }`}
@@ -98,7 +103,9 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
           <Link
             href="/profile"
             className={`nav-item flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
-              location === "/profile"
+              highlight === "/profile"
+                ? "nav-highlight"
+                : location === "/profile"
                 ? "text-white bg-[rgba(106,248,47,0.12)] active"
                 : "text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.03)]"
             }`}
@@ -148,13 +155,16 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
               <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]/70 px-2 mb-1.5">Geral</div>
               {NAV_ITEMS.map(({ href, label, icon: Icon, badge }) => {
                 const isActive = location === href || location.startsWith(href + "/");
+                const isHighlighted = highlight === href;
                 return (
                   <Link
                     key={href}
                     href={href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-2.5 px-3 py-3 rounded-lg text-[14px] font-medium transition-colors ${
-                      isActive
+                      isHighlighted
+                        ? "nav-highlight"
+                        : isActive
                         ? "text-white bg-[rgba(106,248,47,0.12)]"
                         : "text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.03)]"
                     }`}
@@ -176,7 +186,9 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
                 href="/profile"
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-2.5 px-3 py-3 rounded-lg text-[14px] font-medium transition-colors ${
-                  location === "/profile"
+                  highlight === "/profile"
+                    ? "nav-highlight"
+                    : location === "/profile"
                     ? "text-white bg-[rgba(106,248,47,0.12)]"
                     : "text-[var(--muted)] hover:text-white hover:bg-[rgba(255,255,255,0.03)]"
                 }`}
@@ -264,12 +276,13 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 flex items-stretch border-t border-[var(--border)] bg-[rgba(9,9,11,0.92)] backdrop-blur-xl">
         {BOTTOM_NAV.map(({ href, label, icon: Icon }) => {
           const isActive = location === href || location.startsWith(href + "/");
+          const isHighlighted = highlight === href;
           return (
             <Link
               key={href}
               href={href}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium transition-colors ${
-                isActive ? "text-[var(--accent)]" : "text-[var(--muted)]"
+              className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium transition-colors ${
+                isHighlighted ? "nav-highlight rounded-none" : isActive ? "text-[var(--accent)]" : "text-[var(--muted)]"
               }`}
             >
               <Icon size={20} />

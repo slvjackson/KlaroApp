@@ -1,37 +1,40 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle2, LayoutDashboard, Lightbulb, Sparkles, Upload, X } from "lucide-react";
+import { ArrowRight, ArrowLeft, CheckCircle2, LayoutDashboard, Lightbulb, Sparkles, Upload, X } from "lucide-react";
 import { getGetMeQueryKey, type User } from "@workspace/api-client-react";
+import { useOnboardingHighlight } from "@/contexts/onboarding-highlight-context";
 
+// Each step points at a menu item (matches NAV_ITEMS href in layout.tsx) so the
+// sidebar pulses on the matching link while this step is active. The user finishes
+// the entire onboarding before exploring — no redirect button mid-flow.
 const STEPS = [
   {
     title: "Comece pelo upload",
     description: "Envie extratos, planilhas ou fotos. A Klaro organiza os dados para você revisar.",
     Icon: Upload,
-    action: "Enviar dados",
-    href: "/upload",
+    menuHref: "/upload",
+    menuLabel: "Upload",
   },
   {
     title: "Acompanhe o caixa",
     description: "Depois da confirmação, o dashboard mostra saldo, entradas, saídas e categorias.",
     Icon: LayoutDashboard,
-    action: "Ver dashboard",
-    href: "/dashboard",
+    menuHref: "/dashboard",
+    menuLabel: "Dashboard",
   },
   {
     title: "Gere insights",
     description: "A IA encontra padrões e transforma análises em recomendações práticas.",
     Icon: Lightbulb,
-    action: "Abrir insights",
-    href: "/insights",
+    menuHref: "/insights",
+    menuLabel: "Insights",
   },
   {
     title: "Personalize a IA",
     description: "Responda o diagnóstico do negócio para deixar as recomendações mais precisas.",
     Icon: Sparkles,
-    action: "Fazer diagnóstico",
-    href: "/anamnese",
+    menuHref: "/profile",
+    menuLabel: "Perfil",
   },
 ];
 
@@ -52,19 +55,26 @@ export function FirstLoginOnboarding({
   user: User;
   onDone: () => void;
 }) {
-  const [, navigate] = useLocation();
   const queryClient = useQueryClient();
+  const { setHighlight } = useOnboardingHighlight();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const current = STEPS[step] ?? STEPS[0];
   const isLast = step === STEPS.length - 1;
+  const isFirst = step === 0;
   const firstName = useMemo(() => user.name?.split(" ")[0] || "bem-vindo", [user.name]);
 
   useEffect(() => {
     if (hasCompletedFirstLoginOnboarding(user)) onDone();
   }, [onDone, user]);
 
-  async function finish(targetHref?: string) {
+  // Broadcast which menu item to pulse while this step is open. Cleared on unmount.
+  useEffect(() => {
+    setHighlight(current.menuHref);
+    return () => setHighlight(null);
+  }, [current.menuHref, setHighlight]);
+
+  async function finish() {
     if (saving) return;
     setSaving(true);
     try {
@@ -81,107 +91,106 @@ export function FirstLoginOnboarding({
     } finally {
       setSaving(false);
     }
+    setHighlight(null);
     onDone();
-    if (targetHref) navigate(targetHref);
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-      <div className="relative w-full overflow-hidden rounded-t-3xl border border-[var(--border-2)] p-5 shadow-2xl sm:max-w-xl sm:rounded-3xl sm:p-6 glass-strong">
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--muted)]/40 sm:hidden" />
+    // Anchored to the right (desktop) / bottom (mobile) so the sidebar / bottom-nav
+    // stay visible — the user can see the menu item pulse in real time.
+    <div className="fixed inset-0 z-[60] pointer-events-none">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] pointer-events-auto" />
 
-        <button
-          type="button"
-          onClick={() => finish()}
-          disabled={saving}
-          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-[var(--muted)] transition-colors hover:bg-white/5 hover:text-white"
-          aria-label="Fechar onboarding"
-        >
-          <X size={16} />
-        </button>
+      <div className="absolute inset-x-0 bottom-0 md:inset-auto md:right-6 md:bottom-6 md:top-auto md:left-auto pointer-events-auto md:max-w-[420px] mb-16 md:mb-0">
+        <div className="relative overflow-hidden rounded-t-3xl md:rounded-3xl border border-[var(--border-2)] p-5 sm:p-6 shadow-2xl glass-strong" style={{ background: "rgba(16,16,20,0.97)" }}>
+          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--muted)]/40 md:hidden" />
 
-        <div className="mb-5 pr-9">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#90f048]">Primeiros passos</p>
-          <h2 className="mt-1 text-[22px] font-bold tracking-tight text-white">Bem-vindo, {firstName}</h2>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--muted)]">
-            Um guia rápido para você chegar no primeiro insight sem procurar pelo caminho.
-          </p>
-        </div>
+          <button
+            type="button"
+            onClick={() => finish()}
+            disabled={saving}
+            className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-[var(--muted)] transition-colors hover:bg-white/5 hover:text-white"
+            aria-label="Fechar onboarding"
+          >
+            <X size={16} />
+          </button>
 
-        <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr] md:items-stretch">
-          <div className="rounded-2xl border border-[var(--border)] bg-[rgba(255,255,255,0.025)] p-3">
-            <div className="space-y-1">
-              {STEPS.map(({ title, Icon }, index) => {
-                const active = index === step;
-                const done = index < step;
-                return (
-                  <button
-                    key={title}
-                    type="button"
-                    onClick={() => setStep(index)}
-                    className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                      active
-                        ? "bg-[var(--accent-soft)] text-white"
-                        : "text-[var(--muted)] hover:bg-white/[0.035] hover:text-white"
-                    }`}
-                  >
-                    <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${
-                      active || done ? "bg-[rgba(106,248,47,0.14)] text-[#90f048]" : "bg-white/5"
-                    }`}>
-                      {done ? <CheckCircle2 size={14} /> : <Icon size={14} />}
-                    </span>
-                    <span className="min-w-0 flex-1 text-[12.5px] font-semibold">{title}</span>
-                  </button>
-                );
-              })}
+          <div className="mb-4 pr-9">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#90f048]">
+              Passo {step + 1} de {STEPS.length}
+            </p>
+            <h2 className="mt-1 text-[18px] font-bold tracking-tight text-white">
+              {isFirst ? `Bem-vindo, ${firstName}` : current.title}
+            </h2>
+            {isFirst && (
+              <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--muted)]">
+                Um guia rápido. Em cada passo, observe o menu — vamos te mostrar onde encontrar cada feature.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-[var(--border)] bg-[rgba(255,255,255,0.02)] p-4">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[rgba(106,248,47,0.22)] bg-[rgba(106,248,47,0.10)] text-[#90f048]">
+                <current.Icon size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                {!isFirst && (
+                  <p className="text-[14px] font-semibold text-white">{current.title}</p>
+                )}
+                <p className={`text-[12.5px] leading-relaxed text-[var(--muted)] ${isFirst ? "" : "mt-1"}`}>
+                  {current.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-[rgba(106,248,47,0.18)] bg-[rgba(106,248,47,0.06)] px-3 py-2 text-[12px]">
+              <span className="relative grid h-2 w-2 place-items-center">
+                <span className="absolute inset-0 animate-ping rounded-full bg-[#6af82f] opacity-60" />
+                <span className="relative h-2 w-2 rounded-full bg-[#6af82f]" />
+              </span>
+              <span className="text-white/85">
+                Veja no menu: <b className="text-[#90f048]">{current.menuLabel}</b> está piscando agora.
+              </span>
             </div>
           </div>
 
-          <div className="flex min-h-[240px] flex-col rounded-2xl border border-[var(--border)] bg-[rgba(255,255,255,0.02)] p-4">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl border border-[rgba(106,248,47,0.22)] bg-[rgba(106,248,47,0.10)] text-[#90f048]">
-              <current.Icon size={20} />
-            </div>
-            <div className="mt-5">
-              <p className="text-[15px] font-bold text-white">{current.title}</p>
-              <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--muted)]">{current.description}</p>
+          <div className="mt-5">
+            <div className="mb-4 flex items-center gap-1.5">
+              {STEPS.map((item, index) => (
+                <button
+                  key={item.title}
+                  type="button"
+                  onClick={() => setStep(index)}
+                  className="h-1.5 rounded-full transition-all"
+                  style={{
+                    width: index === step ? 22 : 8,
+                    background: index === step ? "var(--accent)" : "var(--border-2)",
+                  }}
+                  aria-label={`Ir para etapa ${index + 1}`}
+                />
+              ))}
             </div>
 
-            <div className="mt-auto pt-5">
-              <div className="mb-4 flex items-center gap-1.5">
-                {STEPS.map((item, index) => (
-                  <button
-                    key={item.title}
-                    type="button"
-                    onClick={() => setStep(index)}
-                    className="h-1.5 rounded-full transition-all"
-                    style={{
-                      width: index === step ? 22 : 8,
-                      background: index === step ? "var(--accent)" : "var(--border-2)",
-                    }}
-                    aria-label={`Ir para etapa ${index + 1}`}
-                  />
-                ))}
-              </div>
-
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => finish(current.href)}
-                  disabled={saving}
-                  className="btn-primary flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-[13px] font-semibold"
-                >
-                  {current.action}
-                  <ArrowRight size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => isLast ? finish() : setStep((value) => value + 1)}
-                  disabled={saving}
-                  className="h-10 rounded-xl border border-[var(--border)] px-4 text-[13px] font-medium text-[var(--muted)] transition-colors hover:border-[var(--border-2)] hover:text-white"
-                >
-                  {isLast ? "Concluir" : "Próximo"}
-                </button>
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setStep((value) => value - 1)}
+                disabled={isFirst || saving}
+                className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--border)] text-[var(--muted)] transition-colors hover:border-[var(--border-2)] hover:text-white disabled:opacity-30 disabled:hover:border-[var(--border)] disabled:hover:text-[var(--muted)]"
+                aria-label="Passo anterior"
+              >
+                <ArrowLeft size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => isLast ? finish() : setStep((value) => value + 1)}
+                disabled={saving}
+                className="btn-primary flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-[13px] font-semibold"
+              >
+                {isLast ? "Concluir" : "Próximo"}
+                {!isLast && <ArrowRight size={14} />}
+              </button>
             </div>
           </div>
         </div>
