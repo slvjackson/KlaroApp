@@ -141,8 +141,16 @@ html, body {
 /* Uses the individual `translate` property (not `transform: translateY`) so the
  * float composes with any inline `transform: rotate(...)` instead of overriding it. */
 @keyframes hero-float-anim { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+@keyframes hero-orbit-anim {
+  0%   { translate: 0 0; }
+  25%  { translate: 9px -15px; }
+  50%  { translate: 0 -24px; }
+  75%  { translate: -9px -15px; }
+  100% { translate: 0 0; }
+}
 @keyframes hero-glow-anim  { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.9; } }
 .hero-float { animation: hero-float-anim 7s ease-in-out infinite; will-change: translate; }
+.hero-orbit { animation: hero-orbit-anim 8s ease-in-out infinite; will-change: translate; }
 .hero-glow  { animation: hero-glow-anim 5s ease-in-out infinite; }
 
 /* Phone is centered with translate(-50%,-50%) on all sizes; tilt only kicks in on md+
@@ -153,7 +161,7 @@ html, body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-float, .hero-glow { animation: none; }
+  .hero-float, .hero-orbit, .hero-glow { animation: none; }
 }
 
 /* ─── Form fields ───────────────────────────────────────────────────────── */

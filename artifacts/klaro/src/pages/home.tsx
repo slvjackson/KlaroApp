@@ -241,20 +241,20 @@ function HeroSection({ go }: { go: (path: string) => void }) {
           </div>
 
           <div
-            className="hidden md:block absolute hero-float"
-            style={{ left: "2%", top: "18%", animationDelay: "-1.4s" }}
+            className="hidden md:block absolute hero-orbit"
+            style={{ left: "2%", top: "18%", animationDelay: "-1.6s" }}
           >
             <BigStat />
           </div>
           <div
-            className="hidden md:block absolute hero-float"
-            style={{ right: "3%", top: "6%", animationDelay: "-4.2s" }}
+            className="hidden md:block absolute hero-orbit"
+            style={{ right: "3%", top: "6%", animationDelay: "-4.8s" }}
           >
             <SatelliteMission />
           </div>
           <div
-            className="hidden md:block absolute hero-float"
-            style={{ right: "6%", bottom: "10%", animationDelay: "-2.1s" }}
+            className="hidden md:block absolute hero-orbit"
+            style={{ right: "6%", bottom: "10%", animationDelay: "-2.4s" }}
           >
             <SatelliteChat />
           </div>

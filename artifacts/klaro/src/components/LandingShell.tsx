@@ -34,9 +34,11 @@ export function TopNav() {
   const [, setLocation] = useLocation();
   const [solucoesOpen, setSolucoesOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileProdutoOpen, setMobileProdutoOpen] = useState(false);
 
   const goTo = (href: string) => {
     setMobileOpen(false);
+    setMobileProdutoOpen(false);
     setSolucoesOpen(false);
     setLocation(href);
   };
@@ -57,7 +59,10 @@ export function TopNav() {
               </Link>
               {solucoesOpen && (
                 <div className="absolute top-full left-0 pt-2 w-[280px]">
-                  <div className="glass rounded-xl p-2 border border-white/10">
+                  <div
+                    className="glass-strong rounded-xl p-2 border border-white/15 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)]"
+                    style={{ background: "rgba(16,16,20,0.96)" }}
+                  >
                     {SOLUTIONS.map((it) => (
                       <Link
                         key={it.slug}
@@ -106,25 +111,47 @@ export function TopNav() {
           <div className="max-w-7xl mx-auto px-6 py-5 space-y-5">
             <div className="grid gap-1 text-[14px] text-white/75">
               <button type="button" onClick={() => goTo("/")} className="text-left py-2 hover:text-white transition-colors">Home</button>
-              <button type="button" onClick={() => goTo("/solucoes")} className="text-left py-2 hover:text-white transition-colors">Produto</button>
-              <div className="grid gap-2 py-2">
-                {SOLUTIONS.map((it) => (
+              <button
+                type="button"
+                onClick={() => setMobileProdutoOpen((v) => !v)}
+                className="flex items-center justify-between py-2 text-left hover:text-white transition-colors"
+                aria-expanded={mobileProdutoOpen}
+                aria-controls="mobile-produto-panel"
+              >
+                <span>Produto</span>
+                <ChevronDown
+                  size={14}
+                  className="transition-transform duration-200"
+                  style={{ transform: mobileProdutoOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                />
+              </button>
+              {mobileProdutoOpen && (
+                <div id="mobile-produto-panel" className="grid gap-2 pb-2">
                   <button
-                    key={it.slug}
                     type="button"
-                    onClick={() => goTo(`/solucoes/${it.slug}`)}
-                    className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-3 text-left hover:bg-white/[0.06] transition-colors"
+                    onClick={() => goTo("/solucoes")}
+                    className="text-left text-[12px] text-white/55 hover:text-white px-1 py-1 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: "var(--accent-soft)" }}>
-                      <it.Icon size={14} style={{ color: "var(--accent)" }} />
-                    </div>
-                    <span>
-                      <span className="block text-[13px] font-medium text-white/90 leading-tight">{it.label}</span>
-                      <span className="block text-[11px] text-white/45 leading-snug mt-0.5">{it.desc}</span>
-                    </span>
+                    Ver visão geral
                   </button>
-                ))}
-              </div>
+                  {SOLUTIONS.map((it) => (
+                    <button
+                      key={it.slug}
+                      type="button"
+                      onClick={() => goTo(`/solucoes/${it.slug}`)}
+                      className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-3 text-left hover:bg-white/[0.06] transition-colors"
+                    >
+                      <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: "var(--accent-soft)" }}>
+                        <it.Icon size={14} style={{ color: "var(--accent)" }} />
+                      </div>
+                      <span>
+                        <span className="block text-[13px] font-medium text-white/90 leading-tight">{it.label}</span>
+                        <span className="block text-[11px] text-white/45 leading-snug mt-0.5">{it.desc}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
               <button type="button" onClick={() => goTo("/precos")} className="text-left py-2 hover:text-white transition-colors">Preços</button>
               <button type="button" onClick={() => goTo("/empresa")} className="text-left py-2 hover:text-white transition-colors">Nosso Propósito</button>
               <button type="button" onClick={() => goTo("/faq")} className="text-left py-2 hover:text-white transition-colors">FAQ</button>
