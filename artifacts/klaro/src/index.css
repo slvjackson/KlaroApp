@@ -137,6 +137,25 @@ html, body {
 .btn-primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
 .btn-primary:active { transform: translateY(0); }
 
+/* ─── Hero ambient motion ──────────────────────────────────────────────── */
+/* Uses the individual `translate` property (not `transform: translateY`) so the
+ * float composes with any inline `transform: rotate(...)` instead of overriding it. */
+@keyframes hero-float-anim { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+@keyframes hero-glow-anim  { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.9; } }
+.hero-float { animation: hero-float-anim 7s ease-in-out infinite; will-change: translate; }
+.hero-glow  { animation: hero-glow-anim 5s ease-in-out infinite; }
+
+/* Phone is centered with translate(-50%,-50%) on all sizes; tilt only kicks in on md+
+ * where the satellites give it a composition to anchor against. */
+.hero-phone-pos { transform: translate(-50%, -50%); }
+@media (min-width: 768px) {
+  .hero-phone-pos { transform: translate(-50%, -50%) rotate(-3deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-float, .hero-glow { animation: none; }
+}
+
 /* ─── Form fields ───────────────────────────────────────────────────────── */
 .field {
   width: 100%;

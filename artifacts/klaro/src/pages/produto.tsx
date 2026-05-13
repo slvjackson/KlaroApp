@@ -341,7 +341,7 @@ export default function Produto() {
       <section className="border-t border-white/10 py-20 bg-[#0a0a0b]">
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-[1.2fr_1fr] gap-12 items-center">
           <div>
-            <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: "var(--accent)" }}>Insights por IA</p>
+            <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: "var(--accent)" }}>Insights Inteligentes</p>
             <h2 className="font-bold tracking-tight text-white mb-5" style={{ fontSize: "clamp(28px,3.6vw,48px)", lineHeight: 1.05 }}>
               A IA faz as perguntas que você não tinha tempo de fazer.
             </h2>

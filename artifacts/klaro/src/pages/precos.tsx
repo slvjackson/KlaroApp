@@ -46,7 +46,7 @@ const PLANS = [
 const FEATURES_INCLUDED = [
   { Icon: UploadCloud,    title: "Importação universal",      desc: "Excel, PDF, CSV, OFX, foto e até foto de caderno. Tudo lido pela IA." },
   { Icon: LayoutDashboard, title: "Painel em tempo real",     desc: "Saldo, receita, despesa, tendência e categoria. Atualizado conforme você sobe dado." },
-  { Icon: Sparkles,       title: "Insights por IA",           desc: "Uma análise nova todo dia, gerada a partir do seu próprio histórico." },
+  { Icon: Sparkles,       title: "Insights Inteligentes",           desc: "Uma análise nova todo dia, gerada a partir do seu próprio histórico." },
   { Icon: Target,         title: "Missões com passos",        desc: "Vire insight em ação concreta com checklist do que fazer." },
   { Icon: MessageSquare,  title: "Chat Inteligente",            desc: "Pergunte qualquer coisa sobre seu negócio e tenha respostas com seus dados reais." },
   { Icon: Layers,         title: "Categorização contínua",    desc: "Transações categorizadas automaticamente. Aprende seu padrão." },
@@ -109,12 +109,6 @@ export default function Precos() {
       {/* Hero */}
       <section className="relative pt-20 pb-12">
         <div className="max-w-5xl mx-auto px-6 text-center">
-          <div
-            className="inline-flex items-center gap-1.5 text-[10.5px] font-bold tracking-[0.16em] uppercase px-3 py-1.5 rounded-full mb-6"
-            style={{ color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid rgba(106,248,47,0.3)" }}
-          >
-            Preços
-          </div>
           <h1 className="font-bold tracking-[-0.025em] text-white" style={{ fontSize: "clamp(36px,5vw,68px)", lineHeight: 1.02 }}>
             Um preço. Todas as features.
           </h1>

@@ -25,12 +25,7 @@ export default function Empresa() {
           }}
         />
         <div className="relative max-w-5xl mx-auto px-6 text-center">
-          <div
-            className="inline-flex items-center gap-1.5 text-[10.5px] font-bold tracking-[0.16em] uppercase px-3 py-1.5 rounded-full mb-6"
-            style={{ color: "var(--accent)", background: "var(--accent-soft)", border: "1px solid rgba(106,248,47,0.3)" }}
-          >
-            <Sparkles size={11} /> A empresa
-          </div>
+
           <h1 className="font-bold tracking-[-0.025em] text-white" style={{ fontSize: "clamp(36px,5vw,68px)", lineHeight: 1.02 }}>
             Por que a Klaro existe.
           </h1>

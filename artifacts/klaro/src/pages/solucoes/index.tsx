@@ -14,7 +14,7 @@ export default function SolucoesIndex() {
             PRODUTO
           </div>
           <h1 className="font-bold tracking-[-0.025em] text-white" style={{ fontSize: "clamp(36px,5vw,68px)", lineHeight: 1.02 }}>
-            4 jeitos de o Klaro<br />tirar peso do seu dia.
+            4 jeitos do App Klaro<br />tirar peso do seu dia a dia.
           </h1>
           <p className="text-[16px] md:text-[18px] text-white/60 mt-6 max-w-2xl mx-auto leading-relaxed">
             Você não precisa virar contador. Cada funcionalidade foi pensada pra resolver uma dor concreta e funciona junto, no mesmo lugar.

@@ -123,7 +123,7 @@ export default function SolucoesInsights() {
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
           <div>
             <p className="text-[12px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: "var(--accent)" }}>
-              <Sparkles size={11} className="inline mr-1.5 -mt-0.5" /> Insights por IA
+              <Sparkles size={11} className="inline mr-1.5 -mt-0.5" /> Insights Inteligentes
             </p>
             <h1 className="font-bold tracking-[-0.025em] text-white" style={{ fontSize: "clamp(34px,4.4vw,60px)", lineHeight: 1.02 }}>
               <span style={{ color: "var(--accent)" }}>Análise</span> que vem<br />até você.
