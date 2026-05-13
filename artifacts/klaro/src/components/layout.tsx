@@ -18,13 +18,14 @@ const NAV_ITEMS = [
   { href: "/chat",         label: "Chat Klaro", icon: Sparkles, badge: "IA" },
 ];
 
-// Mobile bottom nav: 4 items. IA → floating action button. Perfil → avatar dropdown
-// on the top bar. Onboarding pulses on items that aren't in this list (e.g.
-// Insights, Chat Klaro, Perfil) are routed to the hamburger / FAB / avatar.
+// Mobile bottom nav: 5 items. IA → floating action button. Perfil → avatar dropdown
+// on the top bar. Onboarding pulses on items not in this list (Chat Klaro, Perfil)
+// are routed to the FAB / avatar; the hamburger fallback covers anything else.
 const BOTTOM_NAV = [
   { href: "/dashboard",    label: "Dashboard",  icon: LayoutDashboard },
   { href: "/transactions", label: "Transações", icon: ArrowLeftRight },
   { href: "/upload",       label: "Upload",     icon: Upload },
+  { href: "/insights",     label: "Insights",   icon: Lightbulb },
   { href: "/missions",     label: "Missões",    icon: Trophy },
 ];
 
