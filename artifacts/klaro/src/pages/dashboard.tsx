@@ -42,20 +42,20 @@ const DASHBOARD_TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     title: "Nível e ranking",
-    body: "Cada ação no Klaro (upload, revisão, missão concluída) soma XP. O nível mostra sua evolução como gestor — e desbloqueia recursos conforme avança.",
+    body: "Cada ação no Klaro (upload, revisão, missão concluída) soma pontuação. O nível mostra sua evolução como gestor — e desbloqueia recursos conforme avança.",
     tip: "Faça pelo menos uma ação por dia. Pequenas pontuações regulares te levam mais longe que um pico isolado.",
     target: "#tutorial-dashboard-level",
   },
   {
     title: "Categorias que pesam",
-    body: "O donut revela onde seu dinheiro entra e sai. Cores quentes = despesa, verde = receita.",
+    body: "O donut revela onde seu dinheiro entra e sai.",
     tip: "Se uma fatia cresceu de repente, vá em Transações filtrar essa categoria para entender o motivo.",
     target: "#tutorial-dashboard-categories",
   },
   {
     title: "Tarefas diárias + streak",
     body: "Pequenas missões que aparecem a cada dia: revisar uma transação, conferir um insight, marcar uma meta. Cumprir mantém o streak — sua sequência consecutiva.",
-    tip: "Streak não é vaidade — ele força o hábito de abrir o Klaro todo dia, o que multiplica o valor do produto.",
+    tip: "Streak não é vaidade — ele ajuda a criar o hábito de se organizar todo dia, fazer um pouquinho todo dia pode ser o segredo do crescimento.",
     target: "#tutorial-dashboard-routine",
   },
 ];
