@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -13,10 +13,15 @@ interface ChatContextValue {
   sendMessage: (text: string) => Promise<void>;
   saveIndex: (idx: number) => void;
   clearChat: () => void;
+  /** Count of assistant messages added since the user last "saw" the chat. */
+  unreadCount: number;
+  /** Marks all current messages as seen — call when the chat surface opens. */
+  markChatRead: () => void;
 }
 
 const CHAT_KEY = "klaro_chat_history";
 const SAVED_KEY = "klaro_chat_saved";
+const SEEN_KEY = "klaro_chat_seen_length";
 
 function loadMessages(): ChatMessage[] {
   try {
@@ -36,6 +41,16 @@ function loadSaved(): Set<number> {
   }
 }
 
+function loadSeenLength(initialLen: number): number {
+  try {
+    const raw = sessionStorage.getItem(SEEN_KEY);
+    if (raw == null) return initialLen;
+    return Math.max(0, parseInt(raw, 10) || 0);
+  } catch {
+    return initialLen;
+  }
+}
+
 const ChatContext = createContext<ChatContextValue | null>(null);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
@@ -43,6 +58,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [savedIndices, setSavedIndices] = useState<Set<number>>(loadSaved);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [seenLength, setSeenLength] = useState<number>(() => loadSeenLength(messages.length));
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -52,6 +68,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     sessionStorage.setItem(SAVED_KEY, JSON.stringify([...savedIndices]));
   }, [savedIndices]);
+
+  useEffect(() => {
+    sessionStorage.setItem(SEEN_KEY, String(seenLength));
+  }, [seenLength]);
 
   async function sendMessage(text: string) {
     const msg = text.trim();
@@ -97,12 +117,23 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setSavedIndices(new Set());
     setError("");
     setLoading(false);
+    setSeenLength(0);
     sessionStorage.removeItem(CHAT_KEY);
     sessionStorage.removeItem(SAVED_KEY);
+    sessionStorage.removeItem(SEEN_KEY);
   }
 
+  const markChatRead = useCallback(() => {
+    setSeenLength((prev) => (prev === messages.length ? prev : messages.length));
+  }, [messages.length]);
+
+  // Unread = assistant messages added since user last marked the chat as read.
+  const unreadCount = Math.max(0, messages.filter((m, i) => i >= seenLength && m.role === "assistant").length);
+
   return (
-    <ChatContext.Provider value={{ messages, savedIndices, loading, error, sendMessage, saveIndex, clearChat }}>
+    <ChatContext.Provider
+      value={{ messages, savedIndices, loading, error, sendMessage, saveIndex, clearChat, unreadCount, markChatRead }}
+    >
       {children}
     </ChatContext.Provider>
   );

@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
-import { Paperclip, Mic, Send, Loader, ShieldCheck, CornerDownRight, Bookmark, Check, RotateCcw } from "lucide-react";
+import { Paperclip, Mic, Send, Loader, ShieldCheck, CornerDownRight, Check, RotateCcw } from "lucide-react";
 import { useSaveInsight, useGetMe, getListInsightsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { RichContent } from "@/components/rich-content";
 import { AnamneseCta } from "@/components/anamnese-cta";
-import { useChatContext, type ChatMessage } from "@/contexts/chat-context";
+import { useChatContext } from "@/contexts/chat-context";
 import { FeatureTutorial, TutorialButton, type TutorialStep } from "@/components/feature-tutorial";
+import { ChatBubble, TypingBubble, CHAT_SUGGESTIONS, extractInsightTitle } from "@/components/chat-bubble";
 
 const CHAT_TUTORIAL_STEPS: TutorialStep[] = [
   {
@@ -18,7 +18,7 @@ const CHAT_TUTORIAL_STEPS: TutorialStep[] = [
     target: "#tutorial-chat-suggestions",
   },
   {
-    title: "Pergunte em português normal",
+    title: "Pergunte do seu jeito",
     body: "Sem prompt técnico. Escreva como se estivesse falando com seu contador. O modelo entende contexto e tem acesso aos seus números reais.",
     tip: "Use perguntas comparativas: 'Onde gastei mais este mês vs. o passado?'.",
     target: "#tutorial-chat-input",
@@ -30,111 +30,6 @@ const CHAT_TUTORIAL_STEPS: TutorialStep[] = [
     target: "#tutorial-chat-messages",
   },
 ];
-
-const SUGGESTIONS = [
-  "Qual foi minha receita este mês?",
-  "Quais são minhas maiores despesas?",
-  "Como está meu fluxo de caixa?",
-  "Mostre meu resumo financeiro",
-  "Quais categorias gastei mais?",
-  "Compare entradas e saídas do último mês",
-];
-
-// Reject bolds that are pure values/labels rather than a real headline.
-// Examples we want to skip: "R$ 2.350", "Hoje (06/05):", "Últimos meses:", "1.240,00".
-function isWeakBold(s: string): boolean {
-  // Mostly digits + currency/punctuation symbols
-  if (/^[\sR$\d.,\-/():%]+$/i.test(s)) return true;
-  // Ends with `:` — AI uses that for section labels, not titles
-  if (/:\s*$/.test(s)) return true;
-  // Date-like patterns: "Hoje (06/05)", "01/05/2026", "Mai/26"
-  if (/^(hoje|ontem|amanhã|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)/i.test(s) && s.length <= 24) return true;
-  // Has fewer than 2 letters total — not a phrase
-  if ((s.match(/[a-záéíóúãõçâêô]/gi) ?? []).length < 4) return true;
-  return false;
-}
-
-function extractTitle(text: string): string {
-  // Prefer the first **bold** phrase that actually reads like a headline. We scan all
-  // bolds and skip pure values/labels (numbers, dates, "Hoje:", etc.) which the chat
-  // model uses for emphasis but aren't useful as titles.
-  const boldMatches = [...text.matchAll(/\*\*(.+?)\*\*/g)];
-  for (const m of boldMatches) {
-    const bold = m[1].trim().replace(/\s+/g, " ").replace(/[.!?…]+$/, "");
-    if (bold.length >= 10 && bold.length <= 80 && !isWeakBold(bold)) {
-      return bold[0].toUpperCase() + bold.slice(1);
-    }
-  }
-
-  // Fallback: first sentence. Split only on sentence boundaries (terminator + whitespace
-  // or newline) so values like "R$ 2.350,00" don't get cut at the thousand separator.
-  const stripped = text
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/_(.+?)_/g, "$1")
-    .replace(/^[#*\-•>\s]+/, "");
-  const first = stripped.split(/[.!?]\s+|\n/)[0]?.trim() ?? "";
-  if (!first) return "Insight do chat";
-  if (first.length <= 72) return first;
-
-  const truncated = first.slice(0, 72);
-  const lastSpace = truncated.lastIndexOf(" ");
-  return (lastSpace > 40 ? truncated.slice(0, lastSpace) : truncated) + "…";
-}
-
-// ─── Bubble ───────────────────────────────────────────────────────────────────
-
-function Bubble({ msg, onSave }: { msg: ChatMessage; onSave?: () => void }) {
-  const isUser = msg.role === "user";
-  return (
-    <div className={`fadeUp flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
-      {!isUser && (
-        <img src="/logo.png" alt="Klaro" className="w-7 h-7 rounded-[6px] shrink-0 mt-0.5 object-cover" />
-      )}
-      <div className="flex flex-col gap-1 max-w-[78%]">
-        <div
-          className={`px-3.5 py-2.5 leading-relaxed ${
-            isUser
-              ? "text-[12.5px] bg-gradient-to-br from-[#6af82f] to-[#48ba18] text-[#09090b] font-medium bubble-user shadow-[0_8px_24px_-12px_rgba(106,248,47,0.6)]"
-              : "text-white/90 bubble-bot bg-[rgba(255,255,255,0.04)] border border-[var(--border)]"
-          }`}
-        >
-          {isUser
-            ? <div className="text-[12.5px]">{msg.content}</div>
-            : <RichContent text={msg.content} />}
-        </div>
-        {!isUser && onSave && (
-          <div className="flex justify-end">
-            <button
-              onClick={onSave}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10.5px] text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-colors"
-            >
-              <Bookmark size={11} />
-              Salvar como insight
-            </button>
-          </div>
-        )}
-      </div>
-      {isUser && (
-        <div className="w-7 h-7 rounded-full bg-white/5 border border-[var(--border)] grid place-items-center shrink-0 mt-0.5 text-[var(--muted)]">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-          </svg>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TypingBubble() {
-  return (
-    <div className="fadeUp flex gap-2.5 justify-start">
-      <img src="/logo.png" alt="Klaro" className="w-7 h-7 rounded-[6px] shrink-0 mt-0.5 object-cover" />
-      <div className="px-4 py-3 bg-[rgba(255,255,255,0.04)] border border-[var(--border)] bubble-bot">
-        <span className="dot" /><span className="dot" /><span className="dot" />
-      </div>
-    </div>
-  );
-}
 
 // ─── Save toast ───────────────────────────────────────────────────────────────
 
@@ -192,7 +87,7 @@ export default function Chat() {
     if (savedIndices.has(idx)) return;
     saveInsight.mutate(
       {
-        title: extractTitle(content),
+        title: extractInsightTitle(content),
         description: content.slice(0, 800),
         periodLabel: new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
       },
@@ -266,7 +161,7 @@ export default function Chat() {
                 </div>
                 <div id="tutorial-chat-suggestions" className="w-full space-y-1.5 max-w-xs">
                   <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]/70 font-semibold text-left pl-1">Sugestões</div>
-                  {SUGGESTIONS.slice(0, 4).map((s) => (
+                  {CHAT_SUGGESTIONS.slice(0, 4).map((s) => (
                     <button
                       key={s}
                       onClick={() => sendMessage(s)}
@@ -284,7 +179,7 @@ export default function Chat() {
             ) : (
               <>
                 {messages.map((m, i) => (
-                  <Bubble
+                  <ChatBubble
                     key={i}
                     msg={m}
                     onSave={
@@ -305,7 +200,7 @@ export default function Chat() {
           {/* Suggestion chips (when not empty) */}
           {!isEmpty && !loading && (
             <div className="px-5 pb-2 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-              {SUGGESTIONS.slice(0, 3).map((s) => (
+              {CHAT_SUGGESTIONS.slice(0, 3).map((s) => (
                 <button
                   key={s}
                   onClick={() => sendMessage(s)}

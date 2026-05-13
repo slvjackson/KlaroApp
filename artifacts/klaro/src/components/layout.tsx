@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, Upload, ArrowLeftRight, Lightbulb, Sparkles, User, LogOut, Trophy, Mail, X, Menu } from "lucide-react";
+import { LayoutDashboard, Upload, ArrowLeftRight, Lightbulb, Sparkles, User, LogOut, Trophy, Mail, X, Menu, ChevronDown } from "lucide-react";
 import { KlaroMark } from "@/components/KlaroMark";
 import { useOnboardingHighlight } from "@/contexts/onboarding-highlight-context";
+import { useChatContext } from "@/contexts/chat-context";
+import { MobileChatSheet } from "@/components/mobile-chat-sheet";
 
 const NAV_ITEMS = [
   { href: "/dashboard",    label: "Dashboard",  icon: LayoutDashboard },
@@ -16,14 +18,17 @@ const NAV_ITEMS = [
   { href: "/chat",         label: "Chat Klaro", icon: Sparkles, badge: "IA" },
 ];
 
-// 5 items shown in mobile bottom nav
+// Mobile bottom nav: 4 items. IA → floating action button. Perfil → avatar dropdown
+// on the top bar. Onboarding pulses on items that aren't in this list (e.g.
+// Insights, Chat Klaro, Perfil) are routed to the hamburger / FAB / avatar.
 const BOTTOM_NAV = [
   { href: "/dashboard",    label: "Dashboard",  icon: LayoutDashboard },
   { href: "/transactions", label: "Transações", icon: ArrowLeftRight },
   { href: "/upload",       label: "Upload",     icon: Upload },
-  { href: "/chat",         label: "IA",         icon: Sparkles },
-  { href: "/profile",      label: "Perfil",     icon: User },
+  { href: "/missions",     label: "Missões",    icon: Trophy },
 ];
+
+const BOTTOM_NAV_HREFS = new Set(BOTTOM_NAV.map((i) => i.href));
 
 export function Layout({ children, title = "Dashboard" }: { children: ReactNode; title?: string }) {
   const [location, setLocation] = useLocation();
@@ -31,10 +36,38 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
   const queryClient = useQueryClient();
   const { data: user } = useGetMe();
   const { highlight } = useOnboardingHighlight();
+  const { unreadCount } = useChatContext();
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendDone, setResendDone] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const [chatSheetOpen, setChatSheetOpen] = useState(false);
+  const avatarMenuRef = useRef<HTMLDivElement>(null);
+
+  // For mobile: when the onboarding pulses a nav item that's NOT in the bottom nav
+  // (e.g. Insights, Chat Klaro, Perfil), route the highlight to the matching
+  // surfacing element on the mobile top bar — hamburger for drawer-only items, FAB
+  // for chat, avatar for profile.
+  const highlightFAB = highlight === "/chat";
+  const highlightAvatar = highlight === "/profile";
+  const highlightHamburger = !!highlight && !BOTTOM_NAV_HREFS.has(highlight) && !highlightFAB && !highlightAvatar;
+
+  // Close avatar menu on outside click / route change.
+  useEffect(() => {
+    if (!avatarMenuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target as Node)) {
+        setAvatarMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [avatarMenuOpen]);
+
+  useEffect(() => {
+    setAvatarMenuOpen(false);
+  }, [location]);
 
   const showVerifyBanner = user && !user.emailVerifiedAt && !bannerDismissed;
 
@@ -222,10 +255,14 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top bar */}
         <div className="flex items-center gap-3 px-4 md:px-8 py-4 border-b border-[var(--border)] bg-[rgba(9,9,11,0.5)] backdrop-blur-xl sticky top-0 z-20">
-          {/* Hamburger (mobile only) */}
+          {/* Hamburger (mobile only) — pulses when the onboarding points at a nav
+              item that lives in the drawer (Insights). */}
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="md:hidden text-[var(--muted)] hover:text-white transition-colors p-1 -ml-1"
+            className={`md:hidden p-1 -ml-1 transition-colors rounded-md ${
+              highlightHamburger ? "nav-highlight" : "text-[var(--muted)] hover:text-white"
+            }`}
+            aria-label="Abrir menu"
           >
             <Menu size={20} />
           </button>
@@ -241,6 +278,52 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
           <Link href="/dashboard" className="md:hidden">
             <KlaroMark size={22} />
           </Link>
+
+          {/* Avatar dropdown (mobile only) */}
+          <div ref={avatarMenuRef} className="md:hidden relative">
+            <button
+              type="button"
+              onClick={() => setAvatarMenuOpen((v) => !v)}
+              className={`flex items-center gap-1 rounded-full p-0.5 pr-1.5 border border-[var(--border)] transition-colors ${
+                highlightAvatar ? "nav-highlight" : "hover:border-[var(--border-2)]"
+              }`}
+              aria-expanded={avatarMenuOpen}
+              aria-label="Abrir menu de perfil"
+            >
+              <span className="w-7 h-7 rounded-full bg-[#1c2018] border border-[rgba(106,248,47,0.3)] grid place-items-center text-[10.5px] font-bold text-[#6af82f]">
+                {initials}
+              </span>
+              <ChevronDown
+                size={12}
+                className="text-[var(--muted)] transition-transform"
+                style={{ transform: avatarMenuOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </button>
+            {avatarMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-white/15 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)] overflow-hidden" style={{ background: "rgba(16,16,20,0.97)" }}>
+                <div className="px-3.5 py-3 border-b border-white/10">
+                  <div className="text-[12.5px] font-semibold text-white truncate">{user?.name ?? "—"}</div>
+                  <div className="text-[10.5px] text-[var(--muted)] truncate">{user?.email ?? ""}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setAvatarMenuOpen(false); setLocation("/profile"); }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12.5px] text-white/85 hover:bg-white/5 transition-colors"
+                >
+                  <User size={14} className="text-[var(--muted)]" />
+                  Perfil
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAvatarMenuOpen(false); handleLogout(); }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12.5px] text-white/85 hover:bg-white/5 transition-colors border-t border-white/10"
+                >
+                  <LogOut size={14} className="text-[var(--muted)]" />
+                  Sair
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Email verification banner */}
@@ -291,6 +374,32 @@ export function Layout({ children, title = "Dashboard" }: { children: ReactNode;
           );
         })}
       </nav>
+
+      {/* ── Mobile IA floating action button ── */}
+      {location !== "/chat" && (
+        <button
+          type="button"
+          onClick={() => setChatSheetOpen(true)}
+          aria-label="Abrir chat com a IA"
+          className={`md:hidden fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full text-[#09090b] shadow-[0_12px_32px_-10px_rgba(106,248,47,0.7)] transition-transform active:scale-95 ${
+            highlightFAB ? "nav-highlight" : ""
+          }`}
+          style={{
+            // Sits just above the bottom nav (bottom-nav has py-2.5 + ~30px content = ~56px).
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 72px)",
+            background: highlightFAB ? undefined : "linear-gradient(180deg, #6af82f, #4de020)",
+          }}
+        >
+          <Sparkles size={22} />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-[#f43f5e] border-2 border-[#09090b] grid place-items-center text-[10px] font-bold text-white tnum">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </button>
+      )}
+
+      <MobileChatSheet open={chatSheetOpen} onClose={() => setChatSheetOpen(false)} />
     </div>
   );
 }
