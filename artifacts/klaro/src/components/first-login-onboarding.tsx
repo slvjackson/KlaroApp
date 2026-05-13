@@ -97,10 +97,9 @@ export function FirstLoginOnboarding({
 
   return (
     // Anchored to the right (desktop) / bottom (mobile) so the sidebar / bottom-nav
-    // stay visible — the user can see the menu item pulse in real time.
+    // stay visible — the user can see the menu item pulse in real time. No backdrop
+    // dim/blur so nothing competes with the highlight on the menu.
     <div className="fixed inset-0 z-[60] pointer-events-none">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] pointer-events-auto" />
-
       <div className="absolute inset-x-0 bottom-0 md:inset-auto md:right-6 md:bottom-6 md:top-auto md:left-auto pointer-events-auto md:max-w-[420px] mb-16 md:mb-0">
         <div className="relative overflow-hidden rounded-t-3xl md:rounded-3xl border border-[var(--border-2)] p-5 sm:p-6 shadow-2xl glass-strong" style={{ background: "rgba(16,16,20,0.97)" }}>
           <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--muted)]/40 md:hidden" />
