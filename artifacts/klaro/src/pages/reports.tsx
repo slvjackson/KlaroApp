@@ -87,33 +87,42 @@ const TEMPLATES = [
 ] as const;
 
 const SECTIONS = [
+  { id: "verdict",       label: "Veredito da saúde (gauge + leitura narrada)" },
   { id: "kpis",          label: "KPIs do período (saldo, entradas, saídas)" },
-  { id: "health",        label: "Score de saúde financeira" },
+  { id: "health",        label: "Componentes do score de saúde" },
   { id: "monthly",       label: "Evolução mensal (barras)" },
-  { id: "flowSummary",   label: "Resumo do fluxo (abertura, entradas, saídas, fechamento)" },
+  { id: "flowSummary",   label: "Resumo do fluxo (abertura → fechamento)" },
+  { id: "highlights",    label: "Destaques do período (maior entrada/saída, melhor/pior dia)" },
   { id: "dailyFlow",     label: "Fluxo diário acumulado" },
   { id: "weeklyFlow",    label: "Fechamento semanal" },
+  { id: "topMovers",     label: "Maiores variações (top 3 categorias que mais mudaram)" },
   { id: "topExpense",    label: "Top categorias de despesa" },
   { id: "topIncome",     label: "Top categorias de receita" },
   { id: "categoryTrend", label: "Tendência por categoria (top 5 ao longo do tempo)" },
   { id: "categoryDelta", label: "Variação por categoria vs período anterior" },
+  { id: "ledgerCover",   label: "Capa contábil (cabeçalho formal)" },
+  { id: "ledgerSummary", label: "Resumo contábil (créditos × débitos)" },
   { id: "txs",           label: "Listagem detalhada de transações" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 const TEMPLATE_SECTIONS: Record<string, SectionId[]> = {
-  saude:      ["kpis", "health", "monthly", "topExpense", "topIncome"],
-  fluxo:      ["flowSummary", "dailyFlow", "weeklyFlow", "topExpense", "topIncome"],
-  categorias: ["kpis", "topExpense", "topIncome", "categoryTrend", "categoryDelta"],
-  contabil:   ["kpis", "txs"],
+  // Executivo: veredito + score + categorias. Para banco/sócio.
+  saude:      ["verdict", "kpis", "health", "monthly", "topExpense", "topIncome"],
+  // Operacional/temporal: resumo de saldo + destaques + curvas diárias e semanais.
+  fluxo:      ["flowSummary", "highlights", "dailyFlow", "weeklyFlow"],
+  // Analítico/comparativo: o que mais mudou + tendência + delta detalhado.
+  categorias: ["topMovers", "categoryTrend", "categoryDelta", "topExpense", "topIncome"],
+  // Formal/exaustivo: capa contábil + resumo crédito/débito + listagem completa.
+  contabil:   ["ledgerCover", "ledgerSummary", "txs"],
 };
 
 const TEMPLATE_AVAILABLE_SECTIONS: Record<string, SectionId[]> = {
-  saude:      ["kpis", "health", "monthly", "topExpense", "topIncome", "txs"],
-  fluxo:      ["kpis", "flowSummary", "dailyFlow", "weeklyFlow", "monthly", "topExpense", "topIncome", "txs"],
-  categorias: ["kpis", "topExpense", "topIncome", "categoryTrend", "categoryDelta", "monthly", "txs"],
-  contabil:   ["kpis", "txs", "topExpense", "topIncome"],
+  saude:      ["verdict", "kpis", "health", "monthly", "topExpense", "topIncome", "categoryDelta", "txs"],
+  fluxo:      ["flowSummary", "highlights", "dailyFlow", "weeklyFlow", "monthly", "kpis", "txs"],
+  categorias: ["topMovers", "categoryTrend", "categoryDelta", "topExpense", "topIncome", "monthly", "kpis", "txs"],
+  contabil:   ["ledgerCover", "ledgerSummary", "kpis", "txs"],
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -220,12 +229,18 @@ function reportFileBase(templateLabel: string, period: Period): string {
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
+type PreviewSpec = {
+  template: string;
+  period: Period;
+  sections: Set<SectionId>;
+};
+
 export default function Reports() {
   const { isLoading: authLoading } = useRequireAuth();
   const [configOpen, setConfigOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<string>("saude");
   const [history, setHistory] = useState<ReportHistoryEntry[]>([]);
-  const [replay, setReplay] = useState<ReportHistoryEntry | null>(null);
+  const [preview, setPreview] = useState<PreviewSpec | null>(null);
   const [editEntry, setEditEntry] = useState<ReportHistoryEntry | null>(null);
 
   useEffect(() => { setHistory(loadHistory()); }, []);
@@ -237,8 +252,21 @@ export default function Reports() {
     setConfigOpen(true);
   }
 
+  function startPreview(spec: PreviewSpec) {
+    // Close any open configurator FIRST so the preview lifts to page level
+    // without sitting inside the configurator's React subtree (event bubbling
+    // through the configurator's onClose was unmounting the preview on mobile).
+    setConfigOpen(false);
+    setEditEntry(null);
+    setPreview(spec);
+  }
+
   function openHistoryEntry(entry: ReportHistoryEntry) {
-    setReplay(entry);
+    setPreview({
+      template: entry.template,
+      period: entry.period,
+      sections: new Set(entry.sections as SectionId[]),
+    });
   }
 
   function editHistoryEntry(entry: ReportHistoryEntry) {
@@ -402,20 +430,20 @@ export default function Reports() {
         <ReportConfigurator
           template={activeTemplate}
           onClose={() => setConfigOpen(false)}
-          onGenerated={recordReport}
+          onPreview={startPreview}
         />
       )}
 
-      {replay && (() => {
-        const tpl = TEMPLATES.find((t) => t.id === replay.template) ?? TEMPLATES[0];
+      {preview && (() => {
+        const tpl = TEMPLATES.find((t) => t.id === preview.template) ?? TEMPLATES[0];
         return (
           <ReportPreview
             template={tpl.id}
             templateLabel={tpl.label}
             primaryFormat={tpl.primaryFormat}
-            period={replay.period}
-            sections={new Set(replay.sections as SectionId[])}
-            onClose={() => setReplay(null)}
+            period={preview.period}
+            sections={preview.sections}
+            onClose={() => setPreview(null)}
             onGenerated={recordReport}
           />
         );
@@ -427,7 +455,7 @@ export default function Reports() {
           initialPeriod={editEntry.period}
           initialSections={new Set(editEntry.sections as SectionId[])}
           onClose={() => setEditEntry(null)}
-          onGenerated={recordReport}
+          onPreview={startPreview}
         />
       )}
     </Layout>
@@ -441,13 +469,13 @@ function ReportConfigurator({
   initialPeriod,
   initialSections,
   onClose,
-  onGenerated,
+  onPreview,
 }: {
   template: string;
   initialPeriod?: Period;
   initialSections?: Set<SectionId>;
   onClose: () => void;
-  onGenerated: (entry: ReportHistoryEntry) => void;
+  onPreview: (spec: { template: string; period: Period; sections: Set<SectionId> }) => void;
 }) {
   const tpl = TEMPLATES.find((t) => t.id === template) ?? TEMPLATES[0];
   const availableIds = TEMPLATE_AVAILABLE_SECTIONS[tpl.id] ?? [];
@@ -457,7 +485,6 @@ function ReportConfigurator({
   const [sections, setSections] = useState<Set<SectionId>>(
     () => initialSections ?? new Set<SectionId>(TEMPLATE_SECTIONS[tpl.id] ?? []),
   );
-  const [previewing, setPreviewing] = useState(false);
 
   function toggleSection(id: SectionId) {
     const next = new Set(sections);
@@ -569,7 +596,7 @@ function ReportConfigurator({
         </div>
 
         <button
-          onClick={() => setPreviewing(true)}
+          onClick={() => onPreview({ template: tpl.id, period, sections })}
           className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-[12.5px] font-semibold text-[#09090b] bg-gradient-to-b from-[#6af82f] to-[#4de020] hover:brightness-110 transition mb-2"
         >
           <FileText size={14} />
@@ -579,18 +606,6 @@ function ReportConfigurator({
           A pré-visualização abre em tela cheia. De lá você baixa em PDF ou CSV.
         </div>
       </div>
-
-      {previewing && (
-        <ReportPreview
-          template={tpl.id}
-          templateLabel={tpl.label}
-          primaryFormat={tpl.primaryFormat}
-          period={period}
-          sections={sections}
-          onClose={() => setPreviewing(false)}
-          onGenerated={onGenerated}
-        />
-      )}
     </div>
   );
 }
@@ -699,21 +714,32 @@ function ReportPreview({
     return rows.slice(0, 8);
   }, [txList, prevPeriodTx]);
 
+  // ─── Template-specific computed data ──────────────────────────────────────
+
+  // Saúde: a 1-line verdict drawn from the score + balance behavior of the period.
+  const verdict = useMemo(() => buildVerdict(health?.score ?? 0, totals, monthly), [health, totals, monthly]);
+
+  // Fluxo: standout single-events of the period.
+  const highlights = useMemo(() => buildHighlights(txList, dailyFlow), [txList, dailyFlow]);
+
+  // Categorias: top movers = first 3 of the delta table where |delta| > 0.
+  const topMovers = useMemo(() => categoryDelta.filter((r) => r.delta !== 0).slice(0, 3), [categoryDelta]);
+
+  // Contábil: category-grouped credit/debit summary with transaction counts.
+  const ledgerSummary = useMemo(() => buildLedgerSummary(txList), [txList]);
+
   const businessName = (me as { businessProfile?: { businessName?: string } } | undefined)?.businessProfile?.businessName
     ?? me?.name
     ?? "—";
 
   function handlePrint() {
-    const fileBase = reportFileBase(templateLabel, period);
-    const originalTitle = document.title;
-    document.title = fileBase;
-    const restore = () => {
-      document.title = originalTitle;
-      window.removeEventListener("afterprint", restore);
-    };
-    window.addEventListener("afterprint", restore);
+    // Browser uses document.title as the default save-as-PDF filename.
+    // On mobile (iOS share-sheet flow) the filename is captured *after* the user
+    // interacts with the dialog, which can take many seconds. Don't schedule a
+    // timeout to restore — let the unmount cleanup (below) put the title back
+    // when the preview is closed.
+    document.title = reportFileBase(templateLabel, period);
     window.print();
-    setTimeout(() => { if (document.title === fileBase) document.title = originalTitle; }, 2000);
     onGenerated({
       id: crypto.randomUUID(),
       template,
@@ -754,6 +780,14 @@ function ReportPreview({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // Capture the original title once when the preview opens; restore on close.
+  // This guards against mobile flows where afterprint never fires or the title
+  // would otherwise leak to the rest of the app.
+  useEffect(() => {
+    const originalTitle = document.title;
+    return () => { document.title = originalTitle; };
+  }, []);
 
   return createPortal(
     <div className="report-preview-root fixed inset-0 z-[60] flex flex-col bg-[#09090b]">
@@ -805,6 +839,40 @@ function ReportPreview({
                 <div>{new Date().toLocaleDateString("pt-BR")}</div>
               </div>
             </div>
+
+            {/* Verdict hero (Saúde) */}
+            {sections.has("verdict") && (
+              <VerdictHero score={health?.score ?? 0} verdict={verdict} />
+            )}
+
+            {/* Ledger cover (Contábil) */}
+            {sections.has("ledgerCover") && (
+              <LedgerCover businessName={businessName} period={period} txCount={totals.count} />
+            )}
+
+            {/* Ledger summary (Contábil) */}
+            {sections.has("ledgerSummary") && (
+              <div className="mt-5">
+                <SectionTitle>Resumo contábil</SectionTitle>
+                <LedgerSummary data={ledgerSummary} />
+              </div>
+            )}
+
+            {/* Top movers (Categorias) */}
+            {sections.has("topMovers") && (
+              <div className="mt-5">
+                <SectionTitle>Maiores variações vs período anterior</SectionTitle>
+                <TopMoversBoard rows={topMovers} />
+              </div>
+            )}
+
+            {/* Highlights (Fluxo) */}
+            {sections.has("highlights") && (
+              <div className="mt-5">
+                <SectionTitle>Destaques do período</SectionTitle>
+                <HighlightsBoard data={highlights} />
+              </div>
+            )}
 
             {/* KPIs */}
             {sections.has("kpis") && (
@@ -1155,6 +1223,110 @@ type CategoryTrend = {
   series: { category: string; values: number[]; total: number }[];
 };
 
+// ─── Verdict builder (Saúde) ────────────────────────────────────────────────
+
+type Verdict = {
+  label: string;        // "EXCELENTE" | "BOM" | "REGULAR" | "ATENÇÃO"
+  color: string;        // hex
+  headline: string;     // 4-6 word punchline
+  narrative: string;    // 1-2 sentence reading drawn from data
+};
+
+function buildVerdict(
+  score: number,
+  totals: { income: number; expenses: number; balance: number; count: number },
+  monthly: { month: string; income: number; expenses: number }[],
+): Verdict {
+  const label = score >= 80 ? "EXCELENTE" : score >= 60 ? "BOM" : score >= 40 ? "REGULAR" : "ATENÇÃO";
+  const color = score >= 71 ? "#0f7a3f" : score >= 41 ? "#7c52e6" : "#b3151d";
+  const marginPct = totals.income > 0 ? Math.round((totals.balance / totals.income) * 100) : 0;
+  const positive = totals.balance >= 0;
+
+  let headline: string;
+  if (score >= 80 && positive)        headline = "Negócio rodando redondo.";
+  else if (score >= 60 && positive)   headline = "Operação saudável, com espaço pra crescer.";
+  else if (positive)                  headline = "Resultado positivo, gestão precisa firmar.";
+  else if (score >= 60)               headline = "Disciplina boa, mas o caixa fechou negativo.";
+  else                                headline = "Período difícil, vale parar e priorizar.";
+
+  // Compare with previous month if we have ≥2 months of trend
+  let trendNote = "";
+  if (monthly.length >= 2) {
+    const prev = monthly[monthly.length - 2];
+    const curr = monthly[monthly.length - 1];
+    const prevNet = prev.income - prev.expenses;
+    const currNet = curr.income - curr.expenses;
+    if (prevNet !== 0) {
+      const deltaPct = Math.round(((currNet - prevNet) / Math.abs(prevNet)) * 100);
+      if (Math.abs(deltaPct) >= 10) {
+        trendNote = ` O resultado ${deltaPct > 0 ? "subiu" : "caiu"} ${Math.abs(deltaPct)}% vs o mês anterior.`;
+      }
+    }
+  }
+
+  const narrative = positive
+    ? `Saldo de ${brl0(totals.balance)} sobre ${brl0(totals.income)} de receita — margem de ${marginPct}%.${trendNote}`
+    : `Despesa superou a receita em ${brl0(-totals.balance)}, pressionando o caixa em ${Math.abs(marginPct)}%.${trendNote}`;
+
+  return { label, color, headline, narrative };
+}
+
+// ─── Highlights builder (Fluxo de Caixa) ────────────────────────────────────
+
+type Highlights = {
+  biggestIncome: Tx | null;
+  biggestExpense: Tx | null;
+  bestDay: DailyPoint | null;   // peak cumulative balance
+  worstDay: DailyPoint | null;  // valley cumulative balance
+};
+
+function buildHighlights(txs: Tx[], daily: DailyPoint[]): Highlights {
+  let biggestIncome: Tx | null = null;
+  let biggestExpense: Tx | null = null;
+  for (const t of txs) {
+    if (t.type === "income"  && (!biggestIncome  || t.amount > biggestIncome.amount))  biggestIncome  = t;
+    if (t.type === "expense" && (!biggestExpense || t.amount > biggestExpense.amount)) biggestExpense = t;
+  }
+  let bestDay: DailyPoint | null = null;
+  let worstDay: DailyPoint | null = null;
+  for (const d of daily) {
+    if (!bestDay  || d.cumulative > bestDay.cumulative)  bestDay  = d;
+    if (!worstDay || d.cumulative < worstDay.cumulative) worstDay = d;
+  }
+  return { biggestIncome, biggestExpense, bestDay, worstDay };
+}
+
+// ─── Ledger summary builder (Contábil) ──────────────────────────────────────
+
+type LedgerSummaryData = {
+  credits: { category: string; total: number; count: number }[];   // receitas
+  debits:  { category: string; total: number; count: number }[];   // despesas
+  totalCredits: number;
+  totalDebits: number;
+};
+
+function buildLedgerSummary(txs: Tx[]): LedgerSummaryData {
+  const cMap = new Map<string, { total: number; count: number }>();
+  const dMap = new Map<string, { total: number; count: number }>();
+  let totalCredits = 0, totalDebits = 0;
+  for (const t of txs) {
+    if (t.type === "income") {
+      const cell = cMap.get(t.category) ?? { total: 0, count: 0 };
+      cell.total += t.amount; cell.count += 1;
+      cMap.set(t.category, cell);
+      totalCredits += t.amount;
+    } else if (t.type === "expense") {
+      const cell = dMap.get(t.category) ?? { total: 0, count: 0 };
+      cell.total += t.amount; cell.count += 1;
+      dMap.set(t.category, cell);
+      totalDebits += t.amount;
+    }
+  }
+  const toRows = (m: Map<string, { total: number; count: number }>) =>
+    [...m.entries()].map(([category, v]) => ({ category, ...v })).sort((a, b) => b.total - a.total);
+  return { credits: toRows(cMap), debits: toRows(dMap), totalCredits, totalDebits };
+}
+
 function buildCategoryTrend(txs: Tx[], period: Period): CategoryTrend {
   // Build month list across period
   const months: string[] = [];
@@ -1299,6 +1471,209 @@ function CategoryTrendChart({ data }: { data: CategoryTrend }) {
             <span className="text-black/50">· {brl0(s.total)}</span>
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── VerdictHero (Saúde) ────────────────────────────────────────────────────
+function VerdictHero({ score, verdict }: { score: number; verdict: Verdict }) {
+  return (
+    <div
+      className="mt-5 rounded-2xl p-5 flex items-center gap-5 break-inside-avoid"
+      style={{ background: `linear-gradient(135deg, ${verdict.color}10, ${verdict.color}05)`, border: `1px solid ${verdict.color}30` }}
+    >
+      <div className="shrink-0">
+        <PrintGauge score={score} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: verdict.color }}>
+          Veredito · {verdict.label}
+        </div>
+        <div className="text-[18px] font-bold text-black mt-1 leading-snug">{verdict.headline}</div>
+        <div className="text-[12px] text-black/70 mt-1.5 leading-relaxed">{verdict.narrative}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── HighlightsBoard (Fluxo) ────────────────────────────────────────────────
+function HighlightsBoard({ data }: { data: Highlights }) {
+  const cards: { label: string; value: string; sub: string; tone: "pos" | "neg" | "neutral" }[] = [];
+  if (data.biggestIncome) {
+    cards.push({
+      label: "Maior entrada",
+      value: brl0(data.biggestIncome.amount),
+      sub: `${fmtDate(data.biggestIncome.date)} · ${data.biggestIncome.category}`,
+      tone: "pos",
+    });
+  }
+  if (data.biggestExpense) {
+    cards.push({
+      label: "Maior saída",
+      value: brl0(data.biggestExpense.amount),
+      sub: `${fmtDate(data.biggestExpense.date)} · ${data.biggestExpense.category}`,
+      tone: "neg",
+    });
+  }
+  if (data.bestDay) {
+    cards.push({
+      label: "Melhor dia",
+      value: brl0(data.bestDay.cumulative),
+      sub: `${fmtDate(data.bestDay.date)} · pico de saldo`,
+      tone: "pos",
+    });
+  }
+  if (data.worstDay) {
+    cards.push({
+      label: "Pior dia",
+      value: brl0(data.worstDay.cumulative),
+      sub: `${fmtDate(data.worstDay.date)} · saldo mais baixo`,
+      tone: data.worstDay.cumulative < 0 ? "neg" : "neutral",
+    });
+  }
+  if (cards.length === 0) return <div className="text-[11px] text-black/50 mt-2">Sem movimentação no período.</div>;
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+      {cards.map((c) => {
+        const color = c.tone === "pos" ? "#0f7a3f" : c.tone === "neg" ? "#b3151d" : "#3b3b3f";
+        return (
+          <div key={c.label} className="rounded-lg border-l-[3px] border border-black/10 px-3 py-2.5" style={{ borderLeftColor: color }}>
+            <div className="text-[9px] uppercase tracking-[0.12em] font-bold text-black/55 mb-1">{c.label}</div>
+            <div className="text-[14px] font-bold tnum" style={{ color }}>{c.value}</div>
+            <div className="text-[10px] text-black/55 mt-0.5 truncate">{c.sub}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── TopMoversBoard (Categorias) ────────────────────────────────────────────
+function TopMoversBoard({ rows }: { rows: { category: string; curr: number; prev: number; delta: number; pct: number }[] }) {
+  if (rows.length === 0) {
+    return <div className="text-[11px] text-black/50 mt-2">Nenhuma categoria com variação relevante.</div>;
+  }
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+      {rows.map((r) => {
+        const up = r.delta > 0;
+        const color = up ? "#b3151d" : "#0f7a3f"; // expense up = bad
+        const arrow = up ? "↑" : "↓";
+        return (
+          <div key={r.category} className="rounded-lg border border-black/10 p-3 break-inside-avoid">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[18px] font-bold leading-none" style={{ color }}>{arrow}</span>
+              <span className="text-[12px] font-semibold text-black truncate">{r.category}</span>
+            </div>
+            <div className="text-[16px] font-bold tnum" style={{ color }}>
+              {up ? "+" : ""}{brl0(r.delta)}
+            </div>
+            <div className="text-[10.5px] text-black/60 mt-0.5">
+              <span className="font-semibold" style={{ color }}>{up ? "+" : ""}{r.pct.toFixed(0)}%</span>
+              <span> · {brl0(r.prev)} → {brl0(r.curr)}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── LedgerCover (Contábil) ─────────────────────────────────────────────────
+function LedgerCover({ businessName, period, txCount }: { businessName: string; period: Period; txCount: number }) {
+  return (
+    <div className="mt-5 rounded-md border-2 border-black/20 break-inside-avoid">
+      <div className="grid grid-cols-2 divide-x divide-black/15 border-b-2 border-black/20">
+        <div className="px-4 py-3">
+          <div className="text-[9px] uppercase tracking-[0.16em] font-bold text-black/55 mb-1">Razão Social</div>
+          <div className="text-[13px] font-semibold text-black">{businessName}</div>
+        </div>
+        <div className="px-4 py-3">
+          <div className="text-[9px] uppercase tracking-[0.16em] font-bold text-black/55 mb-1">Documento de uso interno</div>
+          <div className="text-[11px] text-black/70">Material de apoio ao lançamento contábil — não substitui escrituração oficial.</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 divide-x divide-black/15">
+        <div className="px-4 py-2.5">
+          <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-black/55">Início do período</div>
+          <div className="text-[12.5px] font-semibold text-black mt-0.5 tnum">{fmtDate(period.from)}</div>
+        </div>
+        <div className="px-4 py-2.5">
+          <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-black/55">Fim do período</div>
+          <div className="text-[12.5px] font-semibold text-black mt-0.5 tnum">{fmtDate(period.to)}</div>
+        </div>
+        <div className="px-4 py-2.5">
+          <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-black/55">Movimentações</div>
+          <div className="text-[12.5px] font-semibold text-black mt-0.5 tnum">{txCount} lançamentos</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LedgerSummary (Contábil) ───────────────────────────────────────────────
+function LedgerSummary({ data }: { data: LedgerSummaryData }) {
+  const net = data.totalCredits - data.totalDebits;
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-5 break-inside-avoid">
+      <div>
+        <div className="text-[10.5px] uppercase tracking-[0.14em] font-bold text-black/70 mb-1">Créditos (receitas)</div>
+        <table className="w-full text-[11px] border-collapse">
+          <thead>
+            <tr className="text-left text-black/60">
+              <th className="py-1 pr-2 font-semibold border-b border-black/15">Conta</th>
+              <th className="py-1 pr-2 font-semibold border-b border-black/15 text-right">Qt</th>
+              <th className="py-1 pl-2 font-semibold border-b border-black/15 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.credits.map((r) => (
+              <tr key={r.category} className="border-b border-black/5">
+                <td className="py-1 pr-2 truncate">{r.category}</td>
+                <td className="py-1 pr-2 tnum text-right text-black/60">{r.count}</td>
+                <td className="py-1 pl-2 tnum text-right text-[#0f7a3f] font-semibold">{brl0(r.total)}</td>
+              </tr>
+            ))}
+            <tr className="border-t-2 border-black/20 font-bold">
+              <td className="py-1.5 pr-2 text-black">TOTAL</td>
+              <td className="py-1.5 pr-2 tnum text-right text-black/60">{data.credits.reduce((a, b) => a + b.count, 0)}</td>
+              <td className="py-1.5 pl-2 tnum text-right text-[#0f7a3f]">{brl0(data.totalCredits)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div className="text-[10.5px] uppercase tracking-[0.14em] font-bold text-black/70 mb-1">Débitos (despesas)</div>
+        <table className="w-full text-[11px] border-collapse">
+          <thead>
+            <tr className="text-left text-black/60">
+              <th className="py-1 pr-2 font-semibold border-b border-black/15">Conta</th>
+              <th className="py-1 pr-2 font-semibold border-b border-black/15 text-right">Qt</th>
+              <th className="py-1 pl-2 font-semibold border-b border-black/15 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.debits.map((r) => (
+              <tr key={r.category} className="border-b border-black/5">
+                <td className="py-1 pr-2 truncate">{r.category}</td>
+                <td className="py-1 pr-2 tnum text-right text-black/60">{r.count}</td>
+                <td className="py-1 pl-2 tnum text-right text-[#b3151d] font-semibold">{brl0(r.total)}</td>
+              </tr>
+            ))}
+            <tr className="border-t-2 border-black/20 font-bold">
+              <td className="py-1.5 pr-2 text-black">TOTAL</td>
+              <td className="py-1.5 pr-2 tnum text-right text-black/60">{data.debits.reduce((a, b) => a + b.count, 0)}</td>
+              <td className="py-1.5 pl-2 tnum text-right text-[#b3151d]">{brl0(data.totalDebits)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div className="col-span-2 rounded-md bg-black/[0.04] border border-black/15 px-4 py-2.5 flex items-center justify-between">
+        <div className="text-[11px] uppercase tracking-[0.14em] font-bold text-black/70">Saldo do período (créditos − débitos)</div>
+        <div className={`text-[15px] font-bold tnum ${net >= 0 ? "text-[#0f7a3f]" : "text-[#b3151d]"}`}>
+          {net >= 0 ? "+" : ""}{brl0(net)}
+        </div>
       </div>
     </div>
   );
