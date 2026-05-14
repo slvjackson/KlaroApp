@@ -56,7 +56,6 @@ const TEMPLATES = [
     label: "Resumo da Saúde Financeira",
     blurb: "Saldo, receitas, despesas, score de saúde e top categorias do período.",
     icon: Heart,
-    badge: "Recomendado",
     available: true,
     primaryFormat: "pdf" as const,
   },
@@ -65,7 +64,6 @@ const TEMPLATES = [
     label: "Fluxo de Caixa",
     blurb: "Entradas e saídas diárias, evolução acumulada e fechamento por semana.",
     icon: TrendingUp,
-    badge: "Disponível",
     available: true,
     primaryFormat: "pdf" as const,
   },
@@ -74,7 +72,6 @@ const TEMPLATES = [
     label: "Análise por Categoria",
     blurb: "Tendência por categoria, % do total e variação vs período anterior.",
     icon: ListTree,
-    badge: "Disponível",
     available: true,
     primaryFormat: "pdf" as const,
   },
@@ -83,7 +80,6 @@ const TEMPLATES = [
     label: "Listagem Contábil",
     blurb: "Exportação detalhada de transações para enviar ao contador.",
     icon: Receipt,
-    badge: "Para contador",
     available: true,
     primaryFormat: "csv" as const,
   },
@@ -208,6 +204,19 @@ function escapeCsv(v: unknown): string {
   return s;
 }
 
+function slugifyForFile(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function reportFileBase(templateLabel: string, period: Period): string {
+  return `klaro-${slugifyForFile(templateLabel)}-${period.from}_a_${period.to}`;
+}
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function Reports() {
@@ -274,7 +283,6 @@ export default function Reports() {
             onClick={() => openTemplate("saude")}
             className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-[12.5px] font-semibold text-[#09090b] bg-gradient-to-b from-[#6af82f] to-[#4de020] hover:brightness-110 transition"
           >
-            <Sparkles size={14} />
             Novo relatório
           </button>
         </section>
@@ -288,39 +296,22 @@ export default function Reports() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {TEMPLATES.map((t) => {
               const Icon = t.icon;
-              const enabled = t.available;
               return (
                 <button
                   key={t.id}
-                  onClick={() => enabled && openTemplate(t.id)}
-                  disabled={!enabled}
-                  className={`group text-left glass rounded-2xl p-4 transition-all ${
-                    enabled
-                      ? "hover:border-[var(--accent)]/40 hover:-translate-y-0.5 cursor-pointer"
-                      : "opacity-60 cursor-not-allowed"
-                  }`}
+                  onClick={() => openTemplate(t.id)}
+                  className="group text-left glass rounded-2xl p-4 transition-all hover:border-[var(--accent)]/40 hover:-translate-y-0.5 cursor-pointer"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-9 h-9 rounded-lg bg-[var(--accent-soft)] grid place-items-center">
-                      <Icon size={16} className="text-[var(--accent)]" />
-                    </div>
-                    <span className={`text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded ${
-                      enabled
-                        ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                        : "bg-white/5 text-[var(--muted)]"
-                    }`}>
-                      {t.badge}
-                    </span>
+                  <div className="w-9 h-9 rounded-lg bg-[var(--accent-soft)] grid place-items-center mb-3">
+                    <Icon size={16} className="text-[var(--accent)]" />
                   </div>
                   <div className="text-[13.5px] font-semibold text-white leading-snug">{t.label}</div>
                   <div className="text-[11.5px] text-[var(--muted)] mt-1.5 leading-relaxed line-clamp-3">
                     {t.blurb}
                   </div>
-                  {enabled && (
-                    <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[var(--accent)] group-hover:gap-2 transition-all">
-                      Configurar <ChevronRight size={11} />
-                    </div>
-                  )}
+                  <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[var(--accent)] group-hover:gap-2 transition-all">
+                    Configurar <ChevronRight size={11} />
+                  </div>
                 </button>
               );
             })}
@@ -712,7 +703,16 @@ function ReportPreview({
     ?? "—";
 
   function handlePrint() {
+    const fileBase = reportFileBase(templateLabel, period);
+    const originalTitle = document.title;
+    document.title = fileBase;
+    const restore = () => {
+      document.title = originalTitle;
+      window.removeEventListener("afterprint", restore);
+    };
+    window.addEventListener("afterprint", restore);
     window.print();
+    setTimeout(() => { if (document.title === fileBase) document.title = originalTitle; }, 2000);
     onGenerated({
       id: crypto.randomUUID(),
       template,
@@ -734,7 +734,7 @@ function ReportPreview({
       t.type === "expense" ? -t.amount : t.amount,
     ]);
     const csv = [header, ...rows].map((r) => r.map(escapeCsv).join(";")).join("\n");
-    const fname = `klaro-${template}-${period.from}_${period.to}.csv`;
+    const fname = `${reportFileBase(templateLabel, period)}.csv`;
     downloadFile(fname, "﻿" + csv, "text/csv");
     onGenerated({
       id: crypto.randomUUID(),
@@ -789,7 +789,7 @@ function ReportPreview({
       {/* Printable area */}
       <div className="flex-1 overflow-y-auto klaro-scroll">
         <div className="report-page mx-auto my-6 max-w-[820px] bg-white text-[#0c0c0f] shadow-2xl">
-          <div className="px-10 py-10">
+          <div className="px-8 py-8">
             {/* Header */}
             <div className="flex items-start justify-between pb-5 border-b border-black/10">
               <div>
@@ -807,7 +807,7 @@ function ReportPreview({
 
             {/* KPIs */}
             {sections.has("kpis") && (
-              <div className="mt-6">
+              <div className="mt-5">
                 <SectionTitle>Visão geral</SectionTitle>
                 <div className="grid grid-cols-4 gap-3 mt-3">
                   <Kpi label="Saldo líquido" value={brl(totals.balance)} accent={totals.balance >= 0 ? "pos" : "neg"} />
@@ -823,7 +823,7 @@ function ReportPreview({
 
             {/* Health */}
             {sections.has("health") && (
-              <div className="mt-6">
+              <div className="mt-5">
                 <SectionTitle>Saúde da gestão</SectionTitle>
                 <div className="mt-3 grid grid-cols-[180px_1fr] gap-5 items-center">
                   <PrintGauge score={health?.score ?? 0} />
@@ -840,7 +840,7 @@ function ReportPreview({
 
             {/* Flow summary */}
             {sections.has("flowSummary") && (
-              <div className="mt-6 break-inside-avoid">
+              <div className="mt-5 break-inside-avoid">
                 <SectionTitle>Resumo do fluxo</SectionTitle>
                 <div className="grid grid-cols-4 gap-3 mt-3">
                   <Kpi label="Saldo inicial" value={brl0(openingBalance)} accent={openingBalance >= 0 ? "pos" : "neg"} />
@@ -861,7 +861,7 @@ function ReportPreview({
 
             {/* Daily flow */}
             {sections.has("dailyFlow") && dailyFlow.length > 0 && (
-              <div className="mt-6 break-inside-avoid">
+              <div className="mt-5 break-inside-avoid">
                 <SectionTitle>Fluxo diário acumulado</SectionTitle>
                 <DailyFlowChart points={dailyFlow} />
               </div>
@@ -869,7 +869,7 @@ function ReportPreview({
 
             {/* Weekly flow */}
             {sections.has("weeklyFlow") && weeklyFlow.length > 0 && (
-              <div className="mt-6 break-inside-avoid">
+              <div className="mt-5 break-inside-avoid">
                 <SectionTitle>Fechamento semanal</SectionTitle>
                 <WeeklyFlowTable rows={weeklyFlow} />
               </div>
@@ -877,7 +877,7 @@ function ReportPreview({
 
             {/* Monthly */}
             {sections.has("monthly") && monthly.length > 0 && (
-              <div className="mt-6 break-inside-avoid">
+              <div className="mt-5 break-inside-avoid">
                 <SectionTitle>Evolução mensal</SectionTitle>
                 <MonthlyChartPrint data={monthly} />
               </div>
@@ -885,7 +885,7 @@ function ReportPreview({
 
             {/* Category trend */}
             {sections.has("categoryTrend") && categoryTrend.months.length > 1 && categoryTrend.series.length > 0 && (
-              <div className="mt-6 break-inside-avoid">
+              <div className="mt-5 break-inside-avoid">
                 <SectionTitle>Tendência por categoria (top 5 despesas)</SectionTitle>
                 <CategoryTrendChart data={categoryTrend} />
               </div>
@@ -893,7 +893,7 @@ function ReportPreview({
 
             {/* Category delta */}
             {sections.has("categoryDelta") && categoryDelta.length > 0 && (
-              <div className="mt-6 break-inside-avoid">
+              <div className="mt-5 break-inside-avoid">
                 <SectionTitle>Variação vs período anterior ({fmtDate(prevPeriodTx.from)} → {fmtDate(prevPeriodTx.to)})</SectionTitle>
                 <CategoryDeltaTable rows={categoryDelta} />
               </div>
@@ -901,7 +901,7 @@ function ReportPreview({
 
             {/* Categorias */}
             {(sections.has("topExpense") || sections.has("topIncome")) && (
-              <div className="mt-6 grid grid-cols-2 gap-6 break-inside-avoid">
+              <div className="mt-5 grid grid-cols-2 gap-6 break-inside-avoid">
                 {sections.has("topExpense") && (
                   <div>
                     <SectionTitle>Top despesas</SectionTitle>
@@ -919,7 +919,7 @@ function ReportPreview({
 
             {/* Transações */}
             {sections.has("txs") && (
-              <div className="mt-6">
+              <div className="mt-5">
                 <SectionTitle>Transações ({txList.length})</SectionTitle>
                 <table className="w-full mt-2 text-[11px] border-collapse">
                   <thead>
@@ -973,9 +973,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function Kpi({ label, value, accent }: { label: string; value: string; accent?: "pos" | "neg" }) {
   const color = accent === "pos" ? "text-[#0f7a3f]" : accent === "neg" ? "text-[#b3151d]" : "text-black";
   return (
-    <div className="rounded-lg border border-black/10 p-3">
-      <div className="text-[9.5px] uppercase tracking-[0.14em] font-bold text-black/55 mb-1">{label}</div>
-      <div className={`text-[15px] font-bold tnum ${color}`}>{value}</div>
+    <div className="rounded-lg border border-black/10 p-2.5 min-w-0">
+      <div className="text-[9px] uppercase tracking-[0.1em] font-bold text-black/55 mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{label}</div>
+      <div className={`text-[15px] font-bold tnum ${color} whitespace-nowrap overflow-hidden text-ellipsis`}>{value}</div>
     </div>
   );
 }
@@ -1015,14 +1015,21 @@ function PrintGauge({ score }: { score: number }) {
 
 function MonthlyChartPrint({ data }: { data: { month: string; income: number; expenses: number }[] }) {
   const max = Math.max(1, ...data.flatMap((d) => [d.income, d.expenses]));
-  const W = 700, H = 200, P = 28;
-  const bw = (W - P * 2) / Math.max(1, data.length) / 2.4;
+  // Shorter chart when there are few months — avoids the giant-bar look on single-month periods.
+  const H = data.length <= 2 ? 130 : 180;
+  const W = 700, P = 28;
+  const slot = (W - P * 2) / Math.max(1, data.length);
+  // Cap the bar width so a single month doesn't fill the whole canvas.
+  const bw = Math.min(40, slot / 2.4);
+  // Center the columns when there are few months.
+  const colsWidth = slot * data.length;
+  const offsetX = data.length < 4 ? (W - P * 2 - colsWidth) / 2 : 0;
   return (
     <div className="mt-3 overflow-hidden">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
         <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="rgba(0,0,0,0.15)" strokeWidth={1} />
         {data.map((d, i) => {
-          const cx = P + ((W - P * 2) / Math.max(1, data.length)) * (i + 0.5);
+          const cx = P + offsetX + slot * (i + 0.5);
           const inH = ((d.income / max) * (H - P * 2));
           const exH = ((d.expenses / max) * (H - P * 2));
           return (
