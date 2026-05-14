@@ -11,6 +11,7 @@ import {
 import {
   FileText, Download, FileSpreadsheet, Heart, TrendingUp, ListTree, Receipt,
   X, ChevronRight, Calendar, Printer, Sparkles, History, Trash2, Clock,
+  RotateCcw, Pencil,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -214,6 +215,8 @@ export default function Reports() {
   const [configOpen, setConfigOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<string>("saude");
   const [history, setHistory] = useState<ReportHistoryEntry[]>([]);
+  const [replay, setReplay] = useState<ReportHistoryEntry | null>(null);
+  const [editEntry, setEditEntry] = useState<ReportHistoryEntry | null>(null);
 
   useEffect(() => { setHistory(loadHistory()); }, []);
 
@@ -222,6 +225,14 @@ export default function Reports() {
   function openTemplate(id: string) {
     setActiveTemplate(id);
     setConfigOpen(true);
+  }
+
+  function openHistoryEntry(entry: ReportHistoryEntry) {
+    setReplay(entry);
+  }
+
+  function editHistoryEntry(entry: ReportHistoryEntry) {
+    setEditEntry(entry);
   }
 
   function recordReport(entry: ReportHistoryEntry) {
@@ -342,30 +353,52 @@ export default function Reports() {
           ) : (
             <div className="glass rounded-2xl divide-y divide-[var(--border)] overflow-hidden">
               {history.map((h) => (
-                <div key={h.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] grid place-items-center shrink-0">
-                    {h.format === "csv"
-                      ? <FileSpreadsheet size={14} className="text-[var(--accent)]" />
-                      : <FileText size={14} className="text-[var(--accent)]" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12.5px] font-semibold text-white truncate">{h.templateLabel}</div>
-                    <div className="flex items-center gap-2 text-[10.5px] text-[var(--muted)] mt-0.5">
-                      <Clock size={10} />
-                      <span>{new Date(h.generatedAt).toLocaleString("pt-BR")}</span>
-                      <span>·</span>
-                      <span>{periodLabel(h.period)}</span>
-                      <span>·</span>
-                      <span className="uppercase">{h.format}</span>
-                    </div>
-                  </div>
+                <div key={h.id} className="group flex items-center gap-2 hover:bg-white/[0.02] transition-colors">
                   <button
-                    onClick={() => removeHistoryEntry(h.id)}
-                    className="text-[var(--muted)] hover:text-white p-1"
-                    aria-label="Remover do histórico"
+                    type="button"
+                    onClick={() => openHistoryEntry(h)}
+                    className="flex-1 flex items-center gap-3 px-4 py-3 text-left min-w-0"
                   >
-                    <X size={13} />
+                    <div className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] grid place-items-center shrink-0">
+                      {h.format === "csv"
+                        ? <FileSpreadsheet size={14} className="text-[var(--accent)]" />
+                        : <FileText size={14} className="text-[var(--accent)]" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12.5px] font-semibold text-white truncate">{h.templateLabel}</div>
+                      <div className="flex items-center gap-2 text-[10.5px] text-[var(--muted)] mt-0.5">
+                        <Clock size={10} />
+                        <span>{new Date(h.generatedAt).toLocaleString("pt-BR")}</span>
+                        <span>·</span>
+                        <span>{periodLabel(h.period)}</span>
+                        <span>·</span>
+                        <span className="uppercase">{h.format}</span>
+                      </div>
+                    </div>
+                    <span className="hidden sm:inline-flex items-center gap-1 text-[10.5px] text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity">
+                      <RotateCcw size={11} /> Reabrir
+                    </span>
                   </button>
+                  <div className="flex items-center gap-0.5 pr-2">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); editHistoryEntry(h); }}
+                      className="p-1.5 rounded-md text-[var(--muted)] hover:text-white hover:bg-white/5 transition-colors"
+                      aria-label="Editar configuração"
+                      title="Editar"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeHistoryEntry(h.id); }}
+                      className="p-1.5 rounded-md text-[var(--muted)] hover:text-white hover:bg-white/5 transition-colors"
+                      aria-label="Remover do histórico"
+                      title="Remover"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -380,6 +413,31 @@ export default function Reports() {
           onGenerated={recordReport}
         />
       )}
+
+      {replay && (() => {
+        const tpl = TEMPLATES.find((t) => t.id === replay.template) ?? TEMPLATES[0];
+        return (
+          <ReportPreview
+            template={tpl.id}
+            templateLabel={tpl.label}
+            primaryFormat={tpl.primaryFormat}
+            period={replay.period}
+            sections={new Set(replay.sections as SectionId[])}
+            onClose={() => setReplay(null)}
+            onGenerated={recordReport}
+          />
+        );
+      })()}
+
+      {editEntry && (
+        <ReportConfigurator
+          template={editEntry.template}
+          initialPeriod={editEntry.period}
+          initialSections={new Set(editEntry.sections as SectionId[])}
+          onClose={() => setEditEntry(null)}
+          onGenerated={recordReport}
+        />
+      )}
     </Layout>
   );
 }
@@ -388,10 +446,14 @@ export default function Reports() {
 
 function ReportConfigurator({
   template,
+  initialPeriod,
+  initialSections,
   onClose,
   onGenerated,
 }: {
   template: string;
+  initialPeriod?: Period;
+  initialSections?: Set<SectionId>;
   onClose: () => void;
   onGenerated: (entry: ReportHistoryEntry) => void;
 }) {
@@ -399,9 +461,9 @@ function ReportConfigurator({
   const availableIds = TEMPLATE_AVAILABLE_SECTIONS[tpl.id] ?? [];
   const availableSections = SECTIONS.filter((s) => availableIds.includes(s.id));
 
-  const [period, setPeriod] = useState<Period>(() => computePeriod("last-month"));
+  const [period, setPeriod] = useState<Period>(() => initialPeriod ?? computePeriod("last-month"));
   const [sections, setSections] = useState<Set<SectionId>>(
-    () => new Set<SectionId>(TEMPLATE_SECTIONS[tpl.id] ?? []),
+    () => initialSections ?? new Set<SectionId>(TEMPLATE_SECTIONS[tpl.id] ?? []),
   );
   const [previewing, setPreviewing] = useState(false);
 

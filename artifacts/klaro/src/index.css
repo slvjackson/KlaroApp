@@ -330,18 +330,46 @@ select.field option {
 
 @media print {
   @page { size: A4; margin: 12mm; }
-  html, body { background: #fff !important; }
+  html, body {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
   /* Hide everything except the printable report */
   body * { visibility: hidden !important; }
   .report-preview-root, .report-preview-root * { visibility: visible !important; }
-  .report-preview-root { position: static !important; inset: auto !important; background: #fff !important; }
+  /* The fullscreen overlay becomes a regular flow container so its contents can paginate */
+  .report-preview-root {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  /* The scroll wrapper inside the overlay also has to release its height/overflow */
+  .report-preview-root > * {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: none !important;
+  }
   .report-preview-root .no-print { display: none !important; }
   .report-page {
     position: static !important;
     margin: 0 !important;
+    padding: 0 !important;
     max-width: none !important;
     width: 100% !important;
     box-shadow: none !important;
+    background: #fff !important;
+  }
+  .report-page > * {
+    padding: 0 !important;
   }
   .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
+  table { page-break-inside: auto; }
+  tr    { page-break-inside: avoid; page-break-after: auto; }
+  thead { display: table-header-group; }
 }
