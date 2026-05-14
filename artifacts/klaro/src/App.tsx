@@ -59,7 +59,7 @@ const BLOCKED_STATUSES = new Set(["expired"]);
 function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { data: user, isLoading: authLoading } = useGetMe({ query: { queryKey: ["me"], retry: false } });
-  const { data: billing, isLoading: billingLoading } = useGetBillingStatus({
+  const { data: billing, isLoading: billingLoading, isError: billingError } = useGetBillingStatus({
     query: {
       queryKey: ["billingStatus"],
       enabled: !!user,
@@ -67,17 +67,39 @@ function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     },
   });
 
+  const isPublic = PUBLIC_PATHS.has(location);
+
+  const isBlocked = !!billing && (
+    BLOCKED_STATUSES.has(billing.status) ||
+    (billing.status === "trial" && (billing.trialDaysLeft ?? 0) <= 0)
+  );
+
+  // Wait for billing status before allowing a protected page to render —
+  // otherwise the user can poke around /dashboard, /upload, etc. while the
+  // query is in flight and only gets bounced once it returns. If the request
+  // outright failed (network etc.), bail out of the wait so we can route
+  // them to /billing instead of leaving them stuck on a spinner.
+  const awaitingBilling = !!user && !isPublic && billingLoading && !billingError;
+
   useEffect(() => {
-    if (PUBLIC_PATHS.has(location)) return;
+    if (isPublic) return;
     if (!user || authLoading || billingLoading) return;
+    // Conservative: if we can't determine status (error), send them to /billing.
+    if (billingError) { setLocation("/billing"); return; }
     if (!billing) return;
-
-    const isBlocked =
-      BLOCKED_STATUSES.has(billing.status) ||
-      (billing.status === "trial" && (billing.trialDaysLeft ?? 0) <= 0);
-
     if (isBlocked) setLocation("/billing");
-  }, [user, authLoading, billing, billingLoading, location, setLocation]);
+  }, [user, authLoading, billing, billingLoading, billingError, isBlocked, isPublic, setLocation]);
+
+  if (awaitingBilling) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-ambient">
+        <div className="text-[12px] text-[var(--muted)] tracking-wide uppercase">Carregando…</div>
+      </div>
+    );
+  }
+
+  // Block flashes content on a protected route until the redirect lands.
+  if (!isPublic && (isBlocked || (billingError && !!user))) return null;
 
   return <>{children}</>;
 }
