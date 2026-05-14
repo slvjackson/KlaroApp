@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
@@ -754,7 +755,7 @@ function ReportPreview({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div className="report-preview-root fixed inset-0 z-[60] flex flex-col bg-[#09090b]">
       {/* Toolbar (hidden in print) */}
       <div className="no-print flex items-center gap-3 px-4 md:px-6 py-3 border-b border-[var(--border)] bg-[rgba(9,9,11,0.96)]">
@@ -956,7 +957,8 @@ function ReportPreview({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
