@@ -574,7 +574,7 @@ function UploadPage({ go }) {
   function handle(){ setLoading(true); setTimeout(()=>{setLoading(false); go("/transactions");}, 1500); }
   const RECENT = [
     { n:"extrato-abril-2026.pdf", date:"22/04 · 09:42", status:"done" },
-    { n:"nubank-março.csv",       date:"04/04 · 11:10", status:"done" },
+    { n:"banco-março.csv",       date:"04/04 · 11:10", status:"done" },
     { n:"anotacoes-caixa.jpg",    date:"28/03 · 18:05", status:"done" },
     { n:"planilha-vendas.xlsx",   date:"15/03 · 14:33", status:"done" },
   ];

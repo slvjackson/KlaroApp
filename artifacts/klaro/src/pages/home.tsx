@@ -212,7 +212,7 @@ function HeroSection({ go }: { go: (path: string) => void }) {
           </button>
         </div>
 
-        <div className="relative mt-5 md:mt-6 mx-auto h-[520px] md:h-[580px]" style={{ maxWidth: 980 }}>
+        <div className="relative mt-12 md:mt-6 mx-auto h-[620px] md:h-[580px]" style={{ maxWidth: 980 }}>
           <div
             aria-hidden
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 rounded-full pointer-events-none hero-glow w-[340px] h-[340px] md:w-[520px] md:h-[520px]"
@@ -238,6 +238,22 @@ function HeroSection({ go }: { go: (path: string) => void }) {
 
           <div className="absolute left-1/2 top-1/2 hero-float hero-phone-pos">
             <PhoneMockup />
+          </div>
+
+          {/* Mobile-only orbits: two scaled-down satellites peeking from opposite
+              corners. The "Missão" card is too dense to read at small sizes, so
+              it stays desktop-only. */}
+          <div
+            className="md:hidden absolute hero-orbit scale-[0.78] origin-top-right"
+            style={{ right: "-6px", top: "0px", animationDelay: "-4.8s" }}
+          >
+            <SatelliteChat />
+          </div>
+          <div
+            className="md:hidden absolute hero-orbit scale-[0.72] origin-bottom-left"
+            style={{ left: "-10px", bottom: "8px", animationDelay: "-2.4s" }}
+          >
+            <BigStat />
           </div>
 
           <div
@@ -476,7 +492,7 @@ function AlternatingSection() {
             <p className="text-[15px] text-white/60 leading-relaxed max-w-md mb-6">{b.description}</p>
             
           </div>
-          <div className="relative aspect-[5/4] rounded-2xl border border-white/10 overflow-hidden" style={{ background: "linear-gradient(135deg,#101013,#1a1a1d)" }}>
+          <div className="relative aspect-[5/4] min-h-[380px] rounded-2xl border border-white/10 overflow-hidden" style={{ background: "linear-gradient(135deg,#101013,#1a1a1d)" }}>
             {b.mock === "sell" ? <SellMock /> : <DecideMock />}
           </div>
         </div>
