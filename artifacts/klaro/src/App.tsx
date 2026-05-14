@@ -19,6 +19,7 @@ import Review from "@/pages/review";
 import Transactions from "@/pages/transactions";
 import Insights from "@/pages/insights";
 import InsightsHistory from "@/pages/insights-history";
+import Reports from "@/pages/reports";
 import Produto from "@/pages/produto";
 import Precos from "@/pages/precos";
 import Empresa from "@/pages/empresa";
@@ -109,6 +110,7 @@ function Router() {
       <Route path="/transactions" component={Transactions} />
       <Route path="/insights" component={Insights} />
       <Route path="/insights/historico" component={InsightsHistory} />
+      <Route path="/reports" component={Reports} />
       <Route path="/produto" component={Produto} />
       <Route path="/precos" component={Precos} />
       <Route path="/empresa" component={Empresa} />

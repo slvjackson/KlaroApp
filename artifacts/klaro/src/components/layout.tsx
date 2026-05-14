@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, Upload, ArrowLeftRight, Lightbulb, Sparkles, User, LogOut, Trophy, Mail, X, Menu, ChevronDown } from "lucide-react";
+import { LayoutDashboard, Upload, ArrowLeftRight, Lightbulb, Sparkles, User, LogOut, Trophy, Mail, X, Menu, ChevronDown, FileText } from "lucide-react";
 import { KlaroMark } from "@/components/KlaroMark";
 import { useOnboardingHighlight } from "@/contexts/onboarding-highlight-context";
 import { useChatContext } from "@/contexts/chat-context";
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/transactions", label: "Transações", icon: ArrowLeftRight },
   { href: "/insights",     label: "Insights",   icon: Lightbulb },
   { href: "/missions",     label: "Missões",    icon: Trophy },
+  { href: "/reports",      label: "Relatórios", icon: FileText },
   { href: "/chat",         label: "Chat Klaro", icon: Sparkles, badge: "IA" },
 ];
 

@@ -319,3 +319,29 @@ select.field option {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.8; transform: scale(1.08); }
 }
+
+/* ─── Report preview & print ──────────────────────────────────────────────── */
+.report-page {
+  border-radius: 6px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #0c0c0f;
+}
+.report-page .tnum { font-variant-numeric: tabular-nums; }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  html, body { background: #fff !important; }
+  /* Hide everything except the printable report */
+  body * { visibility: hidden !important; }
+  .report-preview-root, .report-preview-root * { visibility: visible !important; }
+  .report-preview-root { position: static !important; inset: auto !important; background: #fff !important; }
+  .report-preview-root .no-print { display: none !important; }
+  .report-page {
+    position: static !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    box-shadow: none !important;
+  }
+  .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
+}
