@@ -58,6 +58,10 @@ router.get("/billing/status", requireAuth, async (req, res): Promise<void> => {
     trialEndsAt: sub.trialEndsAt?.toISOString() ?? null,
     trialDaysLeft,
     currentPeriodEnd: sub.currentPeriodEnd?.toISOString() ?? null,
+    // false when the Asaas link was cleared (cancelled). Combined with an
+    // "active" status + future currentPeriodEnd, the frontend can offer
+    // reactivation while the user still has paid access.
+    autoRenew: !!sub.asaasSubscriptionId,
   });
 });
 
@@ -154,7 +158,12 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
     }
 
     const [existingSub] = await db
-      .select({ asaasSubscriptionId: subscriptionsTable.asaasSubscriptionId })
+      .select({
+        asaasSubscriptionId: subscriptionsTable.asaasSubscriptionId,
+        status: subscriptionsTable.status,
+        currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
+        trialEndsAt: subscriptionsTable.trialEndsAt,
+      })
       .from(subscriptionsTable)
       .where(eq(subscriptionsTable.userId, userId));
 
@@ -191,6 +200,17 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
 
     const remoteIp = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.ip ?? "0.0.0.0";
 
+    // Reactivation / re-subscribe while paid (or trial) access is still valid:
+    // don't charge again now — resume billing when the current access ends.
+    const now = new Date();
+    const accessUntil =
+      existingSub?.status === "active" && existingSub.currentPeriodEnd && existingSub.currentPeriodEnd > now
+        ? existingSub.currentPeriodEnd
+        : existingSub?.status === "trial" && existingSub.trialEndsAt && existingSub.trialEndsAt > now
+          ? existingSub.trialEndsAt
+          : null;
+    const nextDueDate = accessUntil ? accessUntil.toISOString().split("T")[0] : undefined;
+
     const result = await createAsaasSubscription(
       asaasCustomerId,
       billingCycle,
@@ -198,6 +218,7 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
       creditCard,
       holderInfo,
       remoteIp,
+      nextDueDate,
     );
 
     await db
@@ -361,14 +382,20 @@ router.delete("/billing/subscription", requireAuth, async (req, res): Promise<vo
     .from(subscriptionsTable)
     .where(eq(subscriptionsTable.userId, userId));
 
-  if (!sub?.asaasSubscriptionId) {
-    res.status(404).json({ error: "Nenhuma assinatura ativa encontrada." });
+  if (!sub) {
+    res.status(404).json({ error: "Nenhuma assinatura encontrada." });
     return;
   }
 
   try {
-    await deletePendingAsaasPayments(sub.asaasSubscriptionId);
-    await cancelAsaasSubscription(sub.asaasSubscriptionId);
+    // Only call Asaas when there is an active subscription link. If it's
+    // already null (auto-renewal off, or a prior cancel cleared it), there's
+    // nothing to cancel remotely — proceed to settle the local state so the
+    // user still gets a clean confirmation instead of a 404/error.
+    if (sub.asaasSubscriptionId) {
+      await deletePendingAsaasPayments(sub.asaasSubscriptionId);
+      await cancelAsaasSubscription(sub.asaasSubscriptionId);
+    }
 
     const now = new Date();
     const stillInTrial = sub.status === "trial" && sub.trialEndsAt && sub.trialEndsAt > now;

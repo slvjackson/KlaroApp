@@ -136,11 +136,15 @@ export async function createAsaasSubscription(
   creditCard?: CreditCardData,
   creditCardHolderInfo?: CreditCardHolderInfo,
   remoteIp?: string,
+  // First charge date (YYYY-MM-DD). Defaults to tomorrow. Pass a future date
+  // to resume billing only after a still-valid paid period (reactivation),
+  // so the user is not charged again while access they already paid for runs.
+  nextDueDate?: string,
 ): Promise<SubscriptionResult> {
   const base = {
     customer: customerId,
     value: PRICE_MAP[billingCycle],
-    nextDueDate: nextDueDateStr(),
+    nextDueDate: nextDueDate ?? nextDueDateStr(),
     cycle: CYCLE_MAP[billingCycle],
     description: `Klaro Pro — ${LABEL_MAP[billingCycle]}`,
   };

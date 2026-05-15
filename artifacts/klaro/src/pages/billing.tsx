@@ -49,11 +49,12 @@ function formatCpfCnpj(value: string) {
 
 // ─── Status banner ────────────────────────────────────────────────────────────
 
-function StatusBanner({ status, trialDaysLeft, currentPeriodEnd, billingCycle }: {
+function StatusBanner({ status, trialDaysLeft, currentPeriodEnd, billingCycle, autoRenew }: {
   status: string;
   trialDaysLeft?: number | null;
   currentPeriodEnd?: string | null;
   billingCycle?: string | null;
+  autoRenew?: boolean;
 }) {
   if (status === "active") {
     const until = currentPeriodEnd
@@ -64,8 +65,14 @@ function StatusBanner({ status, trialDaysLeft, currentPeriodEnd, billingCycle }:
       <div className="flex items-center gap-3 px-5 py-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/8">
         <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
         <div>
-          <p className="text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">Assinatura ativa — Plano {cycleLabel}</p>
-          {until && <p className="text-[12px] text-emerald-600/70 dark:text-emerald-400/70 mt-0.5">Próxima renovação: {until}</p>}
+          <p className="text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">
+            {autoRenew === false ? `Assinatura cancelada — Plano ${cycleLabel}` : `Assinatura ativa — Plano ${cycleLabel}`}
+          </p>
+          {until && (
+            <p className="text-[12px] text-emerald-600/70 dark:text-emerald-400/70 mt-0.5">
+              {autoRenew === false ? `Acesso até ${until} (não renova)` : `Próxima renovação: ${until}`}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -157,7 +164,10 @@ export default function Billing() {
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [showRetention, setShowRetention] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
   const [pixData, setPixData] = useState<{ qrCode: string; payload: string; expiresAt: string } | null>(null);
 
   const handleSubscribe = () => {
@@ -190,6 +200,8 @@ export default function Billing() {
           if (paymentMethod === "pix" && data.pixQrCode) {
             setPixData({ qrCode: data.pixQrCode, payload: data.pixPayload!, expiresAt: data.pixExpiresAt! });
           } else {
+            if (reactivating) setNotice("Assinatura reativada com sucesso.");
+            setReactivating(false);
             queryClient.invalidateQueries({ queryKey: getBillingStatusQueryKey() });
           }
         },
@@ -199,16 +211,30 @@ export default function Billing() {
   };
 
   const handleCancel = () => {
+    setError(null);
     cancelMutation.mutate(undefined, {
-      onSuccess: () => {
+      onSuccess: (data: unknown) => {
         setShowCancelConfirm(false);
+        setNotice((data as { message?: string })?.message ?? "Assinatura cancelada.");
         queryClient.invalidateQueries({ queryKey: getBillingStatusQueryKey() });
       },
-      onError: () => setError("Erro ao cancelar assinatura."),
+      onError: (err: unknown) => {
+        setShowCancelConfirm(false);
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        setError(msg ?? "Erro ao cancelar assinatura. Tente novamente.");
+      },
     });
   };
 
   const isActive = billing?.status === "active";
+  // autoRenew comes from the billing status (false once cancelled). When the
+  // user cancelled but the paid period hasn't ended yet, status is still
+  // "active" — offer reactivation instead of another cancel.
+  const autoRenew = (billing as { autoRenew?: boolean } | undefined)?.autoRenew;
+  const canceledButActive = isActive && autoRenew === false;
+  const accessUntil = billing?.currentPeriodEnd
+    ? new Date(billing.currentPeriodEnd).toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" })
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -255,6 +281,7 @@ export default function Billing() {
                 trialDaysLeft={billing.trialDaysLeft}
                 currentPeriodEnd={billing.currentPeriodEnd}
                 billingCycle={billing.billingCycle}
+                autoRenew={autoRenew}
               />
             )}
           </>
@@ -269,13 +296,39 @@ export default function Billing() {
           </div>
         )}
 
+        {/* Success notice */}
+        {notice && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-300/40 bg-green-500/8">
+            <p className="text-[12.5px] text-green-700 dark:text-green-400 flex-1">{notice}</p>
+            <button onClick={() => setNotice(null)} className="text-green-500 hover:text-green-700 ml-1">×</button>
+          </div>
+        )}
+
         {/* PIX result after subscribe */}
         {pixData && (
           <PixResult qrCode={pixData.qrCode} payload={pixData.payload} expiresAt={pixData.expiresAt} />
         )}
 
-        {/* Plan selector + payment form (only if not active and no pix pending) */}
-        {!isActive && !pixData && (
+        {/* Reactivation banner — cancelled but still within paid period */}
+        {canceledButActive && !reactivating && !pixData && (
+          <div className="glass rounded-2xl p-6 space-y-4 border border-[rgba(245,158,11,0.3)]">
+            <p className="text-[13px] font-semibold text-foreground">Assinatura cancelada</p>
+            <p className="text-[12.5px] text-muted-foreground">
+              {accessUntil
+                ? `Você cancelou a renovação automática, mas mantém acesso ao Klaro até ${accessUntil}. Reative para não perder o acesso — você não será cobrado novamente até o fim do período já pago.`
+                : "Você cancelou a renovação automática. Reative para manter o acesso ao Klaro."}
+            </p>
+            <button
+              onClick={() => { setReactivating(true); setNotice(null); setError(null); }}
+              className="w-full py-2.5 rounded-xl bg-primary text-white text-[13px] font-semibold hover:bg-primary/90 transition-colors"
+            >
+              Reativar assinatura
+            </button>
+          </div>
+        )}
+
+        {/* Plan selector + payment form (when not active, or reactivating) */}
+        {(!isActive || reactivating) && !pixData && (
           <div className="glass rounded-2xl p-6 space-y-5">
             <p className="text-[13px] font-semibold text-foreground">Escolha seu plano</p>
 
@@ -439,15 +492,63 @@ export default function Billing() {
           </ul>
         </div>
 
-        {/* Cancel (only when active) */}
-        {isActive && !showCancelConfirm && (
+        {/* Exit reactivation flow */}
+        {reactivating && (
           <div className="text-center">
             <button
-              onClick={() => setShowCancelConfirm(true)}
+              onClick={() => setReactivating(false)}
+              className="text-[12px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            >
+              Voltar
+            </button>
+          </div>
+        )}
+
+        {/* Cancel (only when active and still auto-renewing) */}
+        {isActive && !canceledButActive && !reactivating && !showRetention && !showCancelConfirm && (
+          <div className="text-center">
+            <button
+              onClick={() => setShowRetention(true)}
               className="text-[12px] text-muted-foreground hover:text-red-500 underline underline-offset-2 transition-colors"
             >
               Cancelar assinatura
             </button>
+          </div>
+        )}
+
+        {/* Retention — try to keep the customer before final cancel */}
+        {showRetention && !showCancelConfirm && (
+          <div className="glass rounded-2xl p-6 space-y-4 border border-primary/30">
+            <p className="text-[14px] font-semibold text-foreground">Antes de cancelar…</p>
+            <p className="text-[12.5px] text-muted-foreground">
+              O Klaro continua organizando suas finanças automaticamente — extração por IA, insights
+              do seu negócio e dashboard em tempo real. Cancelando, você perde tudo isso ao fim do
+              período atual.
+            </p>
+            <p className="text-[12.5px] text-muted-foreground">
+              Está com alguma dificuldade ou achou caro? Fale com a gente antes — talvez a gente
+              consiga resolver ou encontrar um plano melhor pra você.
+            </p>
+            <a
+              href={`mailto:contato@appklaro.com.br?subject=${encodeURIComponent("Preciso de ajuda antes de cancelar o Klaro")}`}
+              className="block w-full text-center py-2.5 rounded-xl border border-primary/40 text-[13px] font-medium text-primary hover:bg-primary/5 transition-colors"
+            >
+              Falar com o suporte
+            </a>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRetention(false)}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-white text-[13px] font-semibold hover:bg-primary/90 transition-colors"
+              >
+                Manter assinatura
+              </button>
+              <button
+                onClick={() => { setShowRetention(false); setShowCancelConfirm(true); }}
+                className="flex-1 py-2.5 rounded-xl border border-border text-[13px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-300 transition-colors"
+              >
+                Quero cancelar mesmo assim
+              </button>
+            </div>
           </div>
         )}
 
