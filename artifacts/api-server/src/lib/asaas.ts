@@ -157,12 +157,20 @@ export async function createAsaasSubscription(
     billingType: "PIX",
   });
 
-  const payments = await asaasReq<AsaasList<AsaasPayment>>(
-    "GET",
-    `/subscriptions/${sub.id}/payments?status=PENDING&limit=1`,
-  );
+  // Asaas creates the subscription's first payment asynchronously — querying
+  // immediately often returns an empty list. Retry with a short backoff before
+  // giving up so the PIX QR code can actually be generated.
+  let firstPayment: AsaasPayment | undefined;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 800));
+    const payments = await asaasReq<AsaasList<AsaasPayment>>(
+      "GET",
+      `/subscriptions/${sub.id}/payments?status=PENDING&limit=1`,
+    );
+    firstPayment = payments.data[0];
+    if (firstPayment) break;
+  }
 
-  const firstPayment = payments.data[0];
   if (!firstPayment) {
     throw new Error("Asaas PIX: nenhum pagamento pendente encontrado após criação da assinatura");
   }
