@@ -212,7 +212,10 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
     }
   } catch (err) {
     logger.error({ err }, "[billing/subscribe] error");
-    res.status(500).json({ error: "Erro ao iniciar assinatura. Tente novamente." });
+    // Surface the underlying cause (e.g. the Asaas response status + body) in
+    // the response so failures are diagnosable without digging through logs.
+    const detail = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: "Erro ao iniciar assinatura. Tente novamente.", detail });
   }
 });
 

@@ -113,5 +113,7 @@ app.listen(port, (err) => {
     hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
     hasDatabaseUrl: !!process.env.DATABASE_URL,
     hasSessionSecret: !!process.env.SESSION_SECRET,
+    hasAsaasKey: !!process.env.ASAAS_API_KEY,
+    asaasEnv: process.env.ASAAS_SANDBOX === "true" ? "sandbox" : "production",
   }, "Environment check");
 });

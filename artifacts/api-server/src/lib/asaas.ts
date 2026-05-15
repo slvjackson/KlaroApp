@@ -1,8 +1,13 @@
 import type { BillingCycle } from "@workspace/db";
 
-const BASE = process.env.ASAAS_SANDBOX === "true"
-  ? "https://sandbox.asaas.com/api/v3"
-  : "https://api.asaas.com/api/v3";
+// Asaas base URL. Sandbox uses the `sandbox.asaas.com/api/v3` host; the
+// production host is `api.asaas.com/v3` (NOTE: production path is `/v3`, not
+// `/api/v3`). Overridable via ASAAS_API_BASE in case the account uses a
+// different scheme.
+const BASE = process.env.ASAAS_API_BASE
+  ?? (process.env.ASAAS_SANDBOX === "true"
+    ? "https://sandbox.asaas.com/api/v3"
+    : "https://api.asaas.com/v3");
 
 const KEY = process.env.ASAAS_API_KEY ?? "";
 
