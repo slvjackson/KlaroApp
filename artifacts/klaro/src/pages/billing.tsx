@@ -200,7 +200,11 @@ export default function Billing() {
           if (paymentMethod === "pix" && data.pixQrCode) {
             setPixData({ qrCode: data.pixQrCode, payload: data.pixPayload!, expiresAt: data.pixExpiresAt! });
           } else {
-            if (reactivating) setNotice("Assinatura reativada com sucesso.");
+            // Deferred reactivation (PIX/card with paid access remaining) or
+            // card subscription — no QR. Surface the server's message.
+            const msg = (data as { message?: string }).message;
+            if (msg) setNotice(msg);
+            else if (reactivating) setNotice("Assinatura reativada com sucesso.");
             setReactivating(false);
             queryClient.invalidateQueries({ queryKey: getBillingStatusQueryKey() });
           }
@@ -330,7 +334,18 @@ export default function Billing() {
         {/* Plan selector + payment form (when not active, or reactivating) */}
         {(!isActive || reactivating) && !pixData && (
           <div className="glass rounded-2xl p-6 space-y-5">
-            <p className="text-[13px] font-semibold text-foreground">Escolha seu plano</p>
+            <p className="text-[13px] font-semibold text-foreground">
+              {reactivating ? "Reativar assinatura" : "Escolha seu plano"}
+            </p>
+            {reactivating && (
+              <div className="px-4 py-3 rounded-xl border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.07)]">
+                <p className="text-[12px] text-[#f59e0b]">
+                  {accessUntil
+                    ? `Você não será cobrado agora. Seu acesso atual segue até ${accessUntil} e a próxima cobrança (${selectedCycle === "monthly" ? "Mensal" : selectedCycle === "semiannual" ? "Semestral" : "Anual"}) será gerada nessa data. No PIX, a cobrança chega na data — nada para pagar hoje.`
+                    : "Você autoriza a próxima cobrança; nada será cobrado agora."}
+                </p>
+              </div>
+            )}
 
             {/* Plan options */}
             <div className="space-y-3">
@@ -464,6 +479,8 @@ export default function Billing() {
             >
               {subscribeMutation.isPending ? (
                 <><Loader2 size={16} className="animate-spin" /> Aguarde…</>
+              ) : reactivating ? (
+                "Reativar assinatura"
               ) : paymentMethod === "pix" ? (
                 "Gerar QR Code PIX"
               ) : (
@@ -472,9 +489,11 @@ export default function Billing() {
             </button>
 
             <p className="text-[11px] text-center text-muted-foreground">
-              {paymentMethod === "pix"
-                ? "Após o pagamento via PIX, sua conta é ativada automaticamente."
-                : "Pagamento seguro. Sem taxas ocultas."}
+              {reactivating
+                ? "Nada será cobrado agora — a cobrança ocorre na data de renovação."
+                : paymentMethod === "pix"
+                  ? "Após o pagamento via PIX, sua conta é ativada automaticamente."
+                  : "Pagamento seguro. Sem taxas ocultas."}
             </p>
           </div>
         )}

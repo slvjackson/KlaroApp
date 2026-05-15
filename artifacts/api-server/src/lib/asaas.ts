@@ -127,7 +127,11 @@ export async function findOrCreateAsaasCustomer(
 
 export type SubscriptionResult =
   | { asaasSubscriptionId: string; method: "credit_card" }
-  | { asaasSubscriptionId: string; method: "pix"; pixQrCode: string; pixPayload: string; pixExpiresAt: string };
+  | { asaasSubscriptionId: string; method: "pix"; pixQrCode: string; pixPayload: string; pixExpiresAt: string }
+  // Reactivation while paid access remains: subscription is scheduled but no
+  // charge is due now. For PIX there is no stored credential, so we don't
+  // surface a QR — Asaas issues the PIX charge on `firstChargeDate`.
+  | { asaasSubscriptionId: string; method: "pix"; deferred: true; firstChargeDate: string };
 
 export async function createAsaasSubscription(
   customerId: string,
@@ -165,6 +169,13 @@ export async function createAsaasSubscription(
     ...base,
     billingType: "PIX",
   });
+
+  // Deferred (reactivation with paid access still running): the first PIX
+  // charge is due on `nextDueDate`, not now. Don't fetch/return a QR — the
+  // user must NOT pay today. Asaas will issue the PIX charge on that date.
+  if (nextDueDate) {
+    return { asaasSubscriptionId: sub.id, method: "pix", deferred: true, firstChargeDate: nextDueDate };
+  }
 
   // Asaas creates the subscription's first payment asynchronously — querying
   // immediately often returns an empty list. Retry with a short backoff before

@@ -226,10 +226,28 @@ router.post("/billing/subscribe", requireAuth, async (req, res): Promise<void> =
       .set({ asaasCustomerId, asaasSubscriptionId: result.asaasSubscriptionId, billingCycle, updatedAt: new Date() })
       .where(eq(subscriptionsTable.userId, userId));
 
-    if (result.method === "pix") {
+    const chargeDateLabel = nextDueDate
+      ? new Date(`${nextDueDate}T00:00:00`).toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" })
+      : null;
+
+    if ("deferred" in result) {
+      // Reactivation via PIX while paid access remains — no payment now.
+      res.json({
+        deferred: true,
+        message: chargeDateLabel
+          ? `Assinatura reativada. Você mantém o acesso atual e a próxima cobrança via PIX será gerada em ${chargeDateLabel}.`
+          : "Assinatura reativada.",
+      });
+    } else if (result.method === "pix") {
       res.json({ pixQrCode: result.pixQrCode, pixPayload: result.pixPayload, pixExpiresAt: result.pixExpiresAt });
     } else {
-      res.json({});
+      // Credit card. When reactivating, the card is only charged at the next
+      // due date — make that explicit instead of an empty response.
+      res.json(
+        chargeDateLabel
+          ? { message: `Assinatura reativada. Você mantém o acesso atual e a próxima cobrança será em ${chargeDateLabel}.` }
+          : {},
+      );
     }
   } catch (err) {
     logger.error({ err }, "[billing/subscribe] error");
