@@ -55,9 +55,9 @@ const REPORT_LABEL = "Relatório Financeiro";
 
 // Single report — the user picks exactly which blocks to include.
 const SECTIONS = [
-  { id: "verdict",        label: "Veredito da saúde (gauge + leitura narrada)" },
+  { id: "verdict",        label: "Veredito da saúde (pontuação + leitura narrada)" },
   { id: "kpis",           label: "KPIs do período (saldo, entradas, saídas)" },
-  { id: "health",         label: "Componentes do score de saúde" },
+  { id: "health",         label: "Componentes de pontuação de saúde" },
   { id: "monthly",        label: "Evolução mensal (barras)" },
   { id: "bestWorstMonth", label: "Melhor e pior mês (resultado e faturamento)" },
   { id: "topExpense",     label: "Top categorias de despesa" },
