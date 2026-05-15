@@ -40,6 +40,12 @@ export interface ExtractedRecord {
   category: string;
   quantity?: number;
   confidence: number; // 0–1
+  /**
+   * Raw value of an explicit direction/nature/type column when the source
+   * document had one (e.g. "Receita", "Despesa", "Crédito", "C", "Entrada").
+   * Authoritative for type classification — overrides description inference.
+   */
+  sourceType?: string;
 }
 
 // ─── Text normalization ───────────────────────────────────────────────────────
@@ -93,7 +99,12 @@ async function classifyWithSegment(
 
   const profile = getSegmentProfile(ctx.segment, ctx.segmentCustomLabel);
   const items = records
-    .map((r, i) => `${i + 1}. "${r.description}" (R$ ${r.amount.toFixed(2)})`)
+    .map((r, i) => {
+      const parts = [`${i + 1}. "${r.description}" (R$ ${r.amount.toFixed(2)})`];
+      if (r.category) parts.push(`categoria informada: "${r.category}"`);
+      if (r.sourceType) parts.push(`tipo informado no documento: "${r.sourceType}"`);
+      return parts.join(" | ");
+    })
     .join("\n");
 
   const examplesSection = ctx.userExamples && ctx.userExamples.length > 0
@@ -113,6 +124,12 @@ Definições para este segmento:
 Use seu conhecimento sobre ${profile.label} para classificar cada transação.
 Categorias típicas deste segmento: ${profile.categoriasComuns.join(", ")}
 ${examplesSection}
+REGRA DE PRIORIDADE (muito importante):
+- Considere TODA a informação fornecida para cada linha como contexto de análise — descrição, valor, categoria informada e qualquer indicação de tipo presente no documento original.
+- Se a linha trouxer uma indicação explícita de direção/natureza (ex.: "tipo informado no documento": Entrada/Saída, Receita/Despesa, Crédito/Débito, C/D, +/-, ou qualquer rótulo equivalente em qualquer formato), essa indicação é AUTORITATIVA: respeite-a para definir income/expense INDEPENDENTEMENTE do que a descrição sugira.
+- Interprete o rótulo de tipo de forma dinâmica e semântica (não dependa de uma lista fixa de palavras): qualquer termo que signifique dinheiro recebido = income; qualquer termo que signifique dinheiro pago = expense.
+- Só use a descrição e o seu conhecimento do segmento para inferir o tipo quando NÃO houver nenhuma indicação explícita de tipo na linha.
+
 Responda SOMENTE com um JSON array na mesma ordem, sem texto adicional:
 [{"type":"income","category":"Categoria curta"},{"type":"expense","category":"Categoria curta"}]
 
@@ -498,11 +515,21 @@ function rowsToRecords(rows: Record<string, unknown>[], context: string): Extrac
       continue;
     }
 
+    // Preserve the raw value of any explicit direction/nature/type column so
+    // the AI classifier can interpret it dynamically (different exports use
+    // very different labels). We deliberately do NOT hardcode a keyword list
+    // here — the explicit indicator is carried through as `sourceType` and
+    // resolved downstream with full segment + document context.
+    const sourceType = typeKey ? String(row[typeKey] ?? "").trim() : "";
+
     let type: "income" | "expense";
-    if (typeKey) {
-      const rawType = norm(String(row[typeKey] ?? ""));
-      type = (rawType === "c" || rawType.startsWith("cred") || rawType.includes("entrada") || rawType.includes("recebimento") || rawType === "income")
-        ? "income" : "expense";
+    if (sourceType) {
+      const t = norm(sourceType);
+      // Best-effort deterministic read for the no-AI fallback path; the AI
+      // classifier is authoritative when a segment is configured.
+      const looksIncome = t.includes("entrada") || t.includes("receita") || t.includes("credit") || t.includes("recebiment") || t.includes("venda") || t === "c";
+      const looksExpense = t.includes("saida") || t.includes("despesa") || t.includes("debit") || t.includes("pagament") || t === "d";
+      type = looksIncome ? "income" : looksExpense ? "expense" : (inferredType ?? classifyType(amountKey ? parseAmount(row[amountKey]) : 0, desc));
     } else if (inferredType) {
       type = inferredType;
     } else {
@@ -517,6 +544,7 @@ function rowsToRecords(rows: Record<string, unknown>[], context: string): Extrac
       type,
       category: rawCategory || classifyCategory(desc),
       confidence: 0.8,
+      ...(sourceType ? { sourceType } : {}),
     });
   }
 
@@ -676,6 +704,8 @@ REGRAS PARA CADA CAMPO:
 - categoria: se o documento tiver coluna de categoria, copie o valor. Se não tiver, classifique inteligentemente pela descrição: ex: "Salários", "Fornecedores", "Aluguel", "Vendas", "Impostos", "Energia", "Marketing", "Transporte", "Alimentação", etc.
 - valor: número positivo com ponto decimal (ex: 1234.56). Ignore sinais negativos — use o campo tipo.
 - tipo: "entrada" para receitas/créditos/recebimentos, "saida" para despesas/débitos/pagamentos.
+  PRIORIDADE: se o documento tiver QUALQUER coluna/campo indicando a direção da transação (ex.: Tipo, Natureza, D/C, Entrada/Saída, Receita/Despesa, Crédito/Débito, sinal +/-), essa indicação é AUTORITATIVA — respeite-a para cada linha INDEPENDENTEMENTE do que a descrição sugira. Interprete o rótulo de forma semântica e dinâmica (não dependa de uma lista fixa de palavras). Use a descrição para inferir o tipo apenas quando não houver nenhuma indicação explícita.
+- Considere TODA a informação presente em cada linha do documento (todas as colunas/campos) como contexto de análise ao classificar.
 
 REGRAS GERAIS:
 - Separador: vírgula. Se descrição ou categoria contiver vírgula, envolva em aspas duplas.
@@ -808,6 +838,8 @@ REGRAS:
 - categoria: classifique inteligentemente pela descrição quando não houver coluna explícita. Ex: "Salários", "Fornecedores", "Aluguel", "Vendas", "Impostos", "Energia", "Marketing", "Transporte", "Alimentação", "Serviços". Seja específico.
 - valor: número positivo com ponto decimal (ex: 1234.56). Não use sinal negativo.
 - tipo: "entrada" para receitas/créditos, "saida" para despesas/débitos.
+  PRIORIDADE: se o texto tiver QUALQUER coluna/campo indicando a direção (ex.: Tipo, Natureza, D/C, Entrada/Saída, Receita/Despesa, Crédito/Débito, sinal +/-), essa indicação é AUTORITATIVA para cada linha — respeite-a INDEPENDENTEMENTE da descrição. Interprete o rótulo de forma semântica e dinâmica, sem depender de uma lista fixa de palavras. Só infira pela descrição quando não houver indicação explícita.
+- Considere TODA a informação presente em cada linha (todas as colunas/campos) como contexto de análise ao classificar.
 - Separador: vírgula. Se descrição ou categoria tiver vírgula, envolva em aspas duplas.
 - Ignore linhas de total, saldo, cabeçalho — apenas transações individuais.
 - Se não houver dados financeiros, retorne somente: SEM_DADOS

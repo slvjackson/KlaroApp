@@ -45,6 +45,8 @@ Regras importantes:
 - Uma linha que começa com parênteses é um item SEPARADO, não uma anotação do item anterior.
 - Valores SEMPRE positivos — use a coluna "tipo" para indicar entrada/saida.
 - tipo: "entrada" para ${seg ? seg.terminologia.receita + "s" : "vendas/receitas/recebimentos"}, "saida" para ${seg ? seg.terminologia.despesa + "s" : "despesas/pagamentos"}.
+- PRIORIDADE: se a imagem tiver QUALQUER coluna/campo indicando a direção da transação (ex.: Tipo, Natureza, D/C, Entrada/Saída, Receita/Despesa, Crédito/Débito, sinal +/-), essa indicação é AUTORITATIVA para cada linha — respeite-a INDEPENDENTEMENTE do que a descrição sugira. Interprete o rótulo de forma semântica e dinâmica, sem depender de uma lista fixa de palavras. Só classifique pela descrição quando não houver nenhuma indicação explícita.
+- Considere TODA a informação visível em cada linha/registro (todas as colunas e campos) como contexto de análise ao classificar.
 - Itens sem valor especificado: omita.
 - Use ponto como separador decimal (ex: 13.00, não 13,00).
 - Use vírgula apenas para separar as colunas do CSV.
