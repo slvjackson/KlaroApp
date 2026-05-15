@@ -58,10 +58,13 @@ const BLOCKED_STATUSES = new Set(["expired"]);
 
 function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { data: user, isLoading: authLoading } = useGetMe({ query: { queryKey: ["me"], retry: false } });
+  // Use the generated default query keys (same as every other consumer:
+  // AppShell, layout, billing/profile pages). A custom key here would create a
+  // second, independent cache entry for the same data that resolves at a
+  // different time and can disagree with what the rest of the app sees.
+  const { data: user, isLoading: authLoading } = useGetMe({ query: { retry: false } });
   const { data: billing, isLoading: billingLoading, isError: billingError } = useGetBillingStatus({
     query: {
-      queryKey: ["billingStatus"],
       enabled: !!user,
       retry: false,
     },
@@ -74,12 +77,14 @@ function SubscriptionGuard({ children }: { children: React.ReactNode }) {
     (billing.status === "trial" && (billing.trialDaysLeft ?? 0) <= 0)
   );
 
-  // Wait for billing status before allowing a protected page to render —
-  // otherwise the user can poke around /dashboard, /upload, etc. while the
-  // query is in flight and only gets bounced once it returns. If the request
-  // outright failed (network etc.), bail out of the wait so we can route
-  // them to /billing instead of leaving them stuck on a spinner.
-  const awaitingBilling = !!user && !isPublic && billingLoading && !billingError;
+  // Wait for BOTH auth and billing status before allowing a protected page to
+  // render — otherwise the user can poke around /dashboard, /upload, etc.
+  // while the queries are in flight (especially during the auth-loading gap,
+  // before the billing query is even enabled) and only gets bounced once it
+  // returns. If the request outright failed (network etc.), bail out of the
+  // wait so we can route them to /billing instead of leaving them on a spinner.
+  const billingUnknown = !billingError && (authLoading || billingLoading || (!!user && !billing));
+  const awaitingBilling = !isPublic && billingUnknown;
 
   useEffect(() => {
     if (isPublic) return;

@@ -56,7 +56,11 @@ export default function Login() {
       { data: { email: email.trim(), password } },
       {
         onSuccess: (data) => {
-          queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+          // Wipe any cached data from a previous session so this user's auth
+          // and billing status are fetched fresh. A targeted invalidation is
+          // fragile here (multiple query keys, cross-user leakage) — clearing
+          // is what logout does too, keeping both paths consistent.
+          queryClient.clear();
           if ((data as any)?.user?.isAdmin) {
             setShowAdminModal(true);
           } else {
