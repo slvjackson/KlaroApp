@@ -710,6 +710,7 @@ REGRAS PARA CADA CAMPO:
 REGRAS GERAIS:
 - Separador: vírgula. Se descrição ou categoria contiver vírgula, envolva em aspas duplas.
 - Extraia absolutamente TODAS as linhas de TODAS as páginas, sem pular nenhuma. NÃO presuma que existe cabeçalho: muitas anotações não têm. Uma linha só é cabeçalho se tiver APENAS rótulos de coluna (Data/Descrição/Valor/Categoria/Crédito/Débito/Tipo) e nenhum valor ou item real; se a primeira linha já tem item + valor, é transação e deve ser extraída. Quando houver cabeçalho, a primeira linha de dados logo após ele também é transação e não pode ser pulada.
+- Leia LINHA A LINHA (horizontal), nunca coluna a coluna. Pode haver várias colunas de valor (Crédito/Débito, Entrada/Saída, +/−): cada transação tem normalmente UM valor, em qualquer dessas colunas, na MESMA linha — célula vazia numa coluna é normal; nunca desloque o valor de outra linha para preencher. Some todas as colunas de valor para a contagem bater com o nº de linhas. A coluna onde o valor está (débito vs crédito) é indicador autoritativo de tipo, mesmo contra a descrição.
 - Ignore o cabeçalho e linhas de total/subtotal/soma. NUNCA inclua linhas de SALDO em qualquer forma ("Saldo", "Saldo inicial", "Saldo final", "Saldo anterior", "Saldo do dia") — são posição acumulada, não movimentação.
 - Se não houver transações financeiras no documento, retorne apenas: SEM_DADOS
 ${segmentHint}`;
@@ -842,6 +843,7 @@ REGRAS:
 - Considere TODA a informação presente em cada linha (todas as colunas/campos) como contexto de análise ao classificar.
 - Separador: vírgula. Se descrição ou categoria tiver vírgula, envolva em aspas duplas.
 - Extraia TODAS as linhas. Não presuma cabeçalho: muitas anotações não têm. Só é cabeçalho a linha com apenas rótulos de coluna e sem valor/item; se a primeira linha já tem item + valor, é transação. Havendo cabeçalho, a primeira linha logo após ele também é transação.
+- Leia linha a linha (horizontal), nunca coluna a coluna. Pode haver várias colunas de valor (Crédito/Débito, Entrada/Saída, +/−): cada linha tem um valor em alguma delas; célula vazia é normal e nunca empreste valor de outra linha. Some todas as colunas de valor para casar a contagem com o nº de linhas. A coluna do valor (débito/crédito) define o tipo, mesmo contra a descrição.
 - Ignore o cabeçalho e linhas de total/subtotal. NUNCA inclua linhas de SALDO em qualquer forma ("Saldo", "Saldo inicial", "Saldo final", "Saldo anterior", "Saldo do dia") — são posição acumulada, não movimentação.
 - Se não houver dados financeiros, retorne somente: SEM_DADOS
 
