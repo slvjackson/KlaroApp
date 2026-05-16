@@ -40,7 +40,12 @@ data,descricao,valor,tipo
 ${businessSection}${segmentHints}
 Regras importantes:
 - Extraia CADA linha de item individualmente. Se o mesmo produto aparece duas vezes, gere duas linhas separadas.
-- NÃO inclua linhas de total, subtotal ou resumo (ex: "Total Dia", "Total", "Saldo").
+- MUITAS ANOTAÇÕES NÃO TÊM CABEÇALHO. NÃO presuma que a primeira linha é cabeçalho. Uma linha só é cabeçalho se contiver APENAS rótulos de coluna (ex.: "Categoria | Orçamento", "Descrição | Valor", "Data | Movimento | Crédito | Débito") e NENHUM valor monetário nem item real. Se a primeira linha já tem um item + valor (ex.: "Água 100", "Moradia 1200", "Venda 1 kit 18,00"), ela É uma transação e DEVE ser extraída — não a descarte como título. Na dúvida, trate como transação.
+- EXTRAIA TODAS AS LINHAS DE DADOS. Quando houver cabeçalho, a primeira linha de dados logo após ele também é transação e NÃO pode ser pulada — não confunda o valor da primeira linha com o cabeçalho, mesmo que estejam visualmente próximos ou quase na mesma altura. Conte as linhas: o número de transações extraídas deve bater com o número de itens escritos.
+- NUNCA inclua linhas de SALDO, em QUALQUER forma: "Saldo", "Saldo inicial", "Saldo final", "Saldo anterior", "Saldo do dia", "Saldo atual", "Saldo em caixa", etc. Linhas de saldo são posição acumulada, não movimentação — ignore-as completamente, mesmo que tenham valor e pareçam uma transação.
+- NÃO inclua linhas de total, subtotal ou resumo (ex: "Total Dia", "Total", "Soma", "Subtotal").
+- Ignore anotações/observações que não são transações (ex.: "Cartão = não soma", legendas, marcações como "(D)", "(2x cartão)"). Use-as apenas como contexto se ajudarem a entender o tipo.
+- descricao: use SEMPRE o texto real do item (ex.: "Moradia", "Água", "Internet", "Aluguel", "Compras", "Venda 1 kit"). NUNCA escreva apenas "entrada"/"saida"/"saída" nem deixe a descrição vazia — a descrição é usada depois para categorizar, então preserve-a fielmente.
 - Se um item tiver quantidade entre parênteses (ex: "Água (3): 9,00"), use o valor total indicado (9.00). A quantidade é só informativa.
 - Uma linha que começa com parênteses é um item SEPARADO, não uma anotação do item anterior.
 - Valores SEMPRE positivos — use a coluna "tipo" para indicar entrada/saida.

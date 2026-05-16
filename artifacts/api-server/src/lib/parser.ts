@@ -709,8 +709,8 @@ REGRAS PARA CADA CAMPO:
 
 REGRAS GERAIS:
 - Separador: vírgula. Se descrição ou categoria contiver vírgula, envolva em aspas duplas.
-- Extraia absolutamente TODAS as linhas de TODAS as páginas, sem pular nenhuma.
-- Ignore linhas de total, subtotal, saldo e cabeçalho — apenas transações individuais.
+- Extraia absolutamente TODAS as linhas de TODAS as páginas, sem pular nenhuma. NÃO presuma que existe cabeçalho: muitas anotações não têm. Uma linha só é cabeçalho se tiver APENAS rótulos de coluna (Data/Descrição/Valor/Categoria/Crédito/Débito/Tipo) e nenhum valor ou item real; se a primeira linha já tem item + valor, é transação e deve ser extraída. Quando houver cabeçalho, a primeira linha de dados logo após ele também é transação e não pode ser pulada.
+- Ignore o cabeçalho e linhas de total/subtotal/soma. NUNCA inclua linhas de SALDO em qualquer forma ("Saldo", "Saldo inicial", "Saldo final", "Saldo anterior", "Saldo do dia") — são posição acumulada, não movimentação.
 - Se não houver transações financeiras no documento, retorne apenas: SEM_DADOS
 ${segmentHint}`;
 
@@ -841,7 +841,8 @@ REGRAS:
   PRIORIDADE: se o texto tiver QUALQUER coluna/campo indicando a direção (ex.: Tipo, Natureza, D/C, Entrada/Saída, Receita/Despesa, Crédito/Débito, sinal +/-), essa indicação é AUTORITATIVA para cada linha — respeite-a INDEPENDENTEMENTE da descrição. Interprete o rótulo de forma semântica e dinâmica, sem depender de uma lista fixa de palavras. Só infira pela descrição quando não houver indicação explícita.
 - Considere TODA a informação presente em cada linha (todas as colunas/campos) como contexto de análise ao classificar.
 - Separador: vírgula. Se descrição ou categoria tiver vírgula, envolva em aspas duplas.
-- Ignore linhas de total, saldo, cabeçalho — apenas transações individuais.
+- Extraia TODAS as linhas. Não presuma cabeçalho: muitas anotações não têm. Só é cabeçalho a linha com apenas rótulos de coluna e sem valor/item; se a primeira linha já tem item + valor, é transação. Havendo cabeçalho, a primeira linha logo após ele também é transação.
+- Ignore o cabeçalho e linhas de total/subtotal. NUNCA inclua linhas de SALDO em qualquer forma ("Saldo", "Saldo inicial", "Saldo final", "Saldo anterior", "Saldo do dia") — são posição acumulada, não movimentação.
 - Se não houver dados financeiros, retorne somente: SEM_DADOS
 
 Texto:
