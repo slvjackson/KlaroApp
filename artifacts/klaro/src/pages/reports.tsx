@@ -12,7 +12,7 @@ import {
 import {
   FileText, FileSpreadsheet,
   X, Calendar, Printer, History, Trash2, Clock,
-  RotateCcw, Pencil,
+  RotateCcw, Pencil, Info,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -55,15 +55,51 @@ const REPORT_LABEL = "Relatório Financeiro";
 
 // Single report — the user picks exactly which blocks to include.
 const SECTIONS = [
-  { id: "verdict",        label: "Veredito da saúde (pontuação + leitura narrada)" },
-  { id: "kpis",           label: "KPIs do período (saldo, entradas, saídas)" },
-  { id: "health",         label: "Componentes de pontuação de saúde" },
-  { id: "monthly",        label: "Evolução mensal (barras)" },
-  { id: "bestWorstMonth", label: "Melhor e pior mês (resultado e faturamento)" },
-  { id: "topExpense",     label: "Top categorias de despesa" },
-  { id: "topIncome",      label: "Top categorias de receita" },
-  { id: "categoryDelta",  label: "Variação por categoria vs período anterior" },
-  { id: "txs",            label: "Listagem detalhada de transações" },
+  {
+    id: "verdict",
+    label: "Como está a saúde da sua gestão?",
+    desc: "Uma nota de 0 a 100 com um texto curto explicando, em linguagem simples, como anda o seu negócio no período.",
+  },
+  {
+    id: "kpis",
+    label: "Resumo do período (entradas, saídas e saldo)",
+    desc: "Os números principais do período: total que entrou, total que saiu, saldo final e quantidade de transações.",
+  },
+  {
+    id: "health",
+    label: "Detalhes da saúde da gestão",
+    desc: "Mostra o que forma a nota de saúde — organização das finanças, margem, regularidade — para entender onde melhorar.",
+  },
+  {
+    id: "monthly",
+    label: "Evolução mês a mês (gráfico)",
+    desc: "Gráfico de barras comparando o quanto entrou e saiu em cada mês do período escolhido.",
+  },
+  {
+    id: "bestWorstMonth",
+    label: "Melhor e pior mês",
+    desc: "Destaca o mês de melhor e pior resultado (entradas − saídas) e também o de maior e menor faturamento.",
+  },
+  {
+    id: "topExpense",
+    label: "Onde você mais gasta",
+    desc: "Ranking das categorias que mais consumiram dinheiro no período, com valor e percentual do total.",
+  },
+  {
+    id: "topIncome",
+    label: "De onde vem o seu dinheiro",
+    desc: "Ranking das categorias que mais geraram receita no período, com valor e percentual do total.",
+  },
+  {
+    id: "categoryDelta",
+    label: "O que mudou em relação ao período anterior",
+    desc: "Compara cada categoria com o período anterior de mesma duração, mostrando o que subiu e o que caiu.",
+  },
+  {
+    id: "txs",
+    label: "Lista completa de transações",
+    desc: "Tabela com todas as transações do período: data, tipo, categoria, descrição e valor. Boa para o contador.",
+  },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -484,7 +520,8 @@ function ReportConfigurator({
             return (
               <label
                 key={s.id}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-md border cursor-pointer transition-colors ${
+                title={s.desc}
+                className={`flex items-start gap-2.5 px-3 py-2.5 rounded-md border cursor-pointer transition-colors ${
                   checked
                     ? "bg-[var(--accent-soft)]/40 border-[var(--accent)]/30"
                     : "bg-white/[0.02] border-[var(--border)] hover:border-white/20"
@@ -494,9 +531,17 @@ function ReportConfigurator({
                   type="checkbox"
                   checked={checked}
                   onChange={() => toggleSection(s.id)}
-                  className="accent-[var(--accent)] w-3.5 h-3.5 shrink-0"
+                  className="accent-[var(--accent)] w-3.5 h-3.5 shrink-0 mt-0.5"
                 />
-                <span className="text-[12px] text-white/90">{s.label}</span>
+                <span className="min-w-0">
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-[12.5px] font-medium text-white/90">{s.label}</span>
+                    <span title={s.desc} className="shrink-0 text-[var(--muted)] hover:text-white cursor-help">
+                      <Info size={12} />
+                    </span>
+                  </span>
+                  <span className="block text-[11px] text-[var(--muted)] leading-snug mt-0.5">{s.desc}</span>
+                </span>
               </label>
             );
           })}
