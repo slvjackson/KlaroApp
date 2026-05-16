@@ -9,7 +9,7 @@ export function AnamneseCta({ completed }: Props) {
   if (completed) return null;
   return (
     <Link href="/anamnese" className="block">
-      <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-[rgba(106,248,47,0.08)] to-[rgba(106,248,47,0.03)] border border-[rgba(106,248,47,0.18)] hover:border-[rgba(106,248,47,0.35)] transition-colors cursor-pointer group">
+      <div className="flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-[rgba(106,248,47,0.08)] to-[rgba(106,248,47,0.03)] border border-[rgba(106,248,47,0.18)] hover:border-[rgba(106,248,47,0.35)] transition-colors cursor-pointer group">
         <div className="w-8 h-8 rounded-xl bg-[var(--accent-soft)] grid place-items-center shrink-0 group-hover:scale-105 transition-transform">
           <Sparkles size={14} className="text-[#90f048]" />
         </div>
@@ -17,12 +17,12 @@ export function AnamneseCta({ completed }: Props) {
           <div className="text-[12.5px] font-semibold text-white leading-snug">
             Quer insights ainda mais personalizados e precisos pro seu negócio?
           </div>
-          <div className="text-[11px] text-[var(--muted)] mt-0.5">
+          <div className="text-[11px] text-[var(--muted)] mt-1 leading-relaxed">
             Responda perguntas rápidas e a Klaro IA vai te entregar análises muito mais precisas e personalizadas.
           </div>
-        </div>
-        <div className="text-[11px] font-semibold text-[#90f048] shrink-0 group-hover:translate-x-0.5 transition-transform">
-          Fazer diagnóstico →
+          <div className="mt-2 inline-flex items-center gap-1 text-[11.5px] font-semibold text-[#90f048] group-hover:gap-1.5 transition-all">
+            Fazer diagnóstico <span aria-hidden>→</span>
+          </div>
         </div>
       </div>
     </Link>

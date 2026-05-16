@@ -151,15 +151,15 @@ export default function Chat() {
           {/* Messages */}
           <div id="tutorial-chat-messages" ref={scrollRef} className="flex-1 overflow-y-auto klaro-scroll px-5 py-5 space-y-3.5 relative">
             {isEmpty ? (
-              <div className="h-full flex flex-col items-center justify-center text-center gap-5 pb-6">
-                <img src="/logo.png" alt="Klaro" className="w-14 h-14 rounded-xl object-cover" />
+              <div className="h-full flex flex-col items-center justify-center text-center gap-4 px-4 py-6">
+                <img src="/logo.png" alt="Klaro" className="w-12 h-12 rounded-xl object-cover" />
                 <div>
                   <div className="text-[15px] font-semibold text-white">Pergunte qualquer coisa</div>
-                  <div className="text-[12px] text-[var(--muted)] max-w-[260px] leading-relaxed mt-1">
+                  <div className="text-[12px] text-[var(--muted)] max-w-[320px] leading-relaxed mt-1">
                     Seu assistente entende suas transações, categorias e tendências.
                   </div>
                 </div>
-                <div id="tutorial-chat-suggestions" className="w-full space-y-1.5 max-w-xs">
+                <div id="tutorial-chat-suggestions" className="w-full max-w-md space-y-1.5">
                   <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]/70 font-semibold text-left pl-1">Sugestões</div>
                   {CHAT_SUGGESTIONS.slice(0, 4).map((s) => (
                     <button
@@ -172,7 +172,7 @@ export default function Chat() {
                     </button>
                   ))}
                 </div>
-                <div className="w-full max-w-xs">
+                <div className="w-full max-w-md">
                   <AnamneseCta completed={anamneseCompleted} />
                 </div>
               </div>
