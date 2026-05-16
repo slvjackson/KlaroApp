@@ -14,6 +14,11 @@ export interface OcrPromptContext {
 export function buildOcrPrompt(ctx: OcrPromptContext): string {
   const seg = ctx.segment;
 
+  const now = new Date();
+  const anoAtual = now.getFullYear();
+  const mesAtual = now.getMonth() + 1;
+  const hojeBR = now.toLocaleDateString("pt-BR");
+
   const businessLines: string[] = [];
   if (ctx.businessName) businessLines.push(`- Nome do negócio: ${ctx.businessName}`);
   if (seg) businessLines.push(`- Segmento: ${seg.label}`);
@@ -62,11 +67,18 @@ Regras importantes:
 - Não inclua cabeçalho nem explicações — retorne apenas as linhas CSV.
 - Se a imagem não contiver dados financeiros, retorne somente: SEM_DADOS
 
-Regras de data (IMPORTANTE):
+VERIFICAÇÃO OBRIGATÓRIA antes de responder (faça mentalmente, não escreva):
+1. Volte ao TOPO da lista. A PRIMEIRA linha de transação (logo após título/cabeçalho, se houver) está na sua resposta? Ela é a mais esquecida — confirme que não pulou.
+2. Conte as linhas de transação escritas na imagem (excluindo título, saldos, totais e anotações). O número de linhas no seu CSV deve ser EXATAMENTE igual. Se for menor, você pulou alguma — releia da primeira à última.
+3. Para CADA linha, confira percorrendo a HORIZONTAL: a descrição e o valor estão na MESMA linha física? Some os valores de todas as colunas (crédito + débito + ...) — o total de valores deve bater com o nº de linhas. Se um valor "sobrou" ou "faltou", você leu a coluna como lista vertical e desalinhou — refaça linha a linha.
+4. Para CADA linha, o tipo (entrada/saida) foi definido pela COLUNA onde o valor está (crédito=entrada, débito=saída), e não pela descrição? Corrija os que classificou pela descrição (ex.: "pagamento compra X" recebido na coluna crédito é ENTRADA, não saída).
+
+Regras de data (IMPORTANTE) — hoje é ${hojeBR} (ano atual = ${anoAtual}, mês atual = ${mesAtual}):
 - Formato de saída sempre DD/MM/YYYY com o ano completo.
-- Prefira sempre o padrão brasileiro DD/MM/YYYY. Só use MM/DD/YYYY se o dia for > 12 e estiver na segunda posição (ex: 01/13/2026 → mês=01, dia=13).
-- Se houver apenas o dia (ex: "10") → use o dia 10, mês atual, ano atual.
-- Se houver apenas dia e mês (ex: "10/01") → use dia 10, mês 01, ano atual.
-- Se houver uma data geral para o grupo (ex: cabeçalho "05/04/2026") use-a para todos os itens daquele grupo.
-- Nunca invente datas; se não houver nenhuma informação de data, use a data de hoje.`;
+- Prefira sempre o padrão brasileiro DD/MM/YYYY. Só use MM/DD/YYYY se o dia for > 12 e estiver na segunda posição (ex: 01/13/${anoAtual} → mês=01, dia=13).
+- Quando a anotação NÃO tiver ano (ex.: "01/05", "10/3"), use SEMPRE o ano atual ${anoAtual}. NUNCA use ${anoAtual - 1} nem outro ano — não invente o ano.
+- Se houver apenas o dia (ex: "10") → use o dia 10, mês atual (${mesAtual}), ano atual (${anoAtual}).
+- Se houver apenas dia e mês (ex: "10/01") → use dia 10, mês 01, ano atual (${anoAtual}).
+- Se houver uma data geral/ano explícito para o grupo (ex: cabeçalho "05/04/${anoAtual}") use-a para todos os itens daquele grupo.
+- Nunca invente datas; se não houver nenhuma informação de data, use a data de hoje (${hojeBR}).`;
 }
