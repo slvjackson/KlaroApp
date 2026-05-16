@@ -318,7 +318,7 @@ export default function Reports() {
           {history.length === 0 ? (
             <div className="glass rounded-2xl p-6 text-center">
               <div className="text-[12.5px] text-[var(--muted)]">
-                Nenhum relatório gerado ainda. Comece pelo <span className="text-white">Resumo da Saúde Financeira</span>.
+                Nenhum relatório gerado ainda. <span className="text-white">Comece clicando em "Gerar relatório".</span>
               </div>
             </div>
           ) : (
