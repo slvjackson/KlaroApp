@@ -1,7 +1,6 @@
 import fs from "fs";
 import path from "path";
 import * as XLSX from "xlsx";
-import sharp from "sharp";
 import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "./logger";
 import { buildOcrPrompt, getSegmentProfile } from "../prompts/builder";
@@ -755,39 +754,6 @@ const IMAGE_MEDIA_TYPES: Record<string, "image/jpeg" | "image/png" | "image/gif"
   webp: "image/webp",
 };
 
-/**
- * Pre-process a photo for OCR: auto-orient (EXIF), grayscale, contrast
- * normalize, mild sharpen, and upscale small images. Notebook/receipt photos
- * are often tilted, low-contrast (pencil/pen) and small — this makes faint
- * first lines and handwriting far more legible to the vision model.
- * Always falls back to the original bytes if anything fails.
- */
-async function preprocessImageForOcr(
-  buffer: Buffer,
-  fallbackMediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp",
-): Promise<{ data: Buffer; mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" }> {
-  try {
-    const img = sharp(buffer, { failOn: "none" }).rotate(); // rotate() applies EXIF orientation
-    const meta = await img.metadata();
-    const width = meta.width ?? 0;
-
-    let pipeline = img.grayscale().normalize().sharpen();
-    // Upscale small images so handwriting strokes are resolvable; cap to keep
-    // the payload reasonable for the vision API.
-    if (width > 0 && width < 1700) {
-      pipeline = pipeline.resize({ width: Math.min(2200, Math.round(width * 2)), withoutEnlargement: false });
-    } else if (width > 3000) {
-      pipeline = pipeline.resize({ width: 3000 });
-    }
-
-    const out = await pipeline.png({ compressionLevel: 6 }).toBuffer();
-    return { data: out, mediaType: "image/png" };
-  } catch (err) {
-    logger.warn({ err }, "Image preprocess failed — using original bytes");
-    return { data: buffer, mediaType: fallbackMediaType };
-  }
-}
-
 export async function extractImageText(filePath: string, ctx?: ParseBusinessContext): Promise<string> {
   const client = getAnthropicClient();
   if (!client) {
@@ -808,8 +774,7 @@ export async function extractImageText(filePath: string, ctx?: ParseBusinessCont
 
   try {
     const imageData = fs.readFileSync(absPath);
-    const processed = await preprocessImageForOcr(imageData, mediaType);
-    const base64 = processed.data.toString("base64");
+    const base64 = imageData.toString("base64");
 
     const IMAGE_MODEL = "claude-sonnet-4-6";
     const response = await client.messages.create({
@@ -821,7 +786,7 @@ export async function extractImageText(filePath: string, ctx?: ParseBusinessCont
           content: [
             {
               type: "image",
-              source: { type: "base64", media_type: processed.mediaType, data: base64 },
+              source: { type: "base64", media_type: mediaType, data: base64 },
             },
             { type: "text", text: promptText },
           ],
