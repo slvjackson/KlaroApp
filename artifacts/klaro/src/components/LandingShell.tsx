@@ -57,20 +57,14 @@ export function TopNav() {
                 Produto
                 <ChevronDown size={13} className="opacity-70 group-hover:rotate-180 transition-transform" />
               </Link>
-              <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity absolute left-0 top-full -mt-1 w-72 rounded-xl border border-white/10 bg-[#0e0e12] shadow-2xl p-1.5">
-                {SOLUTIONS.map(({ Icon, label, desc, slug }) => (
+              <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity absolute left-0 top-full -mt-1 w-56 rounded-xl border border-white/10 bg-[#0e0e12] shadow-2xl p-1.5">
+                {SOLUTIONS.map(({ label, slug }) => (
                   <Link
                     key={slug}
                     href={`/solucoes/${slug}`}
-                    className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors"
+                    className="block px-3 py-2 rounded-lg text-[13px] text-white/70 hover:text-white hover:bg-white/5 transition-colors"
                   >
-                    <span className="w-7 h-7 rounded-lg bg-white/5 grid place-items-center shrink-0 mt-0.5">
-                      <Icon size={14} className="text-[#90f048]" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[12.5px] font-medium text-white">{label}</span>
-                      <span className="block text-[11px] text-white/55 leading-snug mt-0.5">{desc}</span>
-                    </span>
+                    {label}
                   </Link>
                 ))}
               </div>
@@ -105,14 +99,13 @@ export function TopNav() {
               <button type="button" onClick={() => goTo("/")} className="text-left py-2 hover:text-white transition-colors">Home</button>
               <button type="button" onClick={() => goTo("/solucoes")} className="text-left py-2 hover:text-white transition-colors">Produto</button>
               <div className="pl-3 grid gap-0.5 border-l border-white/10 ml-1">
-                {SOLUTIONS.map(({ Icon, label, slug }) => (
+                {SOLUTIONS.map(({ label, slug }) => (
                   <button
                     key={slug}
                     type="button"
                     onClick={() => goTo(`/solucoes/${slug}`)}
-                    className="flex items-center gap-2.5 text-left py-2 text-[13px] text-white/65 hover:text-white transition-colors"
+                    className="text-left py-2 text-[13px] text-white/65 hover:text-white transition-colors"
                   >
-                    <Icon size={14} className="text-[#90f048] shrink-0" />
                     {label}
                   </button>
                 ))}
