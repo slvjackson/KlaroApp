@@ -71,7 +71,6 @@ export function TopNav() {
             </div>
             <Link href="/precos" className="hover:text-white transition-colors">Preços</Link>
             <Link href="/empresa" className="hover:text-white transition-colors">Nosso Propósito</Link>
-            <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
           </div>
         </div>
         <div className="hidden sm:flex items-center gap-2">
@@ -112,7 +111,6 @@ export function TopNav() {
               </div>
               <button type="button" onClick={() => goTo("/precos")} className="text-left py-2 hover:text-white transition-colors">Preços</button>
               <button type="button" onClick={() => goTo("/empresa")} className="text-left py-2 hover:text-white transition-colors">Nosso Propósito</button>
-              <button type="button" onClick={() => goTo("/faq")} className="text-left py-2 hover:text-white transition-colors">FAQ</button>
             </div>
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
               <button onClick={() => goTo("/login")} className="text-[13px] text-white/70 hover:text-white px-3 py-2 rounded-lg border border-white/10 transition-colors">
@@ -133,7 +131,7 @@ export function TopNav() {
 
 export function RichFooter() {
   const cols: Array<{ title: string; links: Array<[string, string]> }> = [
-    { title: "Home",  links: [["Visão geral", "/"], ["Preços", "/precos"]] },
+    { title: "Home",  links: [["Visão geral", "/"], ["Preços", "/precos"], ["FAQ", "/faq"]] },
     { title: "Produto", links: SOLUTIONS.map((s) => [s.label, `/solucoes/${s.slug}`] as [string, string]) },
     { title: "NOSSO PROPÓSITO",  links: [["Sobre", "/empresa"], ["Missão e valores", "/empresa"]] },
     { title: "Legal",    links: [["Termos", "/terms"], ["Privacidade", "/privacy"]] },
