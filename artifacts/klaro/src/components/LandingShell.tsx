@@ -151,10 +151,20 @@ export function RichFooter() {
               Inteligência de negócios na palma de sua mão. Clareza nos números. Resultado no bolso. 
             </p>
             <div className="flex items-center gap-3">
-              {[Linkedin, Instagram].map((Ic, i) => (
-                <span key={i} className="w-8 h-8 rounded-md border border-white/10 grid place-items-center text-white/50 hover:text-white hover:border-white/30 cursor-pointer transition-colors">
+              {[
+                { Ic: Linkedin, label: "LinkedIn", href: "https://www.linkedin.com/company/app-klaro/" },
+                { Ic: Instagram, label: "Instagram", href: "https://www.instagram.com/app.klaro/" },
+              ].map(({ Ic, label, href }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className="w-8 h-8 rounded-md border border-white/10 grid place-items-center text-white/50 hover:text-white hover:border-white/30 cursor-pointer transition-colors"
+                >
                   <Ic size={13} />
-                </span>
+                </a>
               ))}
             </div>
           </div>
