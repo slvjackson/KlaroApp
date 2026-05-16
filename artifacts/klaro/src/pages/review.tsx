@@ -419,7 +419,9 @@ export default function Review() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
-          <div className="bg-card border border-border rounded-md overflow-hidden">
+          <>
+          {/* Desktop: dense table */}
+          <div className="hidden md:block bg-card border border-border rounded-md overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-transparent">
@@ -531,6 +533,129 @@ export default function Review() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Mobile: one card per transaction, all fields full-width */}
+          <div className="md:hidden space-y-3">
+            {filteredRecords.map((record: ParsedRecord) => {
+              const isChecked = selected.has(record.id);
+              const type = getField(record, 'type') as string;
+              return (
+                <div
+                  key={record.id}
+                  className={`rounded-2xl border p-3.5 ${
+                    isChecked
+                      ? "border-[var(--accent)]/40 bg-[var(--accent-soft)]/15"
+                      : "border-border bg-card"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <button
+                      onClick={() => toggleRow(record.id)}
+                      className="flex items-center gap-2 text-[13px] text-[var(--muted)] hover:text-white transition-colors"
+                    >
+                      {isChecked
+                        ? <CheckSquare size={17} className="text-[var(--accent)]" />
+                        : <Square size={17} />}
+                      <span>{isChecked ? "Selecionada" : "Selecionar"}</span>
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(record.id)}
+                      className="text-muted-foreground hover:text-destructive h-8 w-8 -mr-1"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">Descrição</label>
+                      <Input
+                        value={getField(record, 'description') as string}
+                        onChange={(e) => setField(record.id, 'description', e.target.value)}
+                        onBlur={(e) => handleUpdate(record.id, 'description', e.target.value)}
+                        className="h-11 text-[14px]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">Data</label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="dd/mm/aaaa"
+                          value={edits[record.id]?.date ?? isoToBR(record.date)}
+                          onChange={(e) => setField(record.id, 'date', e.target.value)}
+                          onBlur={(e) => { const iso = brToISO(e.target.value); if (iso) handleUpdate(record.id, 'date', iso); }}
+                          className="h-11 text-[14px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">Valor</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[var(--muted)] pointer-events-none">R$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            inputMode="decimal"
+                            value={getField(record, 'amount') as number}
+                            onChange={(e) => setField(record.id, 'amount', e.target.value)}
+                            onBlur={(e) => handleUpdate(record.id, 'amount', parseFloat(e.target.value))}
+                            className="h-11 text-[14px] pl-9 text-right font-medium tnum"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">Tipo</label>
+                        <Select
+                          value={type}
+                          onValueChange={(val) => {
+                            setField(record.id, 'type', val);
+                            handleUpdate(record.id, 'type', val);
+                          }}
+                        >
+                          <SelectTrigger className="h-11 text-[14px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="income">Entrada</SelectItem>
+                            <SelectItem value="expense">Saída</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">Categoria</label>
+                        <Input
+                          value={getField(record, 'category') as string}
+                          onChange={(e) => setField(record.id, 'category', e.target.value)}
+                          onBlur={(e) => handleUpdate(record.id, 'category', e.target.value)}
+                          className="h-11 text-[14px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {filteredRecords.length === 0 && (
+              <div className="text-center py-10 bg-card border border-border rounded-2xl">
+                <p className="text-white font-medium">
+                  {rowFilter ? "Nenhum registro para este filtro." : "Nenhum registro encontrado neste arquivo"}
+                </p>
+                {!rowFilter && (
+                  <p className="text-muted-foreground text-sm max-w-md mx-auto mt-1 px-4">
+                    Verifique se o arquivo tem colunas de data, descrição e valor. Formatos suportados: CSV, Excel (.xlsx/.xls).
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          </>
         )}
       </div>
 
