@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useRequireAuth } from "@/hooks/use-auth";
@@ -10,8 +10,8 @@ import {
   useGetMe,
 } from "@workspace/api-client-react";
 import {
-  FileText, Download, FileSpreadsheet, Heart, TrendingUp, ListTree, Receipt,
-  X, ChevronRight, Calendar, Printer, Sparkles, History, Trash2, Clock,
+  FileText, FileSpreadsheet,
+  X, Calendar, Printer, History, Trash2, Clock,
   RotateCcw, Pencil,
 } from "lucide-react";
 
@@ -186,15 +186,20 @@ export default function Reports() {
   const { isLoading: authLoading } = useRequireAuth();
   const [history, setHistory] = useState<ReportHistoryEntry[]>([]);
   const [preview, setPreview] = useState<PreviewSpec | null>(null);
-  // Seed for the inline configurator (set when editing a history entry).
-  // The nonce forces the configurator to re-initialize with the new values.
-  const [seed, setSeed] = useState<{ period: Period; sections: Set<SectionId>; nonce: number } | null>(null);
+  // Configurator modal. `seed` carries initial values (set when editing a
+  // history entry); `nonce` forces the modal to re-initialize.
+  const [config, setConfig] = useState<{ period?: Period; sections?: Set<SectionId>; nonce: number } | null>(null);
 
   useEffect(() => { setHistory(loadHistory()); }, []);
 
   if (authLoading) return null;
 
+  function openConfigurator() {
+    setConfig({ nonce: Date.now() });
+  }
+
   function startPreview(spec: PreviewSpec) {
+    setConfig(null);
     setPreview(spec);
   }
 
@@ -206,12 +211,11 @@ export default function Reports() {
   }
 
   function editHistoryEntry(entry: ReportHistoryEntry) {
-    setSeed({
+    setConfig({
       period: entry.period,
       sections: new Set(entry.sections as SectionId[]),
       nonce: Date.now(),
     });
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function recordReport(entry: ReportHistoryEntry) {
@@ -236,7 +240,7 @@ export default function Reports() {
       <div className="space-y-6 md:space-y-7">
 
         {/* ── Hero ───────────────────────────────────── */}
-        <section className="glass rounded-2xl p-5 md:p-6 flex items-center gap-4 md:gap-6">
+        <section className="glass rounded-2xl p-5 md:p-6 flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
           <div className="w-12 h-12 rounded-xl bg-[var(--accent-soft)] grid place-items-center shrink-0">
             <FileText size={22} className="text-[var(--accent)]" />
           </div>
@@ -245,19 +249,18 @@ export default function Reports() {
               Gere seu relatório financeiro em segundos
             </div>
             <div className="text-[12.5px] text-[var(--muted)] mt-1 leading-relaxed">
-              Marque o que você quer ver, ajuste o período e baixe em PDF para apresentar a
+              Escolha o que quer ver e o período, e baixe em PDF para apresentar a
               banco/sócio ou em CSV para enviar ao contador.
             </div>
           </div>
+          <button
+            onClick={openConfigurator}
+            className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-[12.5px] font-semibold text-[#09090b] bg-gradient-to-b from-[#6af82f] to-[#4de020] hover:brightness-110 transition"
+          >
+            <FileText size={14} />
+            Gerar relatório
+          </button>
         </section>
-
-        {/* ── Configurador inline ───────────────────── */}
-        <ReportConfigurator
-          key={seed?.nonce ?? "default"}
-          initialPeriod={seed?.period}
-          initialSections={seed?.sections}
-          onPreview={startPreview}
-        />
 
         {/* ── Histórico ─────────────────────────────── */}
         <section>
@@ -338,6 +341,16 @@ export default function Reports() {
         </section>
       </div>
 
+      {config && (
+        <ReportConfigurator
+          key={config.nonce}
+          initialPeriod={config.period}
+          initialSections={config.sections}
+          onClose={() => setConfig(null)}
+          onPreview={startPreview}
+        />
+      )}
+
       {preview && (
         <ReportPreview
           period={preview.period}
@@ -355,10 +368,12 @@ export default function Reports() {
 function ReportConfigurator({
   initialPeriod,
   initialSections,
+  onClose,
   onPreview,
 }: {
   initialPeriod?: Period;
   initialSections?: Set<SectionId>;
+  onClose: () => void;
   onPreview: (spec: PreviewSpec) => void;
 }) {
   const [period, setPeriod] = useState<Period>(() => initialPeriod ?? computePeriod("last-month"));
@@ -376,17 +391,40 @@ function ReportConfigurator({
     setPeriod(computePeriod(kind, period.from, period.to));
   }
 
-  return (
-    <section className="glass rounded-2xl p-5 md:p-6">
-      <div className="text-[15px] font-semibold text-white mb-1">
-        O que gostaria de ver no seu relatório?
-      </div>
-      <div className="text-[12px] text-[var(--muted)] mb-5">
-        Marque os blocos que quer incluir e escolha o período.
-      </div>
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
-      {/* Período */}
-      <div className="mb-5">
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative z-10 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto glass-strong border border-[var(--border)] rounded-t-2xl sm:rounded-2xl p-5 md:p-6 fadeUp"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-1">
+          <div className="text-[15px] font-semibold text-white">
+            O que gostaria de ver no seu relatório?
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 -mt-1 -mr-1 grid place-items-center rounded-lg text-[var(--muted)] hover:text-white hover:bg-white/5 shrink-0"
+            aria-label="Fechar"
+          >
+            <X size={14} />
+          </button>
+        </div>
+        <div className="text-[12px] text-[var(--muted)] mb-5">
+          Marque os blocos que quer incluir e escolha o período.
+        </div>
+
+        {/* Período */}
+        <div className="mb-5">
         <div className="text-[10.5px] uppercase tracking-[0.14em] font-semibold text-[var(--muted)] mb-2">
           <Calendar size={11} className="inline mr-1 -mt-0.5" /> Período
         </div>
@@ -473,12 +511,13 @@ function ReportConfigurator({
         <FileText size={14} />
         Gerar pré-visualização
       </button>
-      <div className="text-[10.5px] text-[var(--muted)] mt-2 leading-relaxed">
-        {sections.size === 0
-          ? "Selecione ao menos um bloco para gerar o relatório."
-          : "A pré-visualização abre em tela cheia. De lá você baixa em PDF ou CSV."}
+        <div className="text-[10.5px] text-[var(--muted)] mt-2 leading-relaxed">
+          {sections.size === 0
+            ? "Selecione ao menos um bloco para gerar o relatório."
+            : "A pré-visualização abre em tela cheia. De lá você baixa em PDF ou CSV."}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
 
