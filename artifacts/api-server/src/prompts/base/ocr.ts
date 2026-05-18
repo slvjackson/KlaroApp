@@ -40,8 +40,22 @@ export function buildOcrPrompt(ctx: OcrPromptContext): string {
 
   return `Você é um assistente especializado em extração de dados financeiros de imagens.
 Analise esta imagem (pode ser ${seg ? seg.exemplosDocumentos.slice(0, 3).join(", ") : "extrato bancário, caderno de anotações, nota fiscal, recibo"}, etc.).
-Extraia as transações financeiras individuais e retorne SOMENTE um CSV com as colunas:
+Sua resposta tem DUAS partes obrigatórias, nesta ordem exata:
+
+PARTE 1 — TRANSCRIÇÃO LINHA A LINHA (faça ANTES de qualquer classificação):
+Transcreva TODA linha física de escrita visível, de cima para baixo, SEM PULAR NENHUMA, numerando a partir de 1. Inclua também título, linha riscada, saldo e total — você NÃO vai descartar nada aqui, só transcrever. Marque cada linha com um rótulo entre colchetes no início:
+- [TITULO] título/rótulo solto sem valor de item (ex.: "Data", "Vendas")
+- [RISCADO] linha riscada/rasurada/cancelada (traço por cima, rabiscada)
+- [SALDO] linha de saldo (inicial/final/anterior/do dia), normalmente com seta
+- [TOTAL] total/subtotal/soma
+- [NOTA] anotação/observação que não é transação
+- [ITEM] transação real (tem item + valor) — TUDO que não se encaixa acima é [ITEM]
+Formato: \`N. [ROTULO] texto exato como está escrito\`. A primeira linha de escrita é a nº 1, mesmo que seja título ou riscada.
+
+PARTE 2 — CSV:
+Depois da transcrição, escreva uma linha contendo apenas \`CSV:\` e então o CSV com as colunas:
 data,descricao,valor,tipo
+Gere UMA linha de CSV para CADA linha marcada [ITEM] na PARTE 1, na mesma ordem — nem mais, nem menos. Linhas [TITULO]/[RISCADO]/[SALDO]/[TOTAL]/[NOTA] NÃO geram CSV. A primeira linha [ITEM] da transcrição (mesmo logo após um [TITULO] ou [RISCADO]) É a primeira linha do CSV e NUNCA pode faltar.
 ${businessSection}${segmentHints}
 Regras importantes:
 - Extraia CADA linha de item individualmente. Se o mesmo produto aparece duas vezes, gere duas linhas separadas.
@@ -66,16 +80,16 @@ Regras importantes:
 - Considere TODA a informação visível em cada linha/registro (todas as colunas e campos) como contexto de análise ao classificar.
 - Se a linha é claramente uma transação (tem descrição de item) mas o valor está ilegível, ausente ou desalinhado, NÃO descarte a linha: extraia com valor 0 para o usuário corrigir na revisão. Só omita o que claramente não é transação (títulos, saldos, totais, anotações).
 - Use ponto como separador decimal (ex: 13.00, não 13,00).
-- Cada linha do CSV tem EXATAMENTE 4 campos nesta ordem: data,descricao,valor,tipo. A vírgula só separa esses 4 campos. Não inclua cabeçalho, texto explicativo nem numeração — retorne apenas as linhas de dados.
-- Se a imagem não contiver dados financeiros, retorne somente: SEM_DADOS
+- Na PARTE 2, cada linha do CSV tem EXATAMENTE 4 campos nesta ordem: data,descricao,valor,tipo. A vírgula só separa esses 4 campos. Não repita a numeração nem os rótulos [ITEM]/[TITULO] no CSV — eles pertencem só à PARTE 1.
+- Se a imagem não contiver NENHUMA linha [ITEM] (sem dados financeiros), retorne apenas a PARTE 1 e, no lugar do CSV, a linha: CSV:\nSEM_DADOS
 
-VERIFICAÇÃO OBRIGATÓRIA antes de responder (faça mentalmente, não escreva):
-1. Volte ao TOPO da lista. A PRIMEIRA linha de transação (logo após título/cabeçalho e/ou linha RISCADA, se houver) está na sua resposta? Ela é a mais esquecida — um título solto ("Data") ou uma linha riscada logo acima dela faz você pular a primeira transação real. Confirme que a primeira linha não riscada com item + valor está no CSV.
-1b. A PRIMEIRA e a ÚLTIMA linha do bloco têm seta (▷/→) apontando para um valor, ou parecem abertura/fechamento? Se sim, é Saldo inicial/final — NÃO pode estar no seu CSV. Remova-as mesmo que você tenha lido a descrição como uma venda/compra (o manuscrito de "Saldo" engana).
-2. Conte as linhas de transação escritas na imagem (excluindo título, saldos, totais e anotações). O número de linhas no seu CSV deve ser EXATAMENTE igual. Se for menor, você pulou alguma; se for maior, provavelmente incluiu um saldo/total — releia da primeira à última.
-3. Para CADA linha, confira percorrendo a HORIZONTAL: a descrição e o valor estão na MESMA linha física? Some os valores de todas as colunas (crédito + débito + ...) — o total de valores deve bater com o nº de linhas. Se um valor "sobrou" ou "faltou", você leu a coluna como lista vertical e desalinhou — refaça linha a linha.
-4. Para CADA linha, o tipo (entrada/saida) foi definido pela COLUNA onde o valor está (crédito=entrada, débito=saída), e não pela descrição? Corrija os que classificou pela descrição (ex.: "pagamento compra X" recebido na coluna crédito é ENTRADA, não saída).
-5. Cada linha tem exatamente 4 campos (data,descricao,valor,tipo)? A descrição contém só o texto do item (sem valor, sem "entrada/saida")? A coluna valor é um número? Corrija antes de responder.
+VERIFICAÇÃO OBRIGATÓRIA entre a PARTE 1 e a PARTE 2 (releia sua própria transcrição):
+1. A linha nº 1 da sua transcrição corresponde à PRIMEIRA linha física de escrita da imagem (o topo absoluto, geralmente um [TITULO] como "Data")? Se a sua nº 1 já é um [ITEM], você provavelmente pulou linhas acima — recomece a transcrição do topo.
+2. Liste mentalmente os números das linhas [ITEM]. A PARTE 2 tem EXATAMENTE uma linha de CSV para cada um desses números, na mesma ordem. Conte: nº de linhas [ITEM] == nº de linhas no CSV. Se faltar, a vítima quase sempre é a primeira [ITEM] (logo após [TITULO]/[RISCADO]) — inclua-a.
+3. Nenhuma linha [RISCADO], [SALDO], [TOTAL], [NOTA] ou [TITULO] virou linha de CSV. Se virou, remova.
+4. Para CADA [ITEM], a descrição e o valor estão na MESMA linha física da transcrição? Some os valores de todas as colunas (crédito + débito + ...) — o total deve bater com o nº de [ITEM]. Se um valor "sobrou"/"faltou", você desalinhou colunas — refaça.
+5. Para CADA [ITEM], o tipo (entrada/saida) foi definido pela COLUNA/sinal onde o valor está (crédito/+=entrada, débito/−=saída), e não pela descrição? Corrija (ex.: "pagamento compra X" recebido na coluna crédito é ENTRADA).
+6. Cada linha de CSV tem exatamente 4 campos? A descrição tem só o texto do item (sem valor, sem "entrada/saida")? O valor é número com ponto decimal? Corrija antes de responder.
 
 Regras de data (IMPORTANTE) — hoje é ${hojeBR} (ano atual = ${anoAtual}, mês atual = ${mesAtual}):
 - Formato de saída sempre DD/MM/YYYY com o ano completo.

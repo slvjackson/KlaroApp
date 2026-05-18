@@ -779,7 +779,9 @@ export async function extractImageText(filePath: string, ctx?: ParseBusinessCont
     const IMAGE_MODEL = "claude-sonnet-4-6";
     const response = await client.messages.create({
       model: IMAGE_MODEL,
-      max_tokens: 2048,
+      // Response now carries a full line-by-line transcription before the CSV;
+      // the CSV is last, so too small a budget truncates exactly what we parse.
+      max_tokens: 8192,
       messages: [
         {
           role: "user",
@@ -795,9 +797,22 @@ export async function extractImageText(filePath: string, ctx?: ParseBusinessCont
     });
     if (ctx?.userId) logTokenUsage(ctx.userId, "parse", IMAGE_MODEL, response.usage.input_tokens, response.usage.output_tokens);
 
-    const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-    if (text === "SEM_DADOS" || !text) return "";
-    logger.info({ absPath, lines: text.split("\n").length }, "Image OCR completed");
+    const fullText = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+    if (!fullText) return "";
+
+    // The prompt returns a two-part response: a line-by-line transcription
+    // (PARTE 1) followed by a `CSV:` marker and the CSV (PARTE 2). The
+    // transcription forces the model to read every physical line before
+    // classifying, which fixes the chronic first-line drop. We only want the
+    // CSV downstream. Fall back to the whole text if the marker is absent.
+    const csvMatch = fullText.match(/(?:^|\n)\s*CSV:\s*\n?([\s\S]*)$/i);
+    const text = (csvMatch ? csvMatch[1] : fullText).trim();
+    if (!text || text === "SEM_DADOS") return "";
+
+    logger.info(
+      { absPath, lines: text.split("\n").length, hadCsvMarker: !!csvMatch },
+      "Image OCR completed",
+    );
     return text;
   } catch (err) {
     logger.error({ err, absPath }, "Image OCR failed");
