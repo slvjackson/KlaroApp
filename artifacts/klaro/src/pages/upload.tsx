@@ -152,9 +152,21 @@ export function GlobalUploadOverlay({
 // ─── Supported formats ─────────────────────────────────────────────────────────
 
 const SUPPORTED = [
-  { icon: FileText, label: "PDF" },
-  { icon: FileSpreadsheet, label: "Excel / CSV / OFX" },
-  { icon: FileImage, label: "Imagem" },
+  {
+    icon: FileText,
+    label: "PDF",
+    tip: "PDF com texto selecionável e páginas inteiras, a extração fica ainda mais precisa.",
+  },
+  {
+    icon: FileSpreadsheet,
+    label: "Excel / CSV / OFX",
+    tip: "Planilhas com cabeçalhos (Data, Descrição, Valor) e uma transação por linha, fica redondo.",
+  },
+  {
+    icon: FileImage,
+    label: "Imagem",
+    tip: "Quanto mais iluminada e com a letra legível, melhor a leitura.",
+  },
 ];
 
 // ─── Upload page ───────────────────────────────────────────────────────────────
@@ -276,13 +288,19 @@ export default function Upload() {
 
           <div className="space-y-3">
             {/* Supported formats */}
+            <p className="text-[11px] text-[var(--muted)] leading-snug px-0.5">
+              Lemos qualquer arquivo. Estas dicas são opcionais — quanto melhor a entrada, mais precisa a leitura:
+            </p>
             <div id="tutorial-upload-formats" className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
-              {SUPPORTED.map(({ icon: Icon, label }) => (
-                <div key={label} className="glass rounded-xl p-4 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-white/5 grid place-items-center">
+              {SUPPORTED.map(({ icon: Icon, label, tip }) => (
+                <div key={label} className="glass rounded-xl p-4 flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-white/5 grid place-items-center shrink-0">
                     <Icon size={16} className="text-[var(--muted)]" />
                   </div>
-                  <div className="text-[12px] font-medium text-white">{label}</div>
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-medium text-white">{label}</div>
+                    <p className="text-[11px] text-[var(--muted)] leading-snug mt-0.5">{tip}</p>
+                  </div>
                 </div>
               ))}
             </div>
